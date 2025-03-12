@@ -1,6 +1,5 @@
 import 'package:lktaskmanagementapp/packages/headerfiles.dart';
 
-
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -11,6 +10,7 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   TextEditingController usernameController = TextEditingController();
   TextEditingController passwordController = TextEditingController();
+  String connectionStatus = 'Checking...';
 
   Map<String, dynamic>? selectedRole;
   List<Map<String, dynamic>> roles = [];
@@ -18,11 +18,52 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _obscurePassword = true;
 
   @override
-  void initState()  {
+  void initState() {
     super.initState();
     fetchRoles();
-
+    checkConnectivity();
+    startListening();
   }
+
+  Future<void> checkConnectivity() async {
+    var connectivityResult = await Connectivity().checkConnectivity();
+    if (connectivityResult == ConnectivityResult.mobile) {
+      setState(() {
+        connectionStatus = 'Connected to mobile network';
+      });
+    } else if (connectivityResult == ConnectivityResult.wifi) {
+      setState(() {
+        connectionStatus = 'Connected to Wi-Fi';
+      });
+    } else {
+      setState(() {
+        connectionStatus = 'No internet connection';
+      });
+    }
+  }
+
+  void startListening() {
+    Connectivity().onConnectivityChanged.listen((
+        List<ConnectivityResult> result) {
+      if (result.isNotEmpty) {
+        if (result.first == ConnectivityResult.mobile) {
+          setState(() {
+            connectionStatus = 'Connected to mobile network';
+          });
+        } else if (result.first == ConnectivityResult.wifi) {
+          setState(() {
+            connectionStatus = 'Connected to Wi-Fi';
+          });
+        } else {
+          setState(() {
+            connectionStatus = 'No internet connection';
+          });
+        }
+      }
+    });
+  }
+
+
   Future<String> getDeviceId() async {
     final deviceInfoPlugin = DeviceInfoPlugin();
     SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -111,7 +152,8 @@ class _LoginScreenState extends State<LoginScreen> {
         await prefs.setString('role_Name', role_Name);
         await printDeviceId();
 
-        showToast(msg: response['message'] ?? 'Login successfully', backgroundColor: Colors.green);
+        showToast(msg: response['message'] ?? 'Login successfully',
+            backgroundColor: Colors.green);
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (context) => DashboardScreen()),
@@ -135,7 +177,10 @@ class _LoginScreenState extends State<LoginScreen> {
         children: [
           Container(
             width: double.infinity,
-            height: MediaQuery.of(context).size.height,
+            height: MediaQuery
+                .of(context)
+                .size
+                .height,
             child: Image.asset(
               'images/Login8.jpg',
               fit: BoxFit.cover,
@@ -147,6 +192,8 @@ class _LoginScreenState extends State<LoginScreen> {
               child: Center(
                 child: Column(
                   children: [
+
+
                     Image.asset(
                       'images/Logo.png',
                       width: 120,
@@ -160,14 +207,15 @@ class _LoginScreenState extends State<LoginScreen> {
                           CircularProgressIndicator(),
                         if (!isLoading)
                           CustomDropdown<String>(
-                            options: roles.map((
-                                role) => role['roleName'] as String).toList(),
+                            options: roles.map(
+                                  (role) => role['roleName'] as String,
+                            ).toList(),
                             selectedOption: selectedRole?['roleName'],
                             displayValue: (roleName) => roleName,
                             onChanged: (roleName) {
                               setState(() {
-                                selectedRole = roles.firstWhere((
-                                    role) => role['roleName'] == roleName);
+                                selectedRole = roles.firstWhere(
+                                        (role) => role['roleName'] == roleName);
                               });
                             },
                             labelText: 'Select Role',
@@ -205,6 +253,11 @@ class _LoginScreenState extends State<LoginScreen> {
                           color: Color(0xFF005296),
                           width: 170,
                         ),
+                        SizedBox(height: 20),
+
+                        if (connectionStatus == 'No internet connection' ||
+                            connectionStatus == 'Checking...')
+                          Text(connectionStatus,style: TextStyle(fontSize: 20,backgroundColor: Colors.red,color: textColor2),),
                       ],
                     ),
                   ],

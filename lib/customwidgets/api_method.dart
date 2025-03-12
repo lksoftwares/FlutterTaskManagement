@@ -106,3 +106,132 @@ class ApiService {
     }
   }
   }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+//
+// import 'package:flutter_bloc/flutter_bloc.dart';//
+// abstract class ApiState {}
+//
+// class ApiInitial extends ApiState {}
+//
+// class ApiLoading extends ApiState {}
+//
+// class ApiSuccess extends ApiState {
+//   final Map<String, dynamic> data;
+//   ApiSuccess(this.data);
+// }
+//
+// class ApiError extends ApiState {
+//   final String message;
+//   ApiError(this.message);
+// }
+//
+// class ApiCubit extends Cubit<ApiState> {
+//   ApiCubit() : super(ApiInitial());
+//
+//   Future<void> markAttendanceCheckin(String inOutFlag, String inLocation) async {
+//     emit(ApiLoading());
+//     try {
+//       SharedPreferences prefs = await SharedPreferences.getInstance();
+//       int userId = prefs.getInt('user_Id') ?? 0;
+//
+//       if (userId != 0) {
+//         final response = await ApiService().request(
+//           method: 'post',
+//           endpoint: 'attendance/MarkAttendnace',
+//           body: {
+//             'userId': userId,
+//             'inOutFlag': inOutFlag,
+//             'inLocation': inLocation,
+//           },
+//         );
+//
+//         if (response['statusCode'] >= 200 && response['statusCode'] < 400) {
+//           emit(ApiSuccess(response));
+//         } else {
+//           emit(ApiError(response['message'] ?? 'Failed to mark attendance'));
+//         }
+//       } else {
+//         emit(ApiError('User not logged in'));
+//       }
+//     } catch (e) {
+//       emit(ApiError('Error: $e'));
+//     }
+//   }
+//
+//   Future<void> markAttendanceCheckout(String inOutFlag, String outLocation) async {
+//     emit(ApiLoading());
+//     try {
+//       SharedPreferences prefs = await SharedPreferences.getInstance();
+//       int userId = prefs.getInt('user_Id') ?? 0;
+//
+//       if (userId != 0) {
+//         final response = await ApiService().request(
+//           method: 'post',
+//           endpoint: 'attendance/MarkAttendnace',
+//           body: {
+//             'userId': userId,
+//             'inOutFlag': inOutFlag,
+//             'outLocation': outLocation,
+//           },
+//         );
+//
+//         if (response['statusCode'] >= 200 && response['statusCode'] < 400) {
+//           emit(ApiSuccess(response));
+//         } else {
+//           emit(ApiError(response['message'] ?? 'Failed to mark attendance'));
+//         }
+//       } else {
+//         emit(ApiError('User not logged in'));
+//       }
+//     } catch (e) {
+//       emit(ApiError('Error: $e'));
+//     }
+//   }
+//
+//   Future<void> fetchAttendance() async {
+//     emit(ApiLoading());
+//     try {
+//       SharedPreferences prefs = await SharedPreferences.getInstance();
+//       int? userId = prefs.getInt('user_Id');
+//       final response = await ApiService().request(
+//         method: 'get',
+//         endpoint: 'attendance/GetAttendance?userId=$userId',
+//       );
+//
+//       if (response['statusCode'] == 200 && response['apiResponse'] != null) {
+//         emit(ApiSuccess(response['apiResponse']));
+//       } else {
+//         emit(ApiError(response['message'] ?? 'Failed to load attendance data'));
+//       }
+//     } catch (e) {
+//       emit(ApiError('Error: $e'));
+//     }
+//   }
+// }

@@ -1,6 +1,7 @@
+import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:intl/intl.dart';
 import 'package:lktaskmanagementapp/packages/headerfiles.dart';
-
 
 class AttendanceScreen extends StatefulWidget {
   @override
@@ -17,10 +18,16 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   String? userRole = '';
   bool hasCheckedIn = false;
   bool hasCheckedOut = false;
+  String? roleName;
+  DateTime? fromDate;
+  DateTime? toDate;
 
   @override
   void initState() {
     super.initState();
+    final currentDate = DateTime.now();
+    fromDate = DateTime(currentDate.year, currentDate.month, currentDate.day);
+    toDate = fromDate;
     fetchUserData();
     fetchAttendance();
     loadAttendanceState();
@@ -46,6 +53,48 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     await prefs.setBool('hasCheckedIn', hasCheckedIn);
     await prefs.setBool('hasCheckedOut', hasCheckedOut);
+  }
+
+  List<Map<String, dynamic>> getFilteredData() {
+    return attendance.where((role) {
+      bool matchesDate = true;
+      if (fromDate != null && toDate != null) {
+        DateTime inTime = _parseDate(role['inDateTime']);
+        matchesDate = (inTime.isAtSameMomentAs(fromDate!) ||
+            inTime.isAfter(fromDate!)) &&
+            (inTime.isAtSameMomentAs(toDate!) ||
+                inTime.isBefore(toDate!));
+      }
+      return matchesDate;
+    }).toList();
+  }
+
+  DateTime _parseDate(String dateStr) {
+    try {
+      return DateFormat('dd-MM-yyyy').parse(dateStr);
+    } catch (e) {
+      print("Error parsing date: $e");
+      return DateTime(2000);
+    }
+  }
+
+  void _showDatePicker() {
+    showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2025, DateTime.february),
+      lastDate: DateTime(2025, DateTime.april),
+      initialDateRange: fromDate != null && toDate != null
+          ? DateTimeRange(start: fromDate!, end: toDate!)
+          : null,
+    ).then((pickedDateRange) {
+      if (pickedDateRange != null) {
+        setState(() {
+          fromDate = pickedDateRange.start;
+          toDate = pickedDateRange.end;
+        });
+        fetchAttendance();
+      }
+    });
   }
 
   Future<void> getCurrentLocation() async {
@@ -152,16 +201,23 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
 
     SharedPreferences prefs = await SharedPreferences.getInstance();
     int? userId = prefs.getInt('user_Id');
+    String roleName = prefs.getString('role_Name') ?? "";
+    String endpoint = 'Working/GetWorking';
+
+    if (roleName == 'Admin') {
+      endpoint = 'attendance/GetAttendance';
+    } else if (userId != null) {
+      endpoint = 'attendance/GetAttendance?userId=$userId';
+    }
     final response = await new ApiService().request(
       method: 'get',
-      endpoint: 'attendance/GetAttendance?userId=$userId',
+      endpoint: endpoint,
     );
 
     if (response['statusCode'] == 200 && response['apiResponse'] != null) {
       setState(() {
         attendance = List<Map<String, dynamic>>.from(
-          response['apiResponse'].map((member) =>
-          {
+          response['apiResponse'].map((member) => {
             'atTxnId': member['atTxnId'] ?? 0,
             'inDateTime': member['inDateTime'] ?? "----/----/-------- --:--",
             'userId': member['userId'] ?? 0,
@@ -292,7 +348,17 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         padding: const EdgeInsets.all(8.0),
         child: Column(
           children: [
-            InformationMethod(),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                InformationMethod(),
+                IconButton(
+                  icon: Icon(
+                      Icons.filter_alt_outlined, color: Colors.blue, size: 30),
+                  onPressed: _showDatePicker, // Show the date picker to filter by date
+                ),
+              ],
+            ),
 
             Row(
               children: [
@@ -355,7 +421,6 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                           "Check Out",
                           style: TextStyle(
                             fontSize: 12,
-
                             color: textColor2,
                             fontWeight: FontWeight.bold,
                           ),
@@ -376,13 +441,13 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
 
             isLoading
                 ? Center(child: CircularProgressIndicator())
-                : attendance.isEmpty
+                : getFilteredData().isEmpty
                 ? Center(child: NoDataFoundScreen())
                 : Expanded(
               child: ListView.builder(
-                itemCount: attendance.length,
+                itemCount: getFilteredData().length,
                 itemBuilder: (context, index) {
-                  var attendanceRecord = attendance[index];
+                  var attendanceRecord = getFilteredData()[index];
                   String inTime = attendanceRecord['inDateTime'] ?? "--:--";
                   String outTime = attendanceRecord['outDateTime'] ?? "--:--";
                   return buildAttendanceCard(

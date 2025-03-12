@@ -1,5 +1,4 @@
 export 'package:flutter/material.dart';
-//export 'package:flutter/cupertino.dart';
 export 'package:lktaskmanagementapp/components/login/login_screen.dart';
 export 'package:lktaskmanagementapp/customwidgets/api_method.dart';
 export 'package:lktaskmanagementapp/customwidgets/toast_method.dart';
@@ -8,7 +7,6 @@ export 'package:lktaskmanagementapp/customwidgets/appbar_method.dart';
 export 'package:lktaskmanagementapp/customwidgets/bottomnavigation_method.dart';
 export 'package:lktaskmanagementapp/customwidgets/card_widget.dart';
 export 'package:lktaskmanagementapp/customwidgets/checkbox_controller.dart';
-
 export 'package:lktaskmanagementapp/customwidgets/datagrid_controller.dart';
 export 'package:lktaskmanagementapp/customwidgets/dates_method.dart';
 export 'package:lktaskmanagementapp/customwidgets/dropdown_controller.dart';
@@ -50,3 +48,5 @@ export 'package:lktaskmanagementapp/components/attendance/attendance_screen.dart
 export 'package:slider_button/slider_button.dart';
 export 'package:lktaskmanagementapp/customwidgets/color_variable.dart';
 export 'package:lktaskmanagementapp/customwidgets/information_method.dart';
+export 'package:connectivity_plus/connectivity_plus.dart';
+export 'package:lktaskmanagementapp/config.dart';

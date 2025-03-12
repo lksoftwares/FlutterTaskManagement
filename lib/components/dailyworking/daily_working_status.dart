@@ -2,7 +2,6 @@
 import 'package:intl/intl.dart';
 import 'package:lktaskmanagementapp/packages/headerfiles.dart';
 import 'package:http/http.dart' as http;
-import 'package:lktaskmanagementapp/config.dart';
 import'dart:convert';
 import 'package:http_parser/http_parser.dart';
 
@@ -31,6 +30,7 @@ class _DailyWorkingStatusState extends State<DailyWorkingStatus> {
   double currentPosition = 0.0;
   Timer? positionTimer;
   bool isListening = false;
+  String? roleName;
 
   @override
   void initState() {
@@ -55,8 +55,15 @@ class _DailyWorkingStatusState extends State<DailyWorkingStatus> {
   Future<void> _getData() async {
     await fetchWorking();
     await fetchUsers();
-  }
+    await _getRoleName();
 
+  }
+  Future<void> _getRoleName() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    setState(() {
+      roleName = prefs.getString('role_Name');
+    });
+  }
   Future<void> _startRecording() async {
 
     PermissionStatus status = await Permission.microphone.request();
@@ -106,49 +113,63 @@ class _DailyWorkingStatusState extends State<DailyWorkingStatus> {
     }
   }
   Future<void> fetchWorking() async {
-
     setState(() {
       isLoading = true;
     });
+
     SharedPreferences prefs = await SharedPreferences.getInstance();
     int? userId = prefs.getInt('user_Id');
-    final response = await new ApiService().request(
+    String roleName = prefs.getString('role_Name') ?? "";
 
-      method: 'get',
-      endpoint: 'Working/GetWorking?userId=$userId',
-    );
 
-    print('Response: $response');
-    if (response['statusCode'] == 200 && response['apiResponse'] != null) {
-      setState(() {
-        var workingStatusList = response['apiResponse']['workingStatusList'];
+    String endpoint = 'Working/GetWorking';
 
-        roles = List<Map<String, dynamic>>.from(
-          workingStatusList.map((role) {
-            String workingDateStr = role['workingDate'] ?? 'Unknown';
-            String formattedWorkingDate = 'Unknown';
-            try {
-              DateTime parsedDate = DateFormat("dd-MM-yyyy HH:mm:ss").parse(workingDateStr);
-              formattedWorkingDate = DateFormat('dd-MM-yyyy').format(parsedDate);
-            } catch (e) {
-              print("Error parsing date: $e");
-            }
+    if (roleName == 'Admin') {
+      endpoint = 'Working/GetWorking';
+    } else if (userId != null) {
+      endpoint = 'Working/GetWorking?userId=$userId';
+    }
 
-            return {
-              'txnId': role['txnId'] ?? 0,
-              'userName': role['userName'] ?? 'Unknown userName',
-              'workingDesc': role['workingDesc'] ?? 'Unknown Desc',
-              'workingDate': formattedWorkingDate,
-              'createdAt': role['createdAt'] ?? '',
-              'updatedAt': role['updatedAt'] ?? '',
-              'workingNote': role['workingNote'] ?? '',
-              'workingDescFilePath': role['workingDescFilePath'] ?? '',
-            };
-          }),
-        );
-      });
-    } else {
-      showToast(msg: response['message'] ?? 'Failed to load roles');
+
+    try {
+      final response = await new ApiService().request(
+        method: 'get',
+        endpoint: endpoint,
+      );
+      if (response['statusCode'] == 200 && response['apiResponse'] != null) {
+        setState(() {
+          var workingStatusList = response['apiResponse']['workingStatusList'];
+
+          roles = List<Map<String, dynamic>>.from(
+            workingStatusList.map((role) {
+              String workingDateStr = role['workingDate'] ?? 'Unknown';
+              String formattedWorkingDate = 'Unknown';
+              try {
+                DateTime parsedDate = DateFormat("dd-MM-yyyy HH:mm:ss").parse(workingDateStr);
+                formattedWorkingDate = DateFormat('dd-MM-yyyy').format(parsedDate);
+              } catch (e) {
+                print("Error parsing date: $e");
+              }
+
+              return {
+                'txnId': role['txnId'] ?? 0,
+                'userName': role['userName'] ?? 'Unknown userName',
+                'workingDesc': role['workingDesc'] ?? 'Unknown Desc',
+                'workingDate': formattedWorkingDate,
+                'createdAt': role['createdAt'] ?? '',
+                'updatedAt': role['updatedAt'] ?? '',
+                'workingNote': role['workingNote'] ?? '',
+                'workingDescFilePath': role['workingDescFilePath'] ?? '',
+              };
+            }),
+          );
+        });
+      } else {
+        showToast(msg: response['message'] ?? 'Failed to load roles');
+      }
+    } catch (error) {
+      print("Error fetching data: $error");
+      showToast(msg: "Error fetching data: $error", backgroundColor: Colors.red);
     }
 
     setState(() {
@@ -184,6 +205,8 @@ class _DailyWorkingStatusState extends State<DailyWorkingStatus> {
       isPlayingMap.clear();
     });
 
+    String currentDateTime = DateFormat('dd-MM-yyyy HH:mm:ss').format(DateTime.now());
+
     showCustomAlertDialog(
       context,
       title: 'Add Working Desc',
@@ -197,31 +220,28 @@ class _DailyWorkingStatusState extends State<DailyWorkingStatus> {
                 TextField(
                   onChanged: (value) => workingDesc = value,
                   decoration: inputDecoration,
-                  maxLines: 5,
+                  maxLines: 7,
                 ),
-                SizedBox(height: 10),
                 Padding(
-                  padding: const EdgeInsets.only(top: 20.0),
+                  padding: const EdgeInsets.only(top: 10.0),
                   child: Center(
-                      child:GestureDetector(
+                      child: GestureDetector(
                           onTap: () {
                             if (isRecording) {
                               _stopRecording();
-                              setState((){
-                                isRecording=false;
+                              setState(() {
+                                isRecording = false;
                               });
-                              _stopRecording();
                             } else {
-                              setState((){
-                                isRecording=true;
+                              setState(() {
+                                isRecording = true;
                               });
                               _startRecording();
                             }
                           },
                           child: isRecording
                               ? Avatar()
-                          :
-                          Icon(Icons.mic, color: Color(0xFF005296), size: 40)
+                              : Icon(Icons.mic, color: Color(0xFF005296), size: 40)
                       )
                   ),
                 ),
@@ -252,11 +272,24 @@ class _DailyWorkingStatusState extends State<DailyWorkingStatus> {
           child: Text('Cancel'),
         ),
       ],
-      titleHeight: 65,
+      additionalTitleContent: Padding(
+        padding: const EdgeInsets.only(top: 1.0),
+        child: Column(
+          children: [
+            Divider(),
+            Text(
+              " Date: $currentDateTime",
+              style: TextStyle(
+                fontSize: 14.0,
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
-
-
 
 
 
@@ -630,7 +663,9 @@ class _DailyWorkingStatusState extends State<DailyWorkingStatus> {
                               ? Colors.red[900]!
                               : Colors.red[100]!;
 
+
                           bool hasAudioFile = role['workingDescFilePath'] != null && role['workingDescFilePath'] != '';
+                          bool isAdmin = roleName == 'Admin';
                           return buildUserCard(
                             userFields: {
                               'Username': role['userName'],
@@ -665,13 +700,11 @@ class _DailyWorkingStatusState extends State<DailyWorkingStatus> {
                                       }
                                     },
                                   ),
-                                IconButton(
-                                  onPressed: () => _confirmDeleteRole(role['txnId']),
-                                  icon: Icon(
-                                    Icons.delete,
-                                    color: Colors.red,
+                                if (isAdmin)
+                                  IconButton(
+                                    onPressed: () => _confirmDeleteRole(role['txnId']),
+                                    icon: Icon(Icons.delete, color: Colors.red),
                                   ),
-                                ),
                               ],
                             ),
                             leadingIcon: Row(

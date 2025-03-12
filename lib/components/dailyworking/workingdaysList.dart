@@ -38,7 +38,6 @@ class _WorkingdayslistState extends State<Workingdayslist> {
             response['apiResponse']['totalWorkingDaysList'].map((data) => {
 
               'txnId': data['txnId']?? 0,
-              'workingDate': data['workingDate'],
               'totalDaysInMonth': data['totalDaysInMonth'],
               'totalWorkingDays': data['totalWorkingDays'],
             }),
@@ -78,9 +77,9 @@ class _WorkingdayslistState extends State<Workingdayslist> {
                   Column(
                     children: totalWorkingDaysList.map((days) {
                       Map<String, dynamic> roleFields = {
-                        'Date': days['workingDate'],
-                        '': days[''],
+
                         'DaysinMonth': days['totalDaysInMonth'],
+                        '': days[''],
                         'WorkingDays': days['totalWorkingDays'],
                       };
 
