@@ -10,22 +10,40 @@ class UsersPage extends StatefulWidget {
 class _UsersPageState extends State<UsersPage> {
   List<Map<String, dynamic>> users = [];
   bool isLoading = false;
+  String? roleName;
+
   String? selectedUserName;
 
   @override
   void initState() {
     super.initState();
     fetchUsers();
+    _getRoleName();
   }
-
+  Future<void> _getRoleName() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    setState(() {
+      roleName = prefs.getString('role_Name');
+    });
+  }
   Future<void> fetchUsers() async {
     setState(() {
       isLoading = true;
     });
 
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    int? userId = prefs.getInt('user_Id');
+    String roleName = prefs.getString('role_Name') ?? "";
+    String endpoint = 'Working/GetWorking';
+
+    if (roleName == 'Admin') {
+      endpoint = 'User/GetAllUsers';
+    } else if (userId != null) {
+      endpoint = 'User/GetAllUsers?userId=$userId';
+    }
     final response = await ApiService().request(
       method: 'get',
-      endpoint: 'User/GetAllUsers',
+      endpoint:endpoint,
     );
 
     if (response['statusCode'] == 200 && response['apiResponse'] != null) {
@@ -275,43 +293,40 @@ class _UsersPageState extends State<UsersPage> {
                     children: users.map((user) {
                       Map<String, dynamic> roleFields = {
                         'User Name': user['userName'],
-                        '':  user[''],
+                        '': user[''],
                         'UserStatus': user['userStatus'] ?? false,
                         'userEmail': user['userEmail'],
                         'Password: ': user['userPassword'],
                         'CreatedAt': user['createdAt'],
-
                       };
+
+                      bool isAdmin = roleName == 'Admin';
 
                       return buildUserCard(
                         userFields: roleFields,
-                        // onEdit: () => _showUserForm(
-                        //   userId: user['userId'],
-                        //   userName: user['userName'],
-                        //   userEmail: user['userEmail'],
-                        //   userPassword: user['userPassword'],
-                        // ),
-
-                        trailingIcon:
-
-                        Row(
+                        trailingIcon: Row(
                           mainAxisAlignment: MainAxisAlignment.end,
                           children: [
-                            IconButton(onPressed: ()=>_showUserForm(
-                              userId: user['userId'],
-                              userName: user['userName'],
-                              userEmail: user['userEmail'],
-                              userPassword: user['userPassword'],
+                            if (isAdmin)
+                              IconButton(
+                                onPressed: () => _showUserForm(
+                                  userId: user['userId'],
+                                  userName: user['userName'],
+                                  userEmail: user['userEmail'],
+                                  userPassword: user['userPassword'],
+                                ),
+                                icon: Icon(Icons.edit, color: Colors.green),
+                              ),
+                            IconButton(
+                              onPressed: () => _confirmDeleteRole(user['userId']),
+                              icon: Icon(Icons.delete, color: Colors.red),
                             ),
-                                icon: Icon(Icons.edit,color: Colors.green,)),
-                            IconButton(onPressed: ()=>_confirmDeleteRole(user['userId']),
-                                icon: Icon(Icons.delete,color: Colors.red,)),
-
                           ],
                         ),
                       );
                     }).toList(),
                   )
+
 
               ],
             ),

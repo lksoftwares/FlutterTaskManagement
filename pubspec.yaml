@@ -37,6 +37,7 @@ dependencies:
   syncfusion_flutter_datagrid: ^28.2.7
   fluttertoast: ^8.2.10
   http: ^1.2.2
+  image_picker: ^1.1.2
   intl: ^0.20.2
   shared_preferences: ^2.3.5
   package_info_plus: ^8.3.0
@@ -79,6 +80,8 @@ flutter:
   assets:
      - images/Logo.png
      - images/Login8.jpg
+     - images/nodata.jpg
+
 
 
   # An image asset can refer to one or more resolution-specific "variants", see

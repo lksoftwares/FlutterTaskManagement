@@ -1,4 +1,8 @@
+
 import 'package:lktaskmanagementapp/packages/headerfiles.dart';
+import '../components/menus/rolebasedmenu.dart';
+
+
 class AppRoutes {
   static Map<String, WidgetBuilder> getRoutes() {
     return {
@@ -14,6 +18,12 @@ class AppRoutes {
       '/userlogs': (context) => UserlogsPage(),
       '/workingdays': (context) => Workingdayslist(),
       '/attendance': (context) => AttendanceScreen(),
+      '/changepassword': (context) => Changepassword(),
+      '/menus': (context) => MenuScreen(),
+      '/permissions': (context) => PermissionsScreen(),
+      '/menurole': (context) => MenuRolePage(),
+      '/leaveform': (context) => LeaveForm(),
+      '/leaves': (context) => LeavesScreen(),
 
 
     };

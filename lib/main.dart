@@ -1,4 +1,5 @@
 import 'package:lktaskmanagementapp/packages/headerfiles.dart';
+
 void main() {
   runApp(MyApp());
 }
@@ -6,13 +7,12 @@ void main() {
 class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-
     return MaterialApp(
     theme: ThemeData(
     appBarTheme: AppBarTheme(
     iconTheme: IconThemeData(color: Colors.white),
-    ),
-    ),
+    ),),
+
       debugShowCheckedModeBanner: false,
       title: 'LkTaskManagement',
       initialRoute: '/',

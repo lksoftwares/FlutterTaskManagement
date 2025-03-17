@@ -25,3 +25,25 @@ class Dateformat2 {
     }
   }
 }
+
+class Dateformat3 {
+  static String formatWorkingDate3(DateTime date) {
+    try {
+      return DateFormat('yyyy-MM-dd').format(date);
+    } catch (e) {
+      print("Error formatting date: $e");
+      return 'Invalid date';
+    }
+  }
+}
+
+class Dateformat4 {
+  static String formatWorkingDate4(DateTime date) {
+    try {
+      return DateFormat('dd-MM-yyyy').format(date);
+    } catch (e) {
+      print("Error formatting date: $e");
+      return 'Invalid date';
+    }
+  }
+}

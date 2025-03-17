@@ -1,7 +1,9 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:lktaskmanagementapp/config.dart';
+import 'package:http_parser/http_parser.dart';
+import 'package:lktaskmanagementapp/packages/headerfiles.dart';
+import 'package:path/path.dart';
 
 class ApiService {
   Future<Map<String, dynamic>> request({
@@ -10,15 +12,16 @@ class ApiService {
     Map<String, dynamic>? body,
     bool tokenRequired = false,
     bool isMultipart = false,
+    Map<String, File>? files,
   }) async {
     if (tokenRequired) {
       final token = await _getToken();
       if (token == null) {
         return {'message': 'Token is required but not found.'};
       }
-      return _sendRequestWithToken(method, endpoint, body, token, isMultipart);
+      return _sendRequestWithToken(method, endpoint, body, files, token, isMultipart);
     } else {
-      return _sendRequestWithoutToken(method, endpoint, body, isMultipart);
+      return _sendRequestWithoutToken(method, endpoint, body, files, isMultipart);
     }
   }
 
@@ -35,39 +38,53 @@ class ApiService {
   }
 
   static Future<Map<String, dynamic>> _sendRequestWithToken(
-      String method, String endpoint, Map<String, dynamic>? body, String token, bool isMultipart) async {
+      String method, String endpoint, Map<String, dynamic>? body, Map<String, File>? files, String token, bool isMultipart) async {
     try {
       final uri = Uri.parse('${Config.apiUrl}$endpoint');
       final headers = _getHeaders(token);
-      return await _sendRequest(method, uri, headers, body, isMultipart);
+      return await _sendRequest(method, uri, headers, body, files, isMultipart);
     } catch (e) {
       return {'statusCode': 500, 'message': 'Error: $e'};
     }
   }
 
   static Future<Map<String, dynamic>> _sendRequestWithoutToken(
-      String method, String endpoint, Map<String, dynamic>? body, bool isMultipart) async {
+      String method, String endpoint, Map<String, dynamic>? body, Map<String, File>? files, bool isMultipart) async {
     try {
       final uri = Uri.parse('${Config.apiUrl}$endpoint');
       final headers = {'Content-Type': 'application/json'};
-      return await _sendRequest(method, uri, headers, body, isMultipart);
+      return await _sendRequest(method, uri, headers, body, files, isMultipart);
     } catch (e) {
       return {'statusCode': 500, 'message': 'Error: $e'};
     }
   }
 
   static Future<Map<String, dynamic>> _sendRequest(
-      String method, Uri uri, Map<String, String> headers, Map<String, dynamic>? body, bool isMultipart) async {
+      String method, Uri uri, Map<String, String> headers, Map<String, dynamic>? body, Map<String, File>? files, bool isMultipart) async {
     try {
       http.Response response;
 
       if (isMultipart) {
         var request = http.MultipartRequest(method.toUpperCase(), uri);
         request.headers.addAll(headers);
-
         if (body != null) {
           body.forEach((key, value) {
             request.fields[key] = value.toString();
+          });
+        }
+        if (files != null) {
+          files.forEach((key, file) async {
+            var fileStream = file.openRead();
+            var fileLength = await file.length();
+            var fileName = basename(file.path);
+            var multipartFile = http.MultipartFile(
+              key,
+              fileStream,
+              fileLength,
+              filename: fileName,
+              contentType: MediaType('application', 'octet-stream'),
+            );
+            request.files.add(multipartFile);
           });
         }
 
@@ -94,7 +111,6 @@ class ApiService {
       }
       if (response.statusCode == 200) {
         return json.decode(response.body);
-
       } else {
         return json.decode(response.body);
       }
@@ -105,7 +121,7 @@ class ApiService {
       };
     }
   }
-  }
+}
 
 
 

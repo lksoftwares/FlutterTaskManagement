@@ -10,6 +10,8 @@ class CustomTextField extends StatefulWidget {
   final Icon? prefixIcon;
   final Icon? suffixIcon;
   final VoidCallback? onSuffixIconPressed;
+  final ValueChanged<String>? onChanged;
+  final int? maxLines;
 
   CustomTextField({
     Key? key,
@@ -22,6 +24,8 @@ class CustomTextField extends StatefulWidget {
     this.prefixIcon,
     this.suffixIcon,
     this.onSuffixIconPressed,
+    this.onChanged,
+    this.maxLines,
   }) : super(key: key);
 
   @override
@@ -39,6 +43,7 @@ class _CustomTextFieldState extends State<CustomTextField> {
           controller: widget.controller,
           obscureText: widget.obscureText,
           keyboardType: widget.keyboardType,
+          maxLines: widget.maxLines,
           decoration: InputDecoration(
             labelText: widget.label,
             hintText: widget.hintText,
@@ -53,6 +58,7 @@ class _CustomTextFieldState extends State<CustomTextField> {
             )
                 : null,
           ),
+          onChanged: widget.onChanged,
         ),
       ),
     );

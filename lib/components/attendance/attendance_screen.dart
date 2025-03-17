@@ -202,7 +202,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     int? userId = prefs.getInt('user_Id');
     String roleName = prefs.getString('role_Name') ?? "";
-    String endpoint = 'Working/GetWorking';
+    String endpoint = 'attendance/GetAttendance';
 
     if (roleName == 'Admin') {
       endpoint = 'attendance/GetAttendance';
@@ -225,6 +225,8 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
             'userName': member['userName'] ?? 'Unknown user',
             'inLocation': member['inLocation'] ?? '',
             'outLocation': member['outLocation'] ?? 'Unknown location',
+            'dailyWorkingHour': member['dailyWorkingHour'] ?? '',
+
           }),
         );
       });
@@ -239,7 +241,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   }
 
   Widget buildAttendanceCard(String date, String? inTime, String? outTime,
-      String inLocation, String outLocation) {
+      String inLocation, String outLocation,String dailyWorkingHour) {
     String formattedDate = Dateformat.formatWorkingDate(date);
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 12),
@@ -260,15 +262,27 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                 topRight: Radius.circular(12),
               ),
             ),
-            child: Text(
-              formattedDate,
+            child: Row(
+              children: [
+                Text(
+                  formattedDate,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 17
+                    ,
+                  ),
+                ),
+            Text(
+              "${dailyWorkingHour}",
               style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 17
-                ,
-              ),
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 17
+              )),
+              ],
             ),
+
           ),
           const SizedBox(height: 8),
           Row(
@@ -355,7 +369,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                 IconButton(
                   icon: Icon(
                       Icons.filter_alt_outlined, color: Colors.blue, size: 30),
-                  onPressed: _showDatePicker, // Show the date picker to filter by date
+                  onPressed: _showDatePicker,
                 ),
               ],
             ),
@@ -438,7 +452,6 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
               ],
             ),
             Divider(color: Colors.black),
-
             isLoading
                 ? Center(child: CircularProgressIndicator())
                 : getFilteredData().isEmpty
@@ -456,6 +469,8 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                     outTime,
                     attendanceRecord['inLocation'] ?? '',
                     attendanceRecord['outLocation'] ?? 'No location',
+                    attendanceRecord ['dailyWorkingHour'] ?? '',
+
                   );
                 },
               ),

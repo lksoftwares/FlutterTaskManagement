@@ -10,7 +10,6 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   TextEditingController usernameController = TextEditingController();
   TextEditingController passwordController = TextEditingController();
-  String connectionStatus = 'Checking...';
 
   Map<String, dynamic>? selectedRole;
   List<Map<String, dynamic>> roles = [];
@@ -21,48 +20,7 @@ class _LoginScreenState extends State<LoginScreen> {
   void initState() {
     super.initState();
     fetchRoles();
-    checkConnectivity();
-    startListening();
   }
-
-  Future<void> checkConnectivity() async {
-    var connectivityResult = await Connectivity().checkConnectivity();
-    if (connectivityResult == ConnectivityResult.mobile) {
-      setState(() {
-        connectionStatus = 'Connected to mobile network';
-      });
-    } else if (connectivityResult == ConnectivityResult.wifi) {
-      setState(() {
-        connectionStatus = 'Connected to Wi-Fi';
-      });
-    } else {
-      setState(() {
-        connectionStatus = 'No internet connection';
-      });
-    }
-  }
-
-  void startListening() {
-    Connectivity().onConnectivityChanged.listen((
-        List<ConnectivityResult> result) {
-      if (result.isNotEmpty) {
-        if (result.first == ConnectivityResult.mobile) {
-          setState(() {
-            connectionStatus = 'Connected to mobile network';
-          });
-        } else if (result.first == ConnectivityResult.wifi) {
-          setState(() {
-            connectionStatus = 'Connected to Wi-Fi';
-          });
-        } else {
-          setState(() {
-            connectionStatus = 'No internet connection';
-          });
-        }
-      }
-    });
-  }
-
 
   Future<String> getDeviceId() async {
     final deviceInfoPlugin = DeviceInfoPlugin();
@@ -143,13 +101,18 @@ class _LoginScreenState extends State<LoginScreen> {
       if (response['statusCode'] == 200) {
         print(response);
         int user_Id = response['apiResponse']['user_Id'];
+        int role_Id = response['apiResponse']['role_Id'];
+
         String user_Name = response['apiResponse']['user_Name'];
         String role_Name = response['apiResponse']['role_Name'];
 
         SharedPreferences prefs = await SharedPreferences.getInstance();
         await prefs.setInt('user_Id', user_Id);
+        await prefs.setInt('role_Id', role_Id);
         await prefs.setString('user_Name', user_Name);
         await prefs.setString('role_Name', role_Name);
+
+
         await printDeviceId();
 
         showToast(msg: response['message'] ?? 'Login successfully',
@@ -192,8 +155,6 @@ class _LoginScreenState extends State<LoginScreen> {
               child: Center(
                 child: Column(
                   children: [
-
-
                     Image.asset(
                       'images/Logo.png',
                       width: 120,
@@ -205,7 +166,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       children: [
                         if (isLoading)
                           CircularProgressIndicator(),
-                        if (!isLoading)
+                        if (!isLoading) ...[
                           CustomDropdown<String>(
                             options: roles.map(
                                   (role) => role['roleName'] as String,
@@ -222,42 +183,64 @@ class _LoginScreenState extends State<LoginScreen> {
                             prefixIcon: Icon(Icons.person),
                             width: 320,
                           ),
-                        SizedBox(height: 20),
-                        CustomTextField(
-                          controller: usernameController,
-                          label: 'Username',
-                          hintText: 'Enter your username',
-                          prefixIcon: Icon(Icons.people_alt_outlined),
-                        ),
-                        SizedBox(height: 10),
-                        CustomTextField(
-                          controller: passwordController,
-                          label: 'Password',
-                          hintText: 'Enter your password',
-                          obscureText: _obscurePassword,
-                          prefixIcon: Icon(Icons.password),
-                          suffixIcon: Icon(
-                            _obscurePassword ? Icons.visibility_off : Icons
-                                .visibility,
+                          SizedBox(height: 20),
+                          // Username TextField
+                          Stack(
+                            children: [
+                              CustomTextField(
+                                controller: usernameController,
+                                label: 'Username',
+                                hintText: 'Enter your username',
+                                prefixIcon: Icon(Icons.people_alt_outlined),
+                              ),
+                              if (isLoading)
+                                Positioned.fill(
+                                  child: Align(
+                                    alignment: Alignment.center,
+                                    child: CircularProgressIndicator(),
+                                  ),
+                                ),
+                            ],
                           ),
-                          onSuffixIconPressed: () {
-                            setState(() {
-                              _obscurePassword = !_obscurePassword;
-                            });
-                          },
-                        ),
-                        SizedBox(height: 15),
-                        CustomButton(
-                          buttonText: 'Login',
-                          onPressed: loginUser,
-                          color: Color(0xFF005296),
-                          width: 170,
-                        ),
-                        SizedBox(height: 20),
-
-                        if (connectionStatus == 'No internet connection' ||
-                            connectionStatus == 'Checking...')
-                          Text(connectionStatus,style: TextStyle(fontSize: 20,backgroundColor: Colors.red,color: textColor2),),
+                          SizedBox(height: 10),
+                          // Password TextField
+                          Stack(
+                            children: [
+                              CustomTextField(
+                                controller: passwordController,
+                                label: 'Password',
+                                hintText: 'Enter your password',
+                                obscureText: _obscurePassword,
+                                prefixIcon: Icon(Icons.lock),
+                                maxLines: 1,
+                                suffixIcon: Icon(
+                                  _obscurePassword
+                                      ? Icons.visibility_off
+                                      : Icons.visibility,
+                                ),
+                                onSuffixIconPressed: () {
+                                  setState(() {
+                                    _obscurePassword = !_obscurePassword;
+                                  });
+                                },
+                              ),
+                              if (isLoading)
+                                Positioned.fill(
+                                  child: Align(
+                                    alignment: Alignment.center,
+                                    child: CircularProgressIndicator(),
+                                  ),
+                                ),
+                            ],
+                          ),
+                          SizedBox(height: 15),
+                          CustomButton(
+                            buttonText: 'Login',
+                            onPressed: loginUser,
+                            color: primaryColor,
+                            width: 170,
+                          ),
+                        ],
                       ],
                     ),
                   ],
@@ -269,4 +252,5 @@ class _LoginScreenState extends State<LoginScreen> {
       ),
     );
   }
+
 }
