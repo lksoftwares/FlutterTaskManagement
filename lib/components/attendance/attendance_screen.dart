@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:intl/intl.dart';
 import 'package:lktaskmanagementapp/packages/headerfiles.dart';
@@ -14,7 +13,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   List<Map<String, dynamic>> attendance = [];
   bool isLoading = false;
   String? currentLocation = '';
-  String? userName = '';
+  String? username = '';
   String? userRole = '';
   bool hasCheckedIn = false;
   bool hasCheckedOut = false;
@@ -36,7 +35,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   Future<void> fetchUserData() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     setState(() {
-      userName = prefs.getString('user_Name') ?? 'No User';
+      username = prefs.getString('user_Name') ?? 'No User';
       userRole = prefs.getString('role_Name') ?? 'No Role';
     });
   }
@@ -241,7 +240,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   }
 
   Widget buildAttendanceCard(String date, String? inTime, String? outTime,
-      String inLocation, String outLocation,String dailyWorkingHour) {
+      String inLocation, String outLocation,String dailyWorkingHour, String userName) {
     String formattedDate = Dateformat.formatWorkingDate(date);
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 12),
@@ -263,9 +262,10 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
               ),
             ),
             child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  formattedDate,
+                  "$formattedDate  $dailyWorkingHour",
                   style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
@@ -274,7 +274,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                   ),
                 ),
             Text(
-              "${dailyWorkingHour}",
+              "${userName}",
               style: const TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
@@ -375,6 +375,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
             ),
 
             Row(
+
               children: [
                 Row(
                   children: [
@@ -470,6 +471,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                     attendanceRecord['inLocation'] ?? '',
                     attendanceRecord['outLocation'] ?? 'No location',
                     attendanceRecord ['dailyWorkingHour'] ?? '',
+                    attendanceRecord['userName']??''
 
                   );
                 },

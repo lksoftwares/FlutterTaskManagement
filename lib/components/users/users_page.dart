@@ -196,7 +196,7 @@ class _UsersPageState extends State<UsersPage> {
   Future<void> _deleteUser(int userId) async {
 
     final response = await new ApiService().request(
-      method: 'delete',
+      method: 'post',
       endpoint: 'User/DeleteUser/$userId',
     );
     if (response['statusCode'] == 200) {

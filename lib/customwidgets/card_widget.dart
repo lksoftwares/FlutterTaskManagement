@@ -33,7 +33,6 @@ Widget buildUserCard({
   bool showDelete = false,
   bool showView = false,
   bool showplay = false,
-
   Widget? trailingIcon,
   Widget? leadingIcon,
   Widget? additionalContent,
@@ -55,7 +54,7 @@ Widget buildUserCard({
             Text(
               '$firstKey: $firstValue',
               style: const TextStyle(
-                fontSize: 18,
+                fontSize: 17,
                 fontWeight: FontWeight.bold,
                 color: Colors.black,
               ),
@@ -82,13 +81,14 @@ Widget buildUserCard({
       dynamic value = userFields[key];
 
       Widget displayValue;
-      if (value is bool) {
+      if (value is Widget) {
+        displayValue = value;
+      } else if (value is bool) {
         displayValue = Icon(
           value ? Icons.check_circle : Icons.cancel,
           color: value ? Colors.green : Colors.red,
         );
-      }
-      else {
+      } else {
         displayValue = Text(
           key == 'Password' ? '*' * (value.toString().length ?? 0) : value.toString(),
           style: const TextStyle(fontSize: 15, color: Colors.black),
@@ -114,7 +114,7 @@ Widget buildUserCard({
               ),
               const SizedBox(width: 5),
               Expanded(
-                flex: 4,
+                flex: 5,
                 child: displayValue,
               ),
               SizedBox(

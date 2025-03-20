@@ -102,7 +102,6 @@ class _LoginScreenState extends State<LoginScreen> {
         print(response);
         int user_Id = response['apiResponse']['user_Id'];
         int role_Id = response['apiResponse']['role_Id'];
-
         String user_Name = response['apiResponse']['user_Name'];
         String role_Name = response['apiResponse']['role_Name'];
 

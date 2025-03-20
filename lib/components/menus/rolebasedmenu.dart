@@ -442,9 +442,7 @@ class _SubmenuPermissionDropdownState extends State<SubmenuPermissionDropdown> {
                 widget.menu.roles[0].permissionType.isNotEmpty) {
               selectedPermission = widget.menu.roles[0].permissionType;
             } else {
-              selectedPermission = fetchedPermissions.isNotEmpty
-                  ? fetchedPermissions[0].permissionType
-                  : 'Unknown';
+              selectedPermission = null;
             }
           });
         }
@@ -464,9 +462,7 @@ class _SubmenuPermissionDropdownState extends State<SubmenuPermissionDropdown> {
               : permissionTypes.firstWhere(
                 (permission) =>
             permission.permissionType == selectedPermission,
-            orElse: () => permissionTypes.isNotEmpty
-                ? permissionTypes[0]
-                : Permission(permissionType: 'Select', permissionId: 0),
+            orElse: () => Permission(permissionType: 'Select', permissionId: 0),
           ),
           hint: Text('Select'),
           onChanged: (Permission? newValue) {
@@ -487,12 +483,13 @@ class _SubmenuPermissionDropdownState extends State<SubmenuPermissionDropdown> {
               value: null,
               child: Text('Select'),
             ),
-            ...permissionTypes.map<DropdownMenuItem<Permission>>((Permission permission) {
-              return DropdownMenuItem<Permission>(
-                value: permission,
-                child: Text(permission.permissionType),
-              );
-            }).toList(),
+            ...permissionTypes.map<DropdownMenuItem<Permission>>(
+                    (Permission permission) {
+                  return DropdownMenuItem<Permission>(
+                    value: permission,
+                    child: Text(permission.permissionType),
+                  );
+                }).toList(),
           ],
         ),
       ],

@@ -1,6 +1,4 @@
-import 'package:flutter/material.dart';
 import 'package:lktaskmanagementapp/packages/headerfiles.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 
 class SplashScreen extends StatefulWidget {
@@ -25,22 +23,21 @@ class SplashScreenState extends State<SplashScreen> {
     });
   }
 
-  // Check if the user is logged in
   Future<void> _checkLoginStatus() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     int? userId = prefs.getInt('user_Id');
-
-    // Simulate a delay for splash screen appearance
     Timer(Duration(seconds: 3), () {
       if (userId != null) {
-        // User is already logged in, navigate to Dashboard
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (context) => DashboardScreen()),
         );
       } else {
-        // User is not logged in, navigate to Login screen
-        Navigator.pushReplacementNamed(context, '/login');
+      //  Navigator.pushReplacementNamed(context, '/login');
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => LoginScreen()),
+        );
       }
     });
   }
@@ -49,7 +46,7 @@ class SplashScreenState extends State<SplashScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-        color: primaryColor, // Replace with your actual primary color
+        color: primaryColor,
         child: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,

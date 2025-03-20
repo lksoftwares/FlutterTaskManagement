@@ -762,7 +762,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
   Future<void> _deleteProject(int projectId) async {
 
     final response = await new ApiService().request(
-      method: 'delete',
+      method: 'post',
       endpoint: 'projects/DeleteProject/$projectId',
     );
     if (response['statusCode'] == 200) {

@@ -1,6 +1,7 @@
 
 import 'package:intl/intl.dart';
 import 'package:lktaskmanagementapp/packages/headerfiles.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import'dart:convert';
 import 'package:http_parser/http_parser.dart';
@@ -21,6 +22,7 @@ class _DailyWorkingStatusState extends State<DailyWorkingStatus> {
   String? selectedUserId;
   Map<String, bool> isPlayingMap = {};
   bool isLoading = false;
+  String? currentLocation = '';
   DateTime? fromDate;
   DateTime? toDate;
   String? selectedUserName;
@@ -130,9 +132,7 @@ class _DailyWorkingStatusState extends State<DailyWorkingStatus> {
       endpoint = 'Working/GetWorking?userId=$userId';
     }
 
-
-    try {
-      final response = await new ApiService().request(
+     final response = await new ApiService().request(
         method: 'get',
         endpoint: endpoint,
       );
@@ -160,6 +160,9 @@ class _DailyWorkingStatusState extends State<DailyWorkingStatus> {
                 'updatedAt': role['updatedAt'] ?? '',
                 'workingNote': role['workingNote'] ?? '',
                 'workingDescFilePath': role['workingDescFilePath'] ?? '',
+                'location': role['location'] ?? '',
+                'viewStatus': role['viewStatus'] ?? '',
+
               };
             }),
           );
@@ -167,10 +170,7 @@ class _DailyWorkingStatusState extends State<DailyWorkingStatus> {
       } else {
         showToast(msg: response['message'] ?? 'Failed to load roles');
       }
-    } catch (error) {
-      print("Error fetching data: $error");
-      showToast(msg: "Error fetching data: $error", backgroundColor: Colors.red);
-    }
+
 
     setState(() {
       isLoading = false;
@@ -212,40 +212,42 @@ class _DailyWorkingStatusState extends State<DailyWorkingStatus> {
       title: 'Add Working Desc',
       content: StatefulBuilder(
         builder: (context, setState) {
-          return Container(
-            height: 250,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                TextField(
-                  onChanged: (value) => workingDesc = value,
-                  decoration: inputDecoration,
-                  maxLines: 7,
-                ),
-                Padding(
-                  padding: const EdgeInsets.only(top: 10.0),
-                  child: Center(
-                      child: GestureDetector(
-                          onTap: () {
-                            if (isRecording) {
-                              _stopRecording();
-                              setState(() {
-                                isRecording = false;
-                              });
-                            } else {
-                              setState(() {
-                                isRecording = true;
-                              });
-                              _startRecording();
-                            }
-                          },
-                          child: isRecording
-                              ? Avatar()
-                              : Icon(Icons.mic, color: Color(0xFF005296), size: 40)
-                      )
+          return SingleChildScrollView(
+            child: Container(
+              height: 250,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  TextField(
+                    onChanged: (value) => workingDesc = value,
+                    decoration: inputDecoration,
+                    maxLines: 7,
                   ),
-                ),
-              ],
+                  Padding(
+                    padding: const EdgeInsets.only(top: 10.0),
+                    child: Center(
+                        child: GestureDetector(
+                            onTap: () {
+                              if (isRecording) {
+                                _stopRecording();
+                                setState(() {
+                                  isRecording = false;
+                                });
+                              } else {
+                                setState(() {
+                                  isRecording = true;
+                                });
+                                _startRecording();
+                              }
+                            },
+                            child: isRecording
+                                ? Avatar()
+                                : Icon(Icons.mic, color: Color(0xFF005296), size: 40)
+                        )
+                    ),
+                  ),
+                ],
+              ),
             ),
           );
         },
@@ -298,6 +300,8 @@ class _DailyWorkingStatusState extends State<DailyWorkingStatus> {
       workingDesc = "Check audio";
     }
 
+    await getCurrentLocation();
+
     final uri = Uri.parse('${Config.apiUrl}Working/AddWorking');
 
     try {
@@ -305,6 +309,11 @@ class _DailyWorkingStatusState extends State<DailyWorkingStatus> {
 
       request.fields['workingDesc'] = workingDesc;
       request.fields['userId'] = userId.toString();
+
+      if (currentLocation != null && currentLocation!.isNotEmpty) {
+        request.fields['location'] = currentLocation!;
+      }
+
       if (audioFilePath != null) {
         var file = await http.MultipartFile.fromPath(
           'workingAudioFile',
@@ -313,9 +322,11 @@ class _DailyWorkingStatusState extends State<DailyWorkingStatus> {
         );
         request.files.add(file);
       }
+
       var response = await request.send();
       final responseData = await http.Response.fromStream(response);
       final responseJson = jsonDecode(responseData.body);
+
       if (response.statusCode == 200) {
         if (responseJson != null && responseJson['message'] != null) {
           showToast(msg: responseJson['message'], backgroundColor: Colors.green);
@@ -383,7 +394,7 @@ class _DailyWorkingStatusState extends State<DailyWorkingStatus> {
 
   Future<void> _deleteRole(int txnId) async {
     final response = await new ApiService().request(
-      method: 'delete',
+      method: 'post',
       endpoint: 'Working/DeleteWorking/$txnId',
     );
     if (response.isNotEmpty && response['statusCode'] == 200) {
@@ -417,7 +428,7 @@ class _DailyWorkingStatusState extends State<DailyWorkingStatus> {
             ),
             child: SingleChildScrollView(
               child: Text(
-                "Description: $workingDesc",
+                "$workingDesc",
                 style: TextStyle(fontSize: 18),
               ),
             ),
@@ -451,7 +462,6 @@ class _DailyWorkingStatusState extends State<DailyWorkingStatus> {
       ),
     );
   }
-
 
   void _showWorkingNoteDialog(String? workingNote, String workingDate, String userName, BuildContext context) {
     if (workingNote == null || workingNote.isEmpty) {
@@ -510,21 +520,32 @@ class _DailyWorkingStatusState extends State<DailyWorkingStatus> {
   }
 
   List<Map<String, dynamic>> getFilteredData() {
+    DateTime today = getTodayDate();
     return roles.where((role) {
       bool matchesUserName = true;
       bool matchesDate = true;
       if (selectedUserName != null && selectedUserName!.isNotEmpty) {
         matchesUserName = role['userName'] == selectedUserName;
       }
+
       if (fromDate != null && toDate != null) {
         DateTime workingDate = _parseDate(role['workingDate']);
         matchesDate = (workingDate.isAtSameMomentAs(fromDate!) ||
             workingDate.isAfter(fromDate!)) &&
             (workingDate.isAtSameMomentAs(toDate!) ||
                 workingDate.isBefore(toDate!));
+      } else {
+        DateTime workingDate = _parseDate(role['workingDate']);
+        matchesDate = workingDate.year == today.year &&
+            workingDate.month == today.month &&
+            workingDate.day == today.day;
       }
+
       return matchesUserName && matchesDate;
     }).toList();
+  }
+  DateTime getTodayDate() {
+    return DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
   }
 
   Future<void> _playAudio(String url) async {
@@ -553,6 +574,46 @@ class _DailyWorkingStatusState extends State<DailyWorkingStatus> {
     });
     positionTimer?.cancel();
   }
+  Future<void> getCurrentLocation() async {
+    LocationPermission permission = await Geolocator.requestPermission();
+    if (permission == LocationPermission.always ||
+        permission == LocationPermission.whileInUse) {
+      Position position = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.high);
+      print('Current location: Latitude: ${position.latitude}, Longitude: ${position.longitude}');
+
+      List<Placemark> placemarks = await placemarkFromCoordinates(position.latitude, position.longitude);
+      if (placemarks.isNotEmpty) {
+        Placemark placemark = placemarks.first;
+        currentLocation = '${placemark.street}, ${placemark.locality}';
+        print('Address: $currentLocation');
+      } else {
+        print('No address found');
+      }
+    } else {
+      print('Location permission not granted');
+    }
+  }
+  Future<void> _viewWorking(int txnId) async {
+      final response = await new ApiService().request(
+        method: 'post',
+        endpoint: 'Working/ViewWorking',
+        body: {
+          'updateFlag': 'true',
+          'txnId': txnId.toString(),
+        },
+        isMultipart: true
+      );
+
+      if (response['statusCode'] == 200) {
+        String message = response['message'] ?? 'View Status updated successfully';
+        showToast(msg: message, backgroundColor: Colors.green);
+        fetchWorking();
+      } else {
+        String message = response['message'] ?? 'Failed to update status';
+        showToast(msg: message);
+      }
+    }
 
   @override
   Widget build(BuildContext context) {
@@ -642,10 +703,12 @@ class _DailyWorkingStatusState extends State<DailyWorkingStatus> {
                             'Username': role['userName'],
                             'workingDate': role['workingDate'],
                             'Note ': role[''] ?? "",
-                            'WorkingDesc': role['workingDesc'],
+                            'Description': role['workingDesc'],
                             'CreatedAt': role['createdAt'],
                             'updatedAt': role['updatedAt'],
                             'WorkingNote': role['workingNote'],
+                            'location': role['location'],
+
                           };
 
                           String shortenedWorkingDesc = role['workingDesc']
@@ -663,7 +726,6 @@ class _DailyWorkingStatusState extends State<DailyWorkingStatus> {
                               ? Colors.red[900]!
                               : Colors.red[100]!;
 
-
                           bool hasAudioFile = role['workingDescFilePath'] != null && role['workingDescFilePath'] != '';
                           bool isAdmin = roleName == 'Admin';
                           return buildUserCard(
@@ -671,43 +733,58 @@ class _DailyWorkingStatusState extends State<DailyWorkingStatus> {
                               'Username': role['userName'],
                               'Date: ': role['workingDate'],
                               'Note ': role[''] ?? "",
-                              'WorkingDesc': shortenedWorkingDesc,
+                              'Description': shortenedWorkingDesc,
+                              'Location': role['location'],
                               'CreatedAt':role['createdAt'],
                             },
                             onDelete: () => _confirmDeleteRole(role['txnId']),
                             showView: true,
-                            onView: () =>
-                                _showFullDescription(role['workingDesc'], role['workingDate'],
-                                    role['userName'],context),
+                            onView: () {
+                              if (roleName == 'Admin') {
+                                _viewWorking(role['txnId']);
+                                _showFullDescription(role['workingDesc'], role['workingDate'], role['userName'], context);
+                              } else {
+                                _showFullDescription(role['workingDesc'], role['workingDate'], role['userName'], context);
+                              }
+                            },
                             trailingIcon: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                if (hasAudioFile)
-                                  IconButton(
-                                    icon: Icon(
-                                      isPlayingMap[role['workingDescFilePath']] == true
-                                          ? Icons.pause_circle
-                                          : Icons.play_circle,
-                                      color: isPlayingMap[role['workingDescFilePath']] == true
-                                          ? Colors.red
-                                          : Colors.green,
-                                    ),
-                                    onPressed: () {
-                                      if (isPlayingMap[role['workingDescFilePath']] == true) {
-                                        _stopAudio(role['workingDescFilePath']);
-                                      } else {
-                                        _playAudio(role['workingDescFilePath']);
-                                      }
-                                    },
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                role['viewStatus'] == true
+                                    ? Icons.check_circle_outline
+                                    : Icons.check_circle_outline,
+                                color: role['viewStatus'] == true ? Colors.green : Colors.grey[400],
+                                size: 35,
+                              ),
+                              if (hasAudioFile)
+                                IconButton(
+                                  icon: Icon(
+                                    isPlayingMap[role['workingDescFilePath']] == true
+                                        ? Icons.pause_circle
+                                        : Icons.play_circle,
+                                    color: isPlayingMap[role['workingDescFilePath']] == true
+                                        ? Colors.red
+                                        : Colors.green,
                                   ),
-                                if (isAdmin)
-                                  IconButton(
-                                    onPressed: () => _confirmDeleteRole(role['txnId']),
-                                    icon: Icon(Icons.delete, color: Colors.red),
-                                  ),
-                              ],
-                            ),
-                            leadingIcon: Row(
+                                  onPressed: () {
+                                    if (isPlayingMap[role['workingDescFilePath']] == true) {
+                                      _stopAudio(role['workingDescFilePath']);
+                                    } else {
+                                      _playAudio(role['workingDescFilePath']);
+                                    }
+                                  },
+                                ),
+                              if (isAdmin)
+                                IconButton(
+                                  onPressed: () => _confirmDeleteRole(role['txnId']),
+                                  icon: Icon(Icons.delete, color: Colors.red),
+                                ),
+
+                            ],
+                          ),
+
+                          leadingIcon: Row(
                               children: [
                                 IconButton(
                                   onPressed: () {

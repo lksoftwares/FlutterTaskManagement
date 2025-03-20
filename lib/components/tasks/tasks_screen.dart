@@ -1,34 +1,67 @@
 
 import 'package:lktaskmanagementapp/packages/headerfiles.dart';
 
-class RolesPage extends StatefulWidget {
-  const RolesPage({super.key});
+class TasksScreen extends StatefulWidget {
+  const TasksScreen({super.key});
 
   @override
-  State<RolesPage> createState() => _RolesPageState();
+  State<TasksScreen> createState() => _TasksScreenState();
 }
 
-class _RolesPageState extends State<RolesPage> {
+
+class _TasksScreenState extends State<TasksScreen> {
+  List<Map<String, dynamic>> projects = [];
+  bool isLoading = false;
+  String? selectedStatus = 'open';
+  String? selectedPriority = 'medium';
   List<Map<String, dynamic>> roles = [];
   String? selectedRoleName;
-
-  bool isLoading = false;
-
+  String? selectedProject;
+  String taskTitle = '';
+  String taskDescription = '';
+  DateTime? dueDate;
+  int? userId;
 
   @override
   void initState() {
     super.initState();
-
-      fetchRoles();
+    fetchProjects();
+    _getUserId();
   }
 
-  // Future<void> _getToken() async {
-  //   SharedPreferences prefs = await SharedPreferences.getInstance();
-  //   setState(() {
-  //     token = prefs.getString('token');
-  //   });
-  // }
+  Future<void> _getUserId() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    setState(() {
+      userId = prefs.getInt('user_Id');
+    });
+  }
 
+  Future<void> fetchProjects() async {
+    setState(() {
+      isLoading = true;
+    });
+
+    final response = await new ApiService().request(
+      method: 'get',
+      endpoint: 'projects/GetAllProject',
+    );
+    print('Response: $response');
+    if (response['statusCode'] == 200 && response['apiResponse'] != null) {
+      setState(() {
+        projects = List<Map<String, dynamic>>.from(
+          response['apiResponse'].map((project) => {
+            'projectId': project['projectId'] ?? 0,
+            'projectName': project['projectName'] ?? 'Unknown project',
+          }),
+        );
+      });
+    } else {
+      showToast(msg: response['message'] ?? 'Failed to load projects');
+    }
+    setState(() {
+      isLoading = false;
+    });
+  }
   Future<void> fetchRoles() async {
     setState(() {
       isLoading = true;
@@ -59,57 +92,131 @@ class _RolesPageState extends State<RolesPage> {
     });
   }
 
-  Future<void> _addRole(String roleName) async {
+  Future<void> _addTask() async {
+    if (taskTitle.isEmpty || taskDescription.isEmpty || selectedProject == null || dueDate == null) {
+      showToast(msg: 'Please fill in all the fields');
+      return;
+    }
+
     final response = await new ApiService().request(
       method: 'post',
-      endpoint: 'Roles/AddRole',
+      endpoint: 'tasks/create',
       body: {
-        'roleName': roleName,
+        'projectId': selectedProject,
+        'taskTitle': taskTitle,
+        'taskDescription': taskDescription,
+        'taskPriority': selectedPriority,
+        'taskDueDate': dueDate?.toIso8601String(),
+        'taskStatus': selectedStatus,
+        'taskAssignedTo': userId,
+        'taskCreatedBy': userId,
+        'taskUpdatedBy': userId,
+        'taskVersion': 1,
       },
     );
 
-    if (response.isNotEmpty && response['statusCode'] == 200) {
-      fetchRoles();
-      showToast(
-        msg: response['message'] ?? 'Role added successfully',
-        backgroundColor: Colors.green,
-      );
+    if (response['statusCode'] == 200) {
+      showToast(msg: response['message'] ?? 'Task created successfully', backgroundColor: Colors.green);
       Navigator.pop(context);
-    }  else {
-      showToast(
-        msg: response['message'] ?? 'Failed to add role',
-      );
+    } else {
+      showToast(msg: response['message'] ?? 'Failed to create task');
     }
   }
 
-  void _showAddRoleModal() {
-    String roleName = '';
-    InputDecoration inputDecoration = InputDecoration(
-      labelText: 'Role Name',
-      border: OutlineInputBorder(),
-    );
-
+  void _showAddTaskModal() {
     showCustomAlertDialog(
       context,
-      title: 'Add Role',
-      content: TextField(
-        onChanged: (value) => roleName = value,
-        decoration: inputDecoration,
+      title: 'Add Task',
+      content: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          TextField(
+            onChanged: (value) => taskTitle = value,
+            decoration: InputDecoration(
+              labelText: 'Task Title',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          SizedBox(height: 10),
+          TextField(
+            onChanged: (value) => taskDescription = value,
+            decoration: InputDecoration(
+              labelText: 'Task Description',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          SizedBox(height: 10),
+          DropdownButtonFormField<String>(
+            value: selectedPriority,
+            decoration: InputDecoration(labelText: 'Priority'),
+            onChanged: (value) {
+              setState(() {
+                selectedPriority = value;
+              });
+            },
+            items: ['low', 'medium', 'high'].map((priority) {
+              return DropdownMenuItem<String>(
+                value: priority,
+                child: Text(priority),
+              );
+            }).toList(),
+          ),
+          SizedBox(height: 10),
+          DropdownButtonFormField<String>(
+            value: selectedStatus,
+            decoration: InputDecoration(labelText: 'Status'),
+            onChanged: (value) {
+              setState(() {
+                selectedStatus = value;
+              });
+            },
+            items: ['open', 'in-progress', 'completed', 'blocked'].map((status) {
+              return DropdownMenuItem<String>(
+                value: status,
+                child: Text(status),
+              );
+            }).toList(),
+          ),
+          SizedBox(height: 10),
+          DropdownButtonFormField<String>(
+            value: selectedProject,
+            decoration: InputDecoration(labelText: 'Project'),
+            onChanged: (value) {
+              setState(() {
+                selectedProject = value;
+              });
+            },
+            items: projects.map((project) {
+              return DropdownMenuItem<String>(
+                value: project['projectId'].toString(),
+                child: Text(project['projectName']),
+              );
+            }).toList(),
+          ),
+          SizedBox(height: 10),
+          TextButton(
+            onPressed: () async {
+              DateTime? pickedDate = await showDatePicker(
+                context: context,
+                initialDate: dueDate ?? DateTime.now(),
+                firstDate: DateTime(2000),
+                lastDate: DateTime(2101),
+              );
+              if (pickedDate != null) {
+                setState(() {
+                  dueDate = pickedDate;
+                });
+              }
+            },
+            child: Text(dueDate == null ? 'Select Due Date' : dueDate!.toLocal().toString().split(' ')[0]),
+          ),
+        ],
       ),
       actions: [
-
         ElevatedButton(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.green,
-          ),
-          onPressed: () {
-            if (roleName.isEmpty) {
-              showToast(msg: 'Please fill in the role name');
-            } else {
-              _addRole(roleName);
-            }
-          },
-          child: Text('Add',style: TextStyle(color: Colors.white),),
+          onPressed: _addTask,
+          style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+          child: Text('Add Task', style: TextStyle(color: Colors.white)),
         ),
         TextButton(
           onPressed: () => Navigator.pop(context),
@@ -244,7 +351,7 @@ class _RolesPageState extends State<RolesPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: CustomAppBar(
-        title: 'Roles',
+        title: 'Tasks',
         onLogout: () => AuthService.logout(context),
       ),
       body: RefreshIndicator(
@@ -280,7 +387,7 @@ class _RolesPageState extends State<RolesPage> {
                             controller: controller,
                             focusNode: focusNode,
                             decoration: InputDecoration(
-                              labelText: 'Select Role',
+                              labelText: 'Select Tasks',
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(10),
                               ),
@@ -300,7 +407,7 @@ class _RolesPageState extends State<RolesPage> {
                     ),
                     IconButton(
                       icon: Icon(Icons.add_circle, color: Colors.blue, size: 30),
-                      onPressed: _showAddRoleModal,
+                      onPressed: _showAddTaskModal,
                     ),
                   ],
                 ),

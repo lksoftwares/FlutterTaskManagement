@@ -25,30 +25,33 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
       statusBarIconBrightness: Brightness.light,
     ));
 
-    return SafeArea(
-      left: true,
-      right: true,
-      bottom: true,
-      top: true,
-      child: AppBar(
-        centerTitle: true,
-        title: Text(
-          title,
-          style: TextStyle(
-            fontSize: fontSize,
-            fontWeight: fontWeight,
-            color: fontColor,
-          ),
-        ),
-        backgroundColor: primaryColor,
-        actions: [
-          if (onLogout != null)
-            IconButton(
-              icon: Icon(Icons.logout),
-              onPressed: onLogout,
-              color: Colors.white,
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.light,
+      child: SafeArea(
+        left: true,
+        right: true,
+        bottom: true,
+        top: true,
+        child: AppBar(
+          centerTitle: true,
+          title: Text(
+            title,
+            style: TextStyle(
+              fontSize: fontSize,
+              fontWeight: fontWeight,
+              color: fontColor,
             ),
-        ],
+          ),
+          backgroundColor: primaryColor,
+          actions: [
+            if (onLogout != null)
+              IconButton(
+                icon: Icon(Icons.logout),
+                onPressed: onLogout,
+                color: Colors.white,
+              ),
+          ],
+        ),
       ),
     );
   }

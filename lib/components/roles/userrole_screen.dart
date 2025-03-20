@@ -310,7 +310,7 @@ class _UserroleScreenState extends State<UserroleScreen> {
 
   Future<void> _deleteRole(int userRoleId) async {
     final response = await new ApiService().request(
-      method: 'delete',
+      method: 'post',
       endpoint: 'roles/DeleteUserRole/$userRoleId',
     );
     if (response['statusCode'] == 200) {

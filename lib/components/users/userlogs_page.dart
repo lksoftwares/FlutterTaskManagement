@@ -51,9 +51,19 @@ class _UserlogsPageState extends State<UserlogsPage> {
       isLoading = true;
     });
 
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    int? userId = prefs.getInt('user_Id');
+    String roleName = prefs.getString('role_Name') ?? "";
+    String endpoint = 'User/GetUserLogs';
+
+    if (roleName == 'Admin') {
+      endpoint = 'User/GetUserLogs';
+    } else if (userId != null) {
+      endpoint = 'User/GetUserLogs?userId=$userId';
+    }
     final response = await new ApiService().request(
       method: 'get',
-      endpoint: 'User/GetUserLogs',
+      endpoint: endpoint,
     );
     if (response['statusCode'] == 200 && response['apiResponse'] != null) {
       setState(() {

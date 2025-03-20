@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:lktaskmanagementapp/packages/headerfiles.dart';
 
 class MenuScreen extends StatefulWidget {
@@ -41,6 +40,7 @@ class _MenuScreenState extends State<MenuScreen> {
             'menuName': item['menuName'],
             'iconPath': item['iconPath'],
             'pageName': item['pageName'],
+            'subMenus': item['subMenus'] ?? [],
           };
         }).toList());
         _filteredMenuData = List<Map<String, dynamic>>.from(_menuData);
@@ -120,7 +120,7 @@ class _MenuScreenState extends State<MenuScreen> {
               onChanged: (String? newValue) {
                 setState(() {
                   _selectedMenuName = newValue;
-        
+
                   if (newValue == 'No Parent') {
                     _selectedParentMenuId = 0;
                   } else {
@@ -334,7 +334,7 @@ class _MenuScreenState extends State<MenuScreen> {
   }
   Future<void> _deleteMenu(int menuId) async {
     final response = await ApiService().request(
-      method: 'delete',
+      method: 'post',
       endpoint: 'Menus/DeleteMenu/$menuId',
     );
 
@@ -398,9 +398,8 @@ class _MenuScreenState extends State<MenuScreen> {
               if (isLoading)
                 Center(child: CircularProgressIndicator())
               else if (_filteredMenuData.isEmpty)
-              // NoDataFoundScreen()
-                Center(child: CircularProgressIndicator())
-
+               NoDataFoundScreen()
+                //Center(child: CircularProgressIndicator())
               else SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   child: DataTable(
@@ -452,7 +451,6 @@ class _MenuScreenState extends State<MenuScreen> {
           ),
         ),
       ),
-
     );
   }
 }

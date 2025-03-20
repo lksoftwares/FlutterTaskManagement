@@ -175,7 +175,6 @@ print(userId);
                       obscureText: _obscureNewPassword,
                       prefixIcon: Icon(Icons.lock),
                       maxLines: 1,
-
                       suffixIcon: Icon(
                         _obscureNewPassword
                             ? Icons.visibility_off

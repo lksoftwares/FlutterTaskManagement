@@ -56,3 +56,4 @@ export 'package:lktaskmanagementapp/components/menus/menu_screen.dart';
 export 'package:lktaskmanagementapp/components/permissions/permissions_screen.dart';
 export 'package:lktaskmanagementapp/components/leaves/leave_form.dart';
 export 'package:lktaskmanagementapp/components/leaves/leaves_screen.dart';
+export 'package:lktaskmanagementapp/components/tasks/tasks_screen.dart';

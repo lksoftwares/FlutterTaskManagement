@@ -22,7 +22,6 @@ class AppRoutes {
       '/menus': (context) => MenuScreen(),
       '/permissions': (context) => PermissionsScreen(),
       '/menurole': (context) => MenuRolePage(),
-      '/leaveform': (context) => LeaveForm(),
       '/leaves': (context) => LeavesScreen(),
 
 

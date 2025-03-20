@@ -13,8 +13,8 @@ class Dateformat {
   }
 }
 
-class Dateformat2 {
-  static String formatWorkingDate2(String dateStr) {
+class Dateformatfull {
+  static String formatDatefull(String dateStr) {
     try {
       DateFormat dateFormat = DateFormat('dd-MM-yyyy HH:mm:ss');
       DateTime parsedDate = dateFormat.parse(dateStr);
@@ -26,8 +26,8 @@ class Dateformat2 {
   }
 }
 
-class Dateformat3 {
-  static String formatWorkingDate3(DateTime date) {
+class DateformatyyyyMMdd {
+  static String formatDateyyyyMMdd(DateTime date) {
     try {
       return DateFormat('yyyy-MM-dd').format(date);
     } catch (e) {
@@ -37,8 +37,8 @@ class Dateformat3 {
   }
 }
 
-class Dateformat4 {
-  static String formatWorkingDate4(DateTime date) {
+class DateformatddMMyyyy {
+  static String formatDateddMMyyyy(DateTime date) {
     try {
       return DateFormat('dd-MM-yyyy').format(date);
     } catch (e) {

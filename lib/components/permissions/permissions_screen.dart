@@ -151,7 +151,7 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
   Future<void> _deletePermission(int permissionId) async {
 
     final response = await new ApiService().request(
-      method: 'delete',
+      method: 'post',
       endpoint: 'permission/deletePermission/$permissionId',
     );
     if (response['statusCode'] == 200) {

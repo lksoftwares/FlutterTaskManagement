@@ -26,7 +26,7 @@ class _LeaveFormState extends State<LeaveForm> {
     );
     if (pickedDate != null) {
       setState(() {
-        String formattedDate = Dateformat4.formatWorkingDate4(pickedDate);
+        String formattedDate = DateformatddMMyyyy.formatDateddMMyyyy(pickedDate);
         if (isFromDate) {
           fromDate = pickedDate;
           fromDateController.text = formattedDate;
@@ -57,9 +57,17 @@ class _LeaveFormState extends State<LeaveForm> {
     }
 
     int userId = await getUserIdFromSharedPreferences();
-    int days = await calculateDays(fromDate, toDate);
-    String formattedFromDate = Dateformat3.formatWorkingDate3(fromDate ?? DateTime.now());
-    String formattedToDate = Dateformat3.formatWorkingDate3(toDate ?? DateTime.now());
+    int days = 0;
+    if (fromDate != null && toDate != null) {
+      if (fromDate == toDate) {
+        days = 1;
+      } else {
+        days = await calculateDays(fromDate, toDate);
+      }
+    }
+
+    String formattedFromDate = DateformatyyyyMMdd.formatDateyyyyMMdd(fromDate ?? DateTime.now());
+    String formattedToDate = DateformatyyyyMMdd.formatDateyyyyMMdd(toDate ?? DateTime.now());
 
     Map<String, dynamic> body = {
       "leaveStatus": "pending",
@@ -76,16 +84,16 @@ class _LeaveFormState extends State<LeaveForm> {
       endpoint: "leave/AddLeave",
       body: body,
     );
-print("hdvfhdvfh$body");
+
+    print("Request Body: $body");
+
     if (response['statusCode'] == 200) {
       _showSuccessDialog(response['message'] ?? 'Leave applied');
-
     } else {
-      showToast(
-        msg: response['message'] ?? 'Failed to apply leave',
-      );
+      showToast(msg: response['message'] ?? 'Failed to apply leave');
     }
   }
+
   void _showSuccessDialog(String message) {
     showDialog(
       context: context,
@@ -111,7 +119,10 @@ print("hdvfhdvfh$body");
               ElevatedButton(
                 onPressed: () {
                   Navigator.pop(context);
-                  Navigator.pop(context);
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(builder: (context) => LeavesScreen()),
+                  );
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.green,

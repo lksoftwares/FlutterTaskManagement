@@ -233,7 +233,7 @@ class _TeamScreenState extends State<TeamScreen> {
   Future<void> _deleteTeam(int teamId) async {
 
     final response = await new ApiService().request(
-      method: 'delete',
+      method: 'post',
       endpoint: 'teams/deleteTeam/$teamId',
     );
     if (response['statusCode'] == 200) {
