@@ -57,3 +57,10 @@ export 'package:lktaskmanagementapp/components/permissions/permissions_screen.da
 export 'package:lktaskmanagementapp/components/leaves/leave_form.dart';
 export 'package:lktaskmanagementapp/components/leaves/leaves_screen.dart';
 export 'package:lktaskmanagementapp/components/tasks/tasks_screen.dart';
+export 'package:local_auth/local_auth.dart';
+export 'package:lktaskmanagementapp/components/auth/auth_service.dart';
+export 'package:lktaskmanagementapp/components/tasks/assigntask_screen.dart';
+export 'package:lktaskmanagementapp/components/holidays/holidays_screen.dart';
+export 'package:lktaskmanagementapp/components/tasks/tasklogs_screen.dart';
+export 'package:lktaskmanagementapp/components/tasks/taskscomments_screen.dart';
+

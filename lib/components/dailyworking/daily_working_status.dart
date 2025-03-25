@@ -1,4 +1,3 @@
-
 import 'package:intl/intl.dart';
 import 'package:lktaskmanagementapp/packages/headerfiles.dart';
 import 'package:geolocator/geolocator.dart';
@@ -150,7 +149,6 @@ class _DailyWorkingStatusState extends State<DailyWorkingStatus> {
               } catch (e) {
                 print("Error parsing date: $e");
               }
-
               return {
                 'txnId': role['txnId'] ?? 0,
                 'userName': role['userName'] ?? 'Unknown userName',
@@ -162,7 +160,6 @@ class _DailyWorkingStatusState extends State<DailyWorkingStatus> {
                 'workingDescFilePath': role['workingDescFilePath'] ?? '',
                 'location': role['location'] ?? '',
                 'viewStatus': role['viewStatus'] ?? '',
-
               };
             }),
           );
@@ -170,7 +167,6 @@ class _DailyWorkingStatusState extends State<DailyWorkingStatus> {
       } else {
         showToast(msg: response['message'] ?? 'Failed to load roles');
       }
-
 
     setState(() {
       isLoading = false;
@@ -190,7 +186,8 @@ class _DailyWorkingStatusState extends State<DailyWorkingStatus> {
     String workingDesc = '';
     InputDecoration inputDecoration = InputDecoration(
       labelText: 'Working Desc',
-      border: OutlineInputBorder(),
+      border: OutlineInputBorder(
+      ),
     );
 
     int? userId = await getUserIdFromPrefs();
@@ -198,7 +195,6 @@ class _DailyWorkingStatusState extends State<DailyWorkingStatus> {
       showToast(msg: 'User ID not found in preferences.');
       return;
     }
-
     setState(() {
       audioFilePath = null;
       isRecording = false;
@@ -214,36 +210,51 @@ class _DailyWorkingStatusState extends State<DailyWorkingStatus> {
         builder: (context, setState) {
           return SingleChildScrollView(
             child: Container(
-              height: 250,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  TextField(
-                    onChanged: (value) => workingDesc = value,
-                    decoration: inputDecoration,
-                    maxLines: 7,
+                  SizedBox(height: 30,),
+                  Padding(
+                    padding: const EdgeInsets.only(left: 20.0),
+                    child: Container(
+                      width: 320,
+                      child: TextField(
+                        onChanged: (value) => workingDesc = value,
+                        decoration: inputDecoration,
+                        maxLines: 12,
+
+                      ),
+                    ),
                   ),
                   Padding(
                     padding: const EdgeInsets.only(top: 10.0),
-                    child: Center(
-                        child: GestureDetector(
-                            onTap: () {
-                              if (isRecording) {
-                                _stopRecording();
-                                setState(() {
-                                  isRecording = false;
-                                });
-                              } else {
-                                setState(() {
-                                  isRecording = true;
-                                });
-                                _startRecording();
-                              }
-                            },
-                            child: isRecording
-                                ? Avatar()
-                                : Icon(Icons.mic, color: Color(0xFF005296), size: 40)
-                        )
+                    child: Column(
+                      children: [
+                        SizedBox(height: 20,),
+
+                        Text("Add Audio Working", style: TextStyle(fontWeight: FontWeight.w900,fontSize: 20)),
+                        SizedBox(height: 20,),
+                        Center(
+                            child: GestureDetector(
+                                onTap: () {
+                                  if (isRecording) {
+                                    _stopRecording();
+                                    setState(() {
+                                      isRecording = false;
+                                    });
+                                  } else {
+                                    setState(() {
+                                      isRecording = true;
+                                    });
+                                    _startRecording();
+                                  }
+                                },
+                                child: isRecording
+                                    ? Avatar()
+                                    : Icon(Icons.mic, color: Color(0xFF005296), size: 40)
+                            )
+                        ),
+                      ],
                     ),
                   ),
                 ],
@@ -274,6 +285,7 @@ class _DailyWorkingStatusState extends State<DailyWorkingStatus> {
           child: Text('Cancel'),
         ),
       ],
+isFullScreen: true,
       additionalTitleContent: Padding(
         padding: const EdgeInsets.only(top: 1.0),
         child: Column(
@@ -416,24 +428,27 @@ class _DailyWorkingStatusState extends State<DailyWorkingStatus> {
     showCustomAlertDialog(
       context,
       title: 'Working Description',
-
-      content: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            height: 250,
-            constraints: BoxConstraints(
-              maxHeight: 500,
-            ),
-            child: SingleChildScrollView(
-              child: Text(
-                "$workingDesc",
-                style: TextStyle(fontSize: 18),
+      content: Padding(
+        padding: const EdgeInsets.only(left:20,right: 20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(height: 20,),
+            Container(
+              height: 550,
+              constraints: BoxConstraints(
+                maxHeight: 550,
+              ),
+              child: SingleChildScrollView(
+                child: Text(
+                  "$workingDesc",
+                  style: TextStyle(fontSize: 18),
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
       actions: [
         TextButton(
@@ -444,6 +459,7 @@ class _DailyWorkingStatusState extends State<DailyWorkingStatus> {
         ),
       ],
       titleFontSize: 27.0,
+      isFullScreen: true,
       additionalTitleContent: Padding(
         padding: const EdgeInsets.only(top: 1.0),
         child: Column(
@@ -606,8 +622,8 @@ class _DailyWorkingStatusState extends State<DailyWorkingStatus> {
       );
 
       if (response['statusCode'] == 200) {
-        String message = response['message'] ?? 'View Status updated successfully';
-        showToast(msg: message, backgroundColor: Colors.green);
+        // String message = response['message'] ?? 'View Status updated successfully';
+        // showToast(msg: message, backgroundColor: Colors.green);
         fetchWorking();
       } else {
         String message = response['message'] ?? 'Failed to update status';

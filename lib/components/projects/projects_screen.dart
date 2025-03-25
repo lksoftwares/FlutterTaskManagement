@@ -591,7 +591,6 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
             'projectId': role['projectId'] ?? 0,
             'teamId': role['teamId'] ?? 0,
             'teamName': role['teamName'] ?? 'Unknown teamName',
-
             'projectName': role['projectName'] ?? 'Unknown project',
             'projectDescription': role['projectDescription'] ?? 'Unknown desc',
             'createdByUserName': role['createdByUserName'] ?? '',
@@ -652,9 +651,12 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
               }).toList(),
               onChanged: (value) => selectedTeamId = value,
             ),
+            SizedBox(height: 10,),
             Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                ElevatedButton(
+                Text("Start date:"),
+                IconButton(
                   onPressed: () async {
                     DateTime? picked = await showDatePicker(
                       context: context,
@@ -664,10 +666,16 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                     );
                     if (picked != null) setState(() => startDate = picked);
                   },
-                  child: Text(startDate == null ? ' Start Date' : startDate!.toLocal().toString().split(' ')[0]),
+                  icon: Icon(Icons.calendar_month,size: 31,),
                 ),
-                SizedBox(width: 5),
-                ElevatedButton(
+              ],
+            ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+
+              children: [
+                Text("End date:"),
+                IconButton(
                   onPressed: () async {
                     DateTime? picked = await showDatePicker(
                       context: context,
@@ -677,11 +685,10 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                     );
                     if (picked != null) setState(() => endDate = picked);
                   },
-                  child: Text(endDate == null ? ' End Date' : endDate!.toLocal().toString().split(' ')[0]),
+                  icon:Icon(Icons.calendar_month,size: 31,),
                 ),
               ],
             ),
-            SizedBox(height: 10),
           ],
         ),
       ),
@@ -766,7 +773,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
       endpoint: 'projects/DeleteProject/$projectId',
     );
     if (response['statusCode'] == 200) {
-      String message = response['message'] ?? 'Project deleted successfully';
+      String message = response['message'] ?? ' deleted successfully';
       showToast(msg: message, backgroundColor: Colors.green);
       fetchProjects();
     } else {
@@ -826,35 +833,57 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
             ),
             SizedBox(height: 10),
             // Start Date button
-            ElevatedButton(
-              onPressed: () async {
-                DateTime? picked = await showDatePicker(
-                  context: context,
-                  initialDate: startDate ?? DateTime.now(),
-                  firstDate: DateTime(2000),
-                  lastDate: DateTime(2101),
-                );
-                if (picked != null) setState(() => startDate = picked);
-              },
-              child: Text(startDate == null
-                  ? ' Start Date'
-                  : startDate!.toLocal().toString().split(' ')[0]),
+            Row(
+              children: [
+                Text("Start Date:"),
+                SizedBox(width: 30,),
+
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: primaryColor,
+                  ),
+                  onPressed: () async {
+                    DateTime? picked = await showDatePicker(
+                      context: context,
+                      initialDate: startDate ?? DateTime.now(),
+                      firstDate: DateTime(2000),
+                      lastDate: DateTime(2101),
+                    );
+                    if (picked != null) {
+                      setState(() {
+                        startDate = picked;
+                      });
+                    }                  },
+                  child: Text(startDate == null
+                      ? 'Start Date'
+                      : DateformatddMMyyyy.formatDateddMMyyyy(startDate!),style: TextStyle(color: textColor2),),
+                ),
+              ],
             ),
             SizedBox(height: 10),
-            // End Date button
-            ElevatedButton(
-              onPressed: () async {
-                DateTime? picked = await showDatePicker(
-                  context: context,
-                  initialDate: endDate ?? DateTime.now(),
-                  firstDate: DateTime(2000),
-                  lastDate: DateTime(2101),
-                );
-                if (picked != null) setState(() => endDate = picked);
-              },
-              child: Text(endDate == null
-                  ? ' End Date'
-                  : endDate!.toLocal().toString().split(' ')[0]),
+
+            Row(
+              children: [
+                Text("End Date: "),
+                SizedBox(width: 30,),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: primaryColor,
+                  ),
+                  onPressed: () async {
+                    DateTime? picked = await showDatePicker(
+                      context: context,
+                      initialDate: endDate ?? DateTime.now(),
+                      firstDate: DateTime(2000),
+                      lastDate: DateTime(2101),
+                    );
+                    if (picked != null) setState(() => endDate = picked);
+                  },
+                  child: Text(endDate == null
+                      ? 'End Date'
+                      : DateformatddMMyyyy.formatDateddMMyyyy(endDate!),style: TextStyle(color: textColor2),),
+                ),
+              ],
             ),
           ],
         ),
@@ -960,12 +989,15 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                           '': role[''],
                           'Projectdesc': role['projectDescription'],
                           'TeamName': role['teamName'],
-
                           'ProjectStatus': role['projectStatus'],
                           'CreatedBy': role['createdByUserName'],
                           'UpdatedBy': role['updateByUserName'],
-                          'StartDate': role['startDate'],
-                          'EndDate': role['endDate'],
+                          'StartDate': role['startDate'] != null
+                              ? DateformatddMMyyyy.formatDateddMMyyyy(DateTime.parse(role['startDate']))
+                              : 'Not Set',
+                          'EndDate': role['endDate'] != null
+                              ? DateformatddMMyyyy.formatDateddMMyyyy(DateTime.parse(role['endDate']))
+                              : 'Not Set',
                           'CreatedAt': role['createdAt'],
                         },
                         onEdit: () => _showEditProjectModal(role),
@@ -986,6 +1018,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                       );
                     }).toList(),
                   ),
+
               ],
             ),
           ),

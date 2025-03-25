@@ -15,11 +15,14 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   String? currentLocation = '';
   String? username = '';
   String? userRole = '';
+  bool showHolidayCheckbox = false;
   bool hasCheckedIn = false;
   bool hasCheckedOut = false;
   String? roleName;
   DateTime? fromDate;
+  List<Map<String, dynamic>> holidays = [];
   DateTime? toDate;
+  bool attendanceOnHoliday = false;
 
   @override
   void initState() {
@@ -29,7 +32,56 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     toDate = fromDate;
     fetchUserData();
     fetchAttendance();
+    fetchHoliday();
     loadAttendanceState();
+  }
+  Future<void> fetchHoliday() async {
+    setState(() {
+      isLoading = true;
+    });
+
+    final response = await new ApiService().request(
+      method: 'get',
+      endpoint: 'holidays',
+    );
+    print('Response: $response');
+    if (response['statusCode'] == 200 && response['apiResponse'] != null) {
+      setState(() {
+        holidays = List<Map<String, dynamic>>.from(
+          response['apiResponse'].map((holiday) =>
+          {
+            'holidayId': holiday['holidayId'] ?? 0,
+            'holidayDate': holiday['holidayDate'] ?? 'Unknown date',
+          }),
+        );
+      });
+      checkIfTodayIsHoliday();
+    } else {
+      showToast(msg: response['message'] ?? 'Failed to load roles');
+    }
+    setState(() {
+      isLoading = false;
+    });
+  }
+  void checkIfTodayIsHoliday() {
+    DateTime today = DateTime.now();
+    for (var holiday in holidays) {
+      String holidayDateString = holiday['holidayDate'];
+      try {
+        DateTime holidayDate = DateFormat('yyyy-MM-dd').parse(holidayDateString); // Assuming the date format is 'yyyy-MM-dd'
+        if (today.year == holidayDate.year && today.month == holidayDate.month && today.day == holidayDate.day) {
+          setState(() {
+            showHolidayCheckbox = true;
+          });
+          return;
+        }
+      } catch (e) {
+        print("Error parsing holiday date: $e");
+      }
+    }
+    setState(() {
+      showHolidayCheckbox = false;
+    });
   }
 
   Future<void> fetchUserData() async {
@@ -133,10 +185,20 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
           'userId': userId,
           'inOutFlag': inOutFlag,
           'inLocation': inLocation,
+          'attendanceOnHoliday': attendanceOnHoliday,
         },
       );
-
       if (response['statusCode'] >= 200 && response['statusCode'] < 400) {
+        if (showHolidayCheckbox && !attendanceOnHoliday) {
+          showToast(
+            msg: response['message'] ?? '',
+          );
+          setState(() {
+            isLoading = false;
+          });
+          return;
+        }
+
         showToast(msg: response['message'] ?? 'Added', backgroundColor: Colors.green);
         setState(() {
           hasCheckedIn = true;
@@ -154,6 +216,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       showToast(msg: 'User not logged in');
     }
   }
+
 
   Future<void> markAttendanceCheckout(String inOutFlag, String outLocation) async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -222,8 +285,8 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
             'userId': member['userId'] ?? 0,
             'outDateTime': member['outDateTime'] ?? "----/----/-------- --:--",
             'userName': member['userName'] ?? 'Unknown user',
-            'inLocation': member['inLocation'] ?? '',
-            'outLocation': member['outLocation'] ?? 'Unknown location',
+            'inLocation': member['inLocation'] ?? null,
+            'outLocation': member['outLocation'] ?? null,
             'dailyWorkingHour': member['dailyWorkingHour'] ?? '',
 
           }),
@@ -240,8 +303,9 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   }
 
   Widget buildAttendanceCard(String date, String? inTime, String? outTime,
-      String inLocation, String outLocation,String dailyWorkingHour, String userName) {
+      String inLocation, String outLocation, String dailyWorkingHour, String userName) {
     String formattedDate = Dateformat.formatWorkingDate(date);
+
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 12),
       decoration: BoxDecoration(
@@ -265,24 +329,22 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  "$formattedDate  $dailyWorkingHour",
+                  "$formattedDate ${dailyWorkingHour != '00:00' ? '($dailyWorkingHour)' : ''}",
                   style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
-                    fontSize: 17
-                    ,
+                    fontSize: 17,
                   ),
                 ),
-            Text(
-              "${userName}",
-              style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 17
-              )),
+                Text(
+                  userName,
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 17),
+                ),
               ],
             ),
-
           ),
           const SizedBox(height: 8),
           Row(
@@ -350,6 +412,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       ),
     );
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -447,11 +510,25 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                         buttonSize: 40,
                         backgroundColor: Colors.red,
                       ),
-
                   ],
                 ),
               ],
             ),
+            if (showHolidayCheckbox)
+              Row(
+                children: [
+                  Text("Today is Holiday. Want to Work Today? ", style: TextStyle(fontSize: 15)),
+                  Checkbox(
+                    value: attendanceOnHoliday,
+                    onChanged: (value) {
+                      setState(() {
+                        attendanceOnHoliday = value!;
+                      });
+                    },
+                  ),
+                  Text("Yes"),
+                ],
+              ),
             Divider(color: Colors.black),
             isLoading
                 ? Center(child: CircularProgressIndicator())

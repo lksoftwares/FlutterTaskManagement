@@ -150,46 +150,42 @@ class _TeamMembersScreenState extends State<TeamMembersScreen> {
           return Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              DropdownButtonFormField<int>(
-                decoration: InputDecoration(labelText: 'Select team', border: OutlineInputBorder()),
-                items: teamsList.map((role) {
-                  return DropdownMenuItem<int>(
-                    value: role['teamId'],
-                    child: Text(role['teamName']),
-                  );
-                }).toList(),
-                onChanged: (value) => selectedTeamId = value,
+              CustomDropdown<int>(
+                options: teamsList.map<int>((team) => team['teamId'] as int).toList(),
+                selectedOption: selectedTeamId,
+                displayValue: (teamId) => teamsList.firstWhere((team) => team['teamId'] == teamId)['teamName'],
+                onChanged: (value) {
+                  setState(() {
+                    selectedTeamId = value;
+                  });
+                },
+                labelText: 'Select Team',
               ),
-              SizedBox(height: 10),
 
-              DropdownButtonFormField<int>(
-                decoration: InputDecoration(labelText: 'Select User', border: OutlineInputBorder()),
-                items: usersList.map((user) {
-                  return DropdownMenuItem<int>(
-                    value: user['userId'],
-                    child: Text(user['userName']),
-                  );
-                }).toList(),
-                onChanged: (value) async {
+              SizedBox(height: 10),
+              CustomDropdown<int>(
+                options: usersList.map<int>((user) => user['userId'] as int).toList(),
+                selectedOption: selectedUserId,
+                displayValue: (userId) => usersList.firstWhere((user) => user['userId'] == userId)['userName'],
+                onChanged: (value) {
                   setState(() {
                     selectedUserId = value;
-                    rolesList.clear();
                   });
-                  await fetchRoles();
-                  setState(() {});
                 },
+                labelText: 'Select user',
               ),
               SizedBox(height: 10),
-              DropdownButtonFormField<int>(
-                decoration: InputDecoration(labelText: 'Select Role', border: OutlineInputBorder()),
-                items: rolesList.map((role) {
-                  return DropdownMenuItem<int>(
-                    value: role['roleId'],
-                    child: Text(role['roleName']),
-                  );
-                }).toList(),
-                onChanged: (value) => selectedRoleId = value,
-              ),
+          CustomDropdown<int>(
+          options: rolesList.map<int>((role) => role['roleId'] as int).toList(),
+          selectedOption: selectedRoleId,
+          displayValue: (roleId) => rolesList.firstWhere((role) => role['roleId'] == roleId)['roleName'],
+          onChanged: (value) {
+          setState(() {
+          selectedRoleId = value;
+          });
+          },
+          labelText: 'Select Role',
+          ),
 
             ],
           );
@@ -299,60 +295,48 @@ class _TeamMembersScreenState extends State<TeamMembersScreen> {
           return Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // User dropdown
-              DropdownButtonFormField<int>(
-                value: selectedUserId,
-                decoration: InputDecoration(labelText: 'Select User', border: OutlineInputBorder()),
-                items: usersList.map((user) {
-                  return DropdownMenuItem<int>(
-                    value: user['userId'],
-                    child: Text(user['userName']),
-                  );
-                }).toList(),
-                onChanged: (value) {
-                  setState(() {
-                    selectedUserId = value;
-                  });
-                },
-              ),
-              SizedBox(height: 10),
-              DropdownButtonFormField<int>(
-                value: selectedRoleId,
-                decoration: InputDecoration(labelText: 'Select Role', border: OutlineInputBorder()),
-                items: rolesList.map((role) {
-                  return DropdownMenuItem<int>(
-                    value: role['roleId'],
-                    child: Text(role['roleName']),
-                  );
-                }).toList(),
-                onChanged: (value) {
-                  setState(() {
-                    selectedRoleId = value;
-                  });
-                },
-              ),
-              SizedBox(height: 10),
-              DropdownButtonFormField<int>(
-                value: selectedTeamId,
-                decoration: InputDecoration(labelText: 'Select Team', border: OutlineInputBorder()),
-                items: teamsList.map((team) {
-                  return DropdownMenuItem<int>(
-                    value: team['teamId'],
-                    child: Text(team['teamName']),
-                  );
-                }).toList(),
+              CustomDropdown<int>(
+                options: teamsList.map<int>((team) => team['teamId'] as int).toList(),
+                selectedOption: selectedTeamId,
+                displayValue: (teamId) => teamsList.firstWhere((team) => team['teamId'] == teamId)['teamName'],
                 onChanged: (value) {
                   setState(() {
                     selectedTeamId = value;
                   });
                 },
+                labelText: 'Select Team',
+              ),
+              SizedBox(height: 10),
+
+              CustomDropdown<int>(
+                options: usersList.map<int>((user) => user['userId'] as int).toList(),
+                selectedOption: selectedUserId,
+                displayValue: (userId) => usersList.firstWhere((user) => user['userId'] == userId)['userName'],
+                onChanged: (value) {
+                  setState(() {
+                    selectedUserId = value;
+                  });
+                },
+                labelText: 'Select User',
+              ),
+              SizedBox(height: 10),
+
+              CustomDropdown<int>(
+                options: rolesList.map<int>((role) => role['roleId'] as int).toList(),
+                selectedOption: selectedRoleId,
+                displayValue: (roleId) => rolesList.firstWhere((role) => role['roleId'] == roleId)['roleName'],
+                onChanged: (value) {
+                  setState(() {
+                    selectedRoleId = value;
+                  });
+                },
+                labelText: 'Select Role',
               ),
             ],
           );
         },
       ),
       actions: [
-
         ElevatedButton(
           style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
           onPressed: () {
@@ -370,9 +354,9 @@ class _TeamMembersScreenState extends State<TeamMembersScreen> {
         ),
       ],
       titleHeight: 65,
-
     );
   }
+
   Map<String, List<Map<String, dynamic>>> groupmembersByteam() {
     Map<String, List<Map<String, dynamic>>> groupedteam = {};
 

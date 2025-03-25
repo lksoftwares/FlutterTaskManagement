@@ -213,48 +213,6 @@ class _LeavesScreenState extends State<LeavesScreen> {
     }
   }
 
-  Future<void> _fetchTodaysAbsents() async {
-    final response = await new ApiService().request(
-      method: 'get',
-      endpoint: 'leave/GetAllLeave',
-    );
-
-    if (response['statusCode'] == 200) {
-      List<dynamic> onLeaveData = response['apiResponse']['onLeave'];
-
-      if (onLeaveData.isEmpty) {
-        showToast(msg: 'All are present',backgroundColor: Colors.green);
-      } else {
-        showCustomAlertDialog(
-          context,
-          title: 'Today\'s Leaves',
-          content: Container(
-            height: 100,
-            child: SingleChildScrollView(
-              child: Column(
-                children: [
-                  for (var absent in onLeaveData)
-                    Text(
-                      absent['userName'] ?? 'N/A',
-                      style: TextStyle(fontSize: 20),
-                    ),
-                ],
-              ),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text('Close'),
-            ),
-          ],
-          titleHeight: 70
-        );
-      }
-    } else {
-      showToast(msg: 'Failed to fetch absentees');
-    }
-  }
 
 
   List<Map<String, dynamic>> getFilteredData() {
@@ -282,17 +240,9 @@ class _LeavesScreenState extends State<LeavesScreen> {
             child: Column(
               children: [
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  mainAxisAlignment: MainAxisAlignment.end,
                   children: [
-                    TextButton(
-                      onPressed: () async {
-                        await _fetchTodaysAbsents();
-                      },
-                      child: Text(
-                        "Click here to show today's absents",
-                        style: TextStyle(color: Colors.red,fontSize: 17,fontWeight: FontWeight.bold),
-                      ),
-                    ),
+
                     IconButton(
                       icon: Icon(
                           Icons.add_circle, color: Colors.blue, size: 30),

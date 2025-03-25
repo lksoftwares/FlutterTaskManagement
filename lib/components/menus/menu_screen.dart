@@ -389,7 +389,7 @@ class _MenuScreenState extends State<MenuScreen> {
                     ),
                   ),
                   IconButton(
-                    icon: Icon(Icons.add, color: Colors.blue, size: 30),
+                    icon: Icon(Icons.add_circle, color: Colors.blue, size: 30),
                     onPressed: () => _showMenuDialog(),
                   ),
                 ],

@@ -1,6 +1,5 @@
 import 'package:lktaskmanagementapp/packages/headerfiles.dart';
 
-
 class AuthService {
   static Future<void> logout(BuildContext context) async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -21,12 +20,19 @@ class AuthService {
         return AlertDialog(
           title: Row(
             children: [
-              Text('Check Out Reminder',style: TextStyle(fontSize: 21,fontWeight: FontWeight.w900),),
-              SizedBox(width: 5,),
-              Icon(Icons.notifications_active,color: Colors.green,)
+              Text(
+                'Check Out Reminder',
+                style: TextStyle(fontSize: 21, fontWeight: FontWeight.w900),
+              ),
+              SizedBox(width: 5),
+              Icon(
+                Icons.notifications_active,
+                color: Colors.green,
+              )
             ],
           ),
-          content: Text('You have not checked out your attendance. Do you still want to log out of your account?'),
+          content: Text(
+              'You have not checked out your attendance. Do you still want to log out of your account?'),
           actions: <Widget>[
             TextButton(
               onPressed: () {
@@ -36,13 +42,16 @@ class AuthService {
             ),
             TextButton(
               style: TextButton.styleFrom(
-                backgroundColor: Colors.green
+                backgroundColor: Colors.green,
               ),
               onPressed: () {
                 _performLogout(context);
                 Navigator.of(context).pop();
               },
-              child: Text('Logout Anyway',style: TextStyle(color: Colors.white),),
+              child: Text(
+                'Logout Anyway',
+                style: TextStyle(color: Colors.white),
+              ),
             ),
           ],
         );
@@ -53,11 +62,17 @@ class AuthService {
   static Future<void> _performLogout(BuildContext context) async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     await prefs.remove('user_Id');
-    showToast(msg: "Logged out successfully",backgroundColor: Colors.green);
+    await prefs.remove('user_Name');
+    await prefs.remove('role_Name');
+    await prefs.remove('role_Id');
+    MenuDataHolder().menuData.clear();
+    MenuDataHolder().isMenuDataLoaded = false;
+
+    showToast(msg: "Logged out successfully", backgroundColor: Colors.green);
 
     Navigator.pushAndRemoveUntil(
       context,
-      MaterialPageRoute(builder: (context) => LoginScreen()),
+      MaterialPageRoute(builder: (context) => SplashScreen()),
           (route) => false,
     );
   }

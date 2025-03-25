@@ -14,7 +14,6 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
   String userName = "";
   int totalPending = 0;
   int totalViewCount = 0;
-  bool loadmenu = false;
   String? roleName;
 
 
@@ -24,12 +23,6 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
     _loadUserData();
     _fetchLeaveData();
     _fetchWorkingData();
-    loadmenu == false;
-
-
-
-
-
 
     _animationController = AnimationController(
       vsync: this,
@@ -54,15 +47,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
 
     });
   }
-   _load()  {
 
-      print("loadmenunewscreen$loadmenu");
-        setState(() {
-          loadmenu = true;
-          print("isLoading$loadmenu");
-        });
-
-  }
   @override
   void dispose() {
     _animationController.dispose();
@@ -76,7 +61,20 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
       _animationController.stop();
     }
   }
-
+  void _navigateAndRefreshWorking() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => DailyWorkingStatus()),
+    );
+    await _fetchWorkingData();
+  }
+  void _navigateAndRefreshLeaves() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => LeavesScreen()),
+    );
+    await _fetchLeaveData();
+  }
   Future<void> _fetchLeaveData() async {
     setState(() {
       isLoading = true;
@@ -97,6 +95,11 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
         isLoading = false;
       });
     }
+  }
+  Future<void> _fetchData() async {
+    await _fetchWorkingData();
+    await _fetchLeaveData();
+
   }
   Future<void> _fetchWorkingData() async {
     final apiService = ApiService();
@@ -149,17 +152,135 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
       ),
     );
   }
+  Future<void> _fetchTodaysAbsents() async {
+    final response = await new ApiService().request(
+      method: 'get',
+      endpoint: 'leave/GetAllLeave',
+    );
+
+    if (response['statusCode'] == 200) {
+      List<dynamic> onLeaveData = response['apiResponse']['onLeave'];
+
+      if (onLeaveData.isEmpty) {
+        showToast(msg: 'All are present', backgroundColor: Colors.green);
+      } else {
+        showCustomAlertDialog(
+          context,
+          title: 'Today\'s Absentees',
+          content: Container(
+            height: 270,
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  for (var absent in onLeaveData)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 5.0),
+                      child: Card(
+                        elevation: 5,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        color: Colors.blue[50],
+                        child: Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Center(
+                                child: Text(
+                                  absent['userName'] ?? 'N/A',
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.blue[700],
+                                  ),
+                                ),
+                              ),
+                              SizedBox(height: 8),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    "From:",
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.blue[700],
+                                    ),
+                                  ),
+                                  Text(
+                                    absent['leaveFrom'] ?? 'N/A',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      color: Colors.blue[600],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              SizedBox(height: 8),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    "To:",
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.blue[700],
+                                    ),
+                                  ),
+                                  Text(
+                                    absent['leaveTo'] ?? 'N/A',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      color: Colors.blue[600],
+                                    ),
+                                  ),
+                                ],
+                              ),
+
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(
+                'Close',
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.blue[700],
+                ),
+              ),
+            ),
+          ],
+          titleHeight: 70,
+        );
+      }
+    } else {
+      showToast(msg: 'Failed to fetch absentees');
+    }
+  }
+
+
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      drawer: NavBar(loadmenu), onDrawerChanged: !loadmenu ? _load() : null,
+      drawer: NavBar(),
       appBar: CustomAppBar(
         title: "Dashboard",
         onLogout: () => AuthService.logout(context),
       ),
       body: RefreshIndicator(
-        onRefresh: _fetchLeaveData,
+        onRefresh: _fetchData,
         child: Column(
           children: [
             Stack(
@@ -192,15 +313,16 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
                 ),
                 if (roleName == "Admin")
                   Positioned(
-                    right: 15,
+                    right: 10,
                     child: Stack(
                       children: [
                         SlideTransition(
                           position: _animation,
                           child: IconButton(
-                            icon: Icon(Icons.notifications_rounded, size: 32, color: Colors.white),
+                            icon: Icon(Icons.notifications_rounded, size: 25, color: Colors.white),
                             onPressed: () {
                               if (totalPending > 0) {
+                                _navigateAndRefreshLeaves();
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(builder: (context) => LeavesScreen()),
@@ -243,54 +365,66 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
                   ),
                 if (roleName == "Admin")
                   Positioned(
-                  right: 70,
-                  child: Stack(
-                    children: [
-                      SlideTransition(
-                        position: _animation,
-                        child: IconButton(
-                          icon: Icon(Icons.task, size: 32, color: Colors.white),
-                          onPressed: () {
-                            if(totalViewCount>0) {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                    builder: (context) => DailyWorkingStatus()),
-                              );
-                            }
-                          },
+                    right: 50,
+                    child: Stack(
+                      children: [
+                        SlideTransition(
+                          position: _animation,
+                          child: IconButton(
+                            icon: Icon(Icons.task, size: 25, color: Colors.white),
+                            onPressed: () {
+                              if(totalViewCount>0) {
+                                print(totalViewCount);
+                                _navigateAndRefreshWorking();
+                              }
+                            },
+                          ),
                         ),
-                      ),
-                      if (totalViewCount > -1)
-                        Positioned(
-                          top: 0,
-                          right: 0,
-                          child: Container(
-                            padding: EdgeInsets.all(6),
-                            decoration: BoxDecoration(
-                              color: Colors.blue,
-                              shape: BoxShape.circle,
-                            ),
-                            constraints: BoxConstraints(
-                              minWidth: 21,
-                              minHeight: 21,
-                            ),
-                            child: Center(
-                              child: Text(
-                                '$totalViewCount',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.bold,
+                        if (totalViewCount > -1)
+                          Positioned(
+                            top: 0,
+                            right: 0,
+                            child: Container(
+                              padding: EdgeInsets.all(6),
+                              decoration: BoxDecoration(
+                                color: Colors.blue,
+                                shape: BoxShape.circle,
+                              ),
+                              constraints: BoxConstraints(
+                                minWidth: 19,
+                                minHeight: 19,
+                              ),
+                              child: Center(
+                                child: Text(
+                                  '$totalViewCount',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  textAlign: TextAlign.center,
                                 ),
-                                textAlign: TextAlign.center,
                               ),
                             ),
                           ),
-                        ),
-                    ],
+
+                      ],
+                    ),
                   ),
-                ),
+                if (roleName == "Admin")
+                  Positioned(
+                    right: 85,
+                    child: Stack(
+                      children: [
+                        IconButton(
+                          icon: Icon(Icons.person, size: 25, color: Colors.white),
+                          onPressed: () async {
+                            await _fetchTodaysAbsents();
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
               ],
             ),
             Expanded(

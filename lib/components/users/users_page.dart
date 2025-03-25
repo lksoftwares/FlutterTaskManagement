@@ -68,7 +68,8 @@ class _UsersPageState extends State<UsersPage> {
     });
   }
 
-  Future<void> _addUser(String userName, String userEmail, String userPassword) async {
+  Future<void> _addUser(String userName, String userEmail, String userPassword, Uint8List? fingerprintData) async {
+
     final response = await ApiService().request(
       method: 'post',
       endpoint: 'User/AddUser',
@@ -76,6 +77,7 @@ class _UsersPageState extends State<UsersPage> {
         'userName': userName,
         'userEmail': userEmail,
         'userPassword': userPassword,
+        'fingerLock': fingerprintData,
       },
       isMultipart: true,
     );
@@ -91,6 +93,7 @@ class _UsersPageState extends State<UsersPage> {
       showToast(msg: response['message'] ?? 'Failed to add user');
     }
   }
+
 
   Future<void> _updateUser(int userId, String userName, String userEmail, String userPassword) async {
     final response = await ApiService().request(
@@ -123,22 +126,41 @@ class _UsersPageState extends State<UsersPage> {
     TextEditingController nameController = TextEditingController(text: userName);
     TextEditingController emailController = TextEditingController(text: userEmail);
     TextEditingController passwordController = TextEditingController(text: userPassword);
+    Uint8List? fingerprintData;
 
     showCustomAlertDialog(
       context,
-
       title: userId == null ? 'Add User' : 'Edit User',
       content: Container(
-        height: 200,
-        child: Column(
-          children: [
-            TextField(controller: nameController,  decoration: InputDecoration(labelText: 'Username',border: OutlineInputBorder())),
-            SizedBox(height: 15,),
-            TextField(controller: emailController, decoration: InputDecoration(labelText: 'Email',border: OutlineInputBorder())),
-            SizedBox(height: 15,),
-
-            TextField(controller: passwordController, decoration: InputDecoration(labelText: 'Password',border: OutlineInputBorder())),
-          ],
+        height: 280,
+        child: SingleChildScrollView(
+          child: Column(
+            children: [
+              TextField(controller: nameController, decoration: InputDecoration(labelText: 'Username',border: OutlineInputBorder())),
+              SizedBox(height: 15,),
+              TextField(controller: emailController, decoration: InputDecoration(labelText: 'Email',border: OutlineInputBorder())),
+              SizedBox(height: 15,),
+              TextField(controller: passwordController, decoration: InputDecoration(labelText: 'Password',border: OutlineInputBorder())),
+              SizedBox(height: 15,),
+              IconButton(
+                icon: Icon(Icons.fingerprint, color: Colors.blue, size: 35),
+                onPressed: () async {
+                  bool isAuthenticated = await AuthServices().authenticateLocally();
+                  if (isAuthenticated) {
+                    fingerprintData = await AuthServices().getFingerprintBytes();
+                    if (fingerprintData != null ) {
+                      showToast(msg: 'Authentication Successful', backgroundColor: Colors.green);
+                      print(fingerprintData);
+                    } else {
+                      showToast(msg: 'Failed to retrieve fingerprint data', backgroundColor: Colors.red);
+                    }
+                  } else {
+                    showToast(msg: 'Authentication Failed', backgroundColor: Colors.red);
+                  }
+                },
+              ),
+            ],
+          ),
         ),
       ),
       actions: [
@@ -151,21 +173,21 @@ class _UsersPageState extends State<UsersPage> {
               showToast(msg: 'Please fill all fields');
               return;
             }
+
             if (userId == null) {
-              _addUser(nameController.text, emailController.text, passwordController.text);
+              _addUser(nameController.text, emailController.text, passwordController.text, fingerprintData);
             } else {
               _updateUser(userId, nameController.text, emailController.text, passwordController.text);
             }
           },
-          child: Text(userId == null ? 'Add' : 'Update',style: TextStyle(color: Colors.white),),
+          child: Text(userId == null ? 'Add' : 'Update', style: TextStyle(color: Colors.white)),
         ),
         TextButton(onPressed: () => Navigator.pop(context), child: Text('Cancel')),
-
       ],
       titleHeight: 65,
-
     );
   }
+
   void _confirmDeleteRole(int userId) {
     showCustomAlertDialog(
       context,
