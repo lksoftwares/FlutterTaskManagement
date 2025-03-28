@@ -21,8 +21,6 @@ class _MenuScreenState extends State<MenuScreen> {
   bool isLoading = false;
 
 
-
-
   Future<void> _fetchMenuData() async {
 
     setState(() {
@@ -30,7 +28,9 @@ class _MenuScreenState extends State<MenuScreen> {
     });
     final response = await new ApiService().request(
       method: 'get',
-      endpoint: 'Menus/getallmenu',
+      endpoint: 'Menus/',
+        tokenRequired: true
+
     );
     if (response['statusCode'] == 200 && response['isSuccess']) {
       setState(() {
@@ -115,8 +115,10 @@ class _MenuScreenState extends State<MenuScreen> {
               ),
             ),
             const SizedBox(height: 8),
-            DropdownButtonFormField<String>(
-              value: _selectedMenuName,
+            CustomDropdown<String>(
+              options: _allMenus.map((menu) => menu['menuName'] as String).toList(),
+              selectedOption: _selectedMenuName,
+              displayValue: (menu) => menu,
               onChanged: (String? newValue) {
                 setState(() {
                   _selectedMenuName = newValue;
@@ -126,28 +128,13 @@ class _MenuScreenState extends State<MenuScreen> {
                   } else {
                     if (newValue != null) {
                       _selectedParentMenuId = _allMenus.firstWhere(
-                              (menu) => menu['menuName'] == newValue
-                      )['menuId'];
+                              (menu) => menu['menuName'] == newValue)['menuId'];
                     }
                   }
                 });
               },
-              decoration: InputDecoration(
-                border: OutlineInputBorder(),
-                labelText: 'Select Parent Menu',
-              ),
-              items: [
-                DropdownMenuItem<String>(
-                  value: 'No Parent',
-                  child: Text('No Parent'),
-                ),
-                ..._allMenus.map<DropdownMenuItem<String>>((menu) {
-                  return DropdownMenuItem<String>(
-                    value: menu['menuName'],
-                    child: Text(menu['menuName']),
-                  );
-                }).toList(),
-              ],
+              labelText: 'Select Parent Menu',
+              prefixIcon: Icon(Icons.menu),
             ),
             const SizedBox(height: 8),
             Row(
@@ -178,30 +165,26 @@ class _MenuScreenState extends State<MenuScreen> {
           ],
         ),
       ),
-
       actions: [
-
         ElevatedButton(
           style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-
           onPressed: () {
             final menuName = _menuNameController.text.trim();
             final pageName = _pageNameController.text.trim();
 
             if (menuName.isEmpty) {
               showToast(
-                msg:'Menu Name cannot be empty',
+                msg: 'Menu Name cannot be empty',
               );
               return;
             }
-
             if (menuId == null) {
               _addMenu(menuName, pageName, _selectedImage, _selectedParentMenuId);
             } else {
               _updateMenu(menuId!, menuName, pageName, _selectedImage, _selectedParentMenuId);
             }
           },
-          child: Text(menuId == null ? 'Add' : 'Update',style: TextStyle(color: Colors.white),),
+          child: Text(menuId == null ? 'Add' : 'Update', style: TextStyle(color: Colors.white)),
         ),
         TextButton(
           onPressed: () {
@@ -218,6 +201,7 @@ class _MenuScreenState extends State<MenuScreen> {
       titleHeight: 70,
     );
   }
+
 
   Future<void> _pickImage() async {
     final picker = ImagePicker();
@@ -244,9 +228,10 @@ class _MenuScreenState extends State<MenuScreen> {
       }
       final response = await ApiService().request(
         method: 'POST',
-        endpoint: 'Menus/AddMenu',
+        endpoint: 'Menus/create',
         body: body,
         isMultipart: true,
+        tokenRequired: true,
         files: files,
       );
       if (response['statusCode'] == 200 || response['statusCode'] == 201) {
@@ -284,10 +269,12 @@ class _MenuScreenState extends State<MenuScreen> {
 
       final response = await ApiService().request(
         method: 'POST',
-        endpoint: 'Menus/EditMenu',
+        endpoint: 'Menus/update',
         body: body,
         isMultipart: true,
         files: files,
+          tokenRequired: true
+
       );
 
       if (response['statusCode'] == 200 || response['statusCode'] == 201) {
@@ -335,7 +322,9 @@ class _MenuScreenState extends State<MenuScreen> {
   Future<void> _deleteMenu(int menuId) async {
     final response = await ApiService().request(
       method: 'post',
-      endpoint: 'Menus/DeleteMenu/$menuId',
+      endpoint: 'Menus/delete/$menuId',
+        tokenRequired: true
+
     );
 
     if (response['statusCode'] == 200) {

@@ -11,6 +11,7 @@ class _TaskscommentsScreenState extends State<TaskscommentsScreen> {
   List<Map<String, dynamic>> comments = [];
   List<Map<String, dynamic>> tasksList = [];
   String? roleName;
+  String? selectedUserName;
 
   bool isLoading = false;
   int? selectedUserId;
@@ -36,14 +37,16 @@ class _TaskscommentsScreenState extends State<TaskscommentsScreen> {
   Future<void> fetchUsers() async {
     final response = await new ApiService().request(
       method: 'get',
-      endpoint: 'User/GetAllUsers',
+      endpoint: 'User/',
+      tokenRequired: true,
+
     );
     if (response['statusCode'] == 200 && response['apiResponse'] != null) {
       setState(() {
         usersList = List<Map<String, dynamic>>.from(response['apiResponse']);
       });
     } else {
-      showToast(msg: 'Failed to load users');
+      print( 'Failed to load users');
     }
   }
 
@@ -51,13 +54,15 @@ class _TaskscommentsScreenState extends State<TaskscommentsScreen> {
     final response = await new ApiService().request(
       method: 'get',
       endpoint: 'tasks',
+      tokenRequired: true,
+
     );
     if (response['statusCode'] == 200 && response['apiResponse'] != null) {
       setState(() {
         tasksList = List<Map<String, dynamic>>.from(response['apiResponse']);
       });
     } else {
-      showToast(msg: 'Failed to load tasks');
+      print('Failed to load tasks');
     }
   }
 
@@ -69,6 +74,8 @@ class _TaskscommentsScreenState extends State<TaskscommentsScreen> {
     final response = await new ApiService().request(
       method: 'get',
       endpoint: 'tasks/GetAllComments',
+      tokenRequired: true,
+
     );
     print('Response: $response');
     if (response['statusCode'] == 200 && response['apiResponse'] != null) {
@@ -86,7 +93,7 @@ class _TaskscommentsScreenState extends State<TaskscommentsScreen> {
         );
       });
     } else {
-      showToast(msg: response['message'] ?? 'Failed to load comments');
+      print('Failed to load comments');
     }
     setState(() {
       isLoading = false;
@@ -97,6 +104,8 @@ class _TaskscommentsScreenState extends State<TaskscommentsScreen> {
     final response = await new ApiService().request(
       method: 'post',
       endpoint: 'tasks/AddComment',
+      tokenRequired: true,
+
       body: {
         'userId': userId,
         'taskId': taskId,
@@ -220,6 +229,8 @@ class _TaskscommentsScreenState extends State<TaskscommentsScreen> {
     final response = await new ApiService().request(
       method: 'post',
       endpoint: 'tasks/deleteComment',
+      tokenRequired: true,
+
       body: {
         "taskCmmntId": taskCmmntId,
         "delAllFlag": false
@@ -264,8 +275,10 @@ class _TaskscommentsScreenState extends State<TaskscommentsScreen> {
     final response = await new ApiService().request(
       method: 'post',
       endpoint: 'tasks/deleteComment',
+      tokenRequired: true,
+
       body: {
-        "taskCmmntId": 0, // 0 as placeholder since we're deleting all
+        "taskCmmntId": 0,
         "delAllFlag": true
       },
     );
@@ -278,7 +291,16 @@ class _TaskscommentsScreenState extends State<TaskscommentsScreen> {
       showToast(msg: message);
     }
   }
+  List<Map<String, dynamic>> getFilteredData() {
+    return usersList.where((role) {
+      bool matchesUserName = true;
+      if (selectedUserName != null && selectedUserName!.isNotEmpty) {
+        matchesUserName = role['userName'] == selectedUserName;
+      }
 
+      return matchesUserName ;
+    }).toList();
+  }
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -297,6 +319,46 @@ class _TaskscommentsScreenState extends State<TaskscommentsScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
+                    // Autocomplete<String>(
+                    //   optionsBuilder: (TextEditingValue textEditingValue) {
+                    //     return usersList
+                    //         .where((user) => user['userName']!
+                    //         .toLowerCase()
+                    //         .contains(textEditingValue.text.toLowerCase()))
+                    //         .map((user) => user['userName'] as String)
+                    //         .toList();
+                    //   },
+                    //   onSelected: (String userName) {
+                    //     setState(() {
+                    //       selectedUserName = userName;
+                    //     });
+                    //     fetchComments();
+                    //   },
+                    //   fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+                    //     return Container(
+                    //       width: 230,
+                    //       child: TextField(
+                    //         controller: controller,
+                    //         focusNode: focusNode,
+                    //         decoration: InputDecoration(
+                    //           labelText: 'Select User',
+                    //           border: OutlineInputBorder(
+                    //             borderRadius: BorderRadius.circular(10),
+                    //           ),
+                    //           prefixIcon: Icon(Icons.person),
+                    //         ),
+                    //         onChanged: (value) {
+                    //           if (value.isEmpty) {
+                    //             setState(() {
+                    //               selectedUserName = null;
+                    //             });
+                    //             fetchComments();
+                    //           }
+                    //         },
+                    //       ),
+                    //     );
+                    //   },
+                    // ),
                     IconButton(
                       icon: Icon(Icons.add_circle, color: Colors.blue, size: 30),
                       onPressed: _showAddCommentModal,
@@ -322,6 +384,7 @@ class _TaskscommentsScreenState extends State<TaskscommentsScreen> {
                     children: comments.map((comment) {
                       Map<String, dynamic> commentFields = {
                         'Username': comment['userName'],
+                        '': comment[''],
                         'TaskTitle': comment['taskTitle'],
                         'Comment': comment['comment'],
                         'CreatedAt': comment['createdAt'],

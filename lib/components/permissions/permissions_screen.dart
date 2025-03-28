@@ -23,7 +23,9 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
 
     final response = await new ApiService().request(
       method: 'get',
-      endpoint: 'permission/getallpermission',
+      endpoint: 'permission/',
+        tokenRequired: true
+
     );
 
     if (response['statusCode'] == 200 && response['apiResponse'] != null) {
@@ -50,7 +52,8 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
   Future<void> _addPermissions(String permissionType) async {
     final response = await new ApiService().request(
       method: 'post',
-      endpoint: 'permission/AddPermission',
+      endpoint: 'permission/create',
+      tokenRequired: true,
       body: {
         'permissionType': permissionType,
       },
@@ -152,7 +155,9 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
 
     final response = await new ApiService().request(
       method: 'post',
-      endpoint: 'permission/deletePermission/$permissionId',
+      endpoint: 'permission/delete/$permissionId',
+        tokenRequired: true
+
     );
     if (response['statusCode'] == 200) {
       String message = response['message'] ?? 'Permission deleted successfully';
@@ -167,7 +172,8 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
   Future<void> _updateTeamPermissiom(int permissionId, String permissionType) async {
     final response = await new ApiService().request(
       method: 'post',
-      endpoint: 'permission/EditPermission',
+      endpoint: 'permission/update',
+      tokenRequired: true,
       body: {
         'permissionId': permissionId,
         'permissionType': permissionType,

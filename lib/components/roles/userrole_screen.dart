@@ -28,6 +28,8 @@ class _UserroleScreenState extends State<UserroleScreen> {
   void initState() {
     super.initState();
     _getData();
+    _getToken();
+
   }
 
   Future<void> _getData() async {
@@ -36,10 +38,19 @@ class _UserroleScreenState extends State<UserroleScreen> {
     await fetchRoles();
     await fetchRoless();
   }
+
+
+  Future<void> _getToken() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    setState(() {
+      token = prefs.getString('token');
+    });
+  }
   Future<void> fetchUsers() async {
+
     final response = await new ApiService().request(
       method: 'get',
-      endpoint: 'User/GetAllUsers',
+      endpoint: 'User/GetAllUsers',tokenRequired: true
     );
     if (response['statusCode'] == 200 && response['apiResponse'] != null) {
       setState(() {
@@ -52,7 +63,7 @@ class _UserroleScreenState extends State<UserroleScreen> {
   Future<void> fetchRoles() async {
     final response = await new ApiService().request(
       method: 'get',
-      endpoint: 'roles/GetAllRole?userId=$selectedUserId',
+      endpoint: 'roles/?userId=$selectedUserId',
     );
     print(selectedUserId);
     if (response['statusCode'] == 200 && response['apiResponse'] != null) {
@@ -66,7 +77,7 @@ class _UserroleScreenState extends State<UserroleScreen> {
   Future<void> fetchRoless() async {
     final response = await new ApiService().request(
       method: 'get',
-      endpoint: 'roles/GetAllRole',
+      endpoint: 'roles/',
     );
     print(selectedUserId);
     if (response['statusCode'] == 200 && response['apiResponse'] != null) {
@@ -77,14 +88,16 @@ class _UserroleScreenState extends State<UserroleScreen> {
       showToast(msg: '');
     }
   }
+
   Future<void> fetchUserRoles() async {
+
     setState(() {
       isLoading = true;
     });
 
     final response = await new ApiService().request(
       method: 'get',
-      endpoint: 'roles/GetAllUserRole',
+      endpoint: 'roles/GetAllUserRole', tokenRequired: true
     );
 
     print('Response: $response');
@@ -132,13 +145,18 @@ class _UserroleScreenState extends State<UserroleScreen> {
 
 
   Future<void> _assignUserRole(int userId, int roleId) async {
+    if (token == null || token!.isEmpty) {
+      showToast(msg: 'Token not found');
+      return;
+    }
     final response = await ApiService().request(
       method: 'post',
-      endpoint: 'roles/AddUserRole',
+      endpoint: 'roles/userrole/create',
       body: {
         'userId': userId,
         'roleId': roleId,
       },
+      tokenRequired: true
     );
 
     if (response['statusCode'] == 200) {
@@ -309,9 +327,14 @@ class _UserroleScreenState extends State<UserroleScreen> {
 
 
   Future<void> _deleteRole(int userRoleId) async {
+    if (token == null || token!.isEmpty) {
+      showToast(msg: 'Token not found');
+      return;
+    }
     final response = await new ApiService().request(
       method: 'post',
-      endpoint: 'roles/DeleteUserRole/$userRoleId',
+      endpoint: 'roles/UserRole/delete/$userRoleId',
+      tokenRequired: true
     );
     if (response['statusCode'] == 200) {
       String message = response['message'] ?? 'Role deleted successfully';
@@ -325,9 +348,14 @@ class _UserroleScreenState extends State<UserroleScreen> {
 
 
   Future<void> _updateUserRole(int userRoleId, int userId, int roleId) async {
+    if (token == null || token!.isEmpty) {
+      showToast(msg: 'Token not found');
+      return;
+    }
     final response = await ApiService().request(
       method: 'post',
-      endpoint: 'roles/AddEditUserRole',
+      endpoint: 'roles/userrole/update',
+      tokenRequired: true,
       body: {
         'userRoleId': userRoleId,
         'userId': userId,

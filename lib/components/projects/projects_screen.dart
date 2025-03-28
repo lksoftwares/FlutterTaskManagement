@@ -551,7 +551,9 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
   Future<void> fetchUsers() async {
     final response = await new ApiService().request(
       method: 'get',
-      endpoint: 'User/GetAllUsers',
+      endpoint: 'User/',
+        tokenRequired: true
+
     );
     if (response['statusCode'] == 200 && response['apiResponse'] != null) {
       setState(() {
@@ -564,7 +566,9 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
   Future<void> fetchTeams() async {
     final response = await new ApiService().request(
       method: 'get',
-      endpoint: 'teams/GetAllTeam',
+      endpoint: 'teams/',
+        tokenRequired: true
+
     );
     if (response['statusCode'] == 200 && response['apiResponse'] != null) {
       setState(() {
@@ -581,7 +585,9 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
 
     final response = await new ApiService().request(
       method: 'get',
-      endpoint: 'projects/GetAllProject',
+      endpoint: 'projects/',
+        tokenRequired: true
+
     );
     print('Response: $response');
     if (response['statusCode'] == 200 && response['apiResponse'] != null) {
@@ -622,74 +628,76 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
       context,
       title: 'Add Project',
       content: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              onChanged: (value) => projectName = value,
-              decoration: InputDecoration(
-                labelText: 'Project Name',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            SizedBox(height: 10),
-            TextField(
-              onChanged: (value) => projectDescription = value,
-              decoration: InputDecoration(
-                labelText: 'Project Description',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            SizedBox(height: 10),
-            DropdownButtonFormField<int>(
-              decoration: InputDecoration(labelText: 'Select team', border: OutlineInputBorder()),
-              items: teamsList.map((role) {
-                return DropdownMenuItem<int>(
-                  value: role['teamId'],
-                  child: Text(role['teamName']),
-                );
-              }).toList(),
-              onChanged: (value) => selectedTeamId = value,
-            ),
-            SizedBox(height: 10,),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text("Start date:"),
-                IconButton(
-                  onPressed: () async {
-                    DateTime? picked = await showDatePicker(
-                      context: context,
-                      initialDate: DateTime.now(),
-                      firstDate: DateTime(2000),
-                      lastDate: DateTime(2101),
-                    );
-                    if (picked != null) setState(() => startDate = picked);
-                  },
-                  icon: Icon(Icons.calendar_month,size: 31,),
+        child: Container(
+          width: double.infinity,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                onChanged: (value) => projectName = value,
+                decoration: InputDecoration(
+                  labelText: 'Project Name',
+                  border: OutlineInputBorder(),
                 ),
-              ],
-            ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-
-              children: [
-                Text("End date:"),
-                IconButton(
-                  onPressed: () async {
-                    DateTime? picked = await showDatePicker(
-                      context: context,
-                      initialDate: DateTime.now(),
-                      firstDate: DateTime(2000),
-                      lastDate: DateTime(2101),
-                    );
-                    if (picked != null) setState(() => endDate = picked);
-                  },
-                  icon:Icon(Icons.calendar_month,size: 31,),
+              ),
+              SizedBox(height: 10),
+              TextField(
+                onChanged: (value) => projectDescription = value,
+                decoration: InputDecoration(
+                  labelText: 'Project Description',
+                  border: OutlineInputBorder(),
                 ),
-              ],
-            ),
-          ],
+              ),
+              SizedBox(height: 10),
+              DropdownButtonFormField<int>(
+                decoration: InputDecoration(labelText: 'Select team', border: OutlineInputBorder()),
+                items: teamsList.map((role) {
+                  return DropdownMenuItem<int>(
+                    value: role['teamId'],
+                    child: Text(role['teamName']),
+                  );
+                }).toList(),
+                onChanged: (value) => selectedTeamId = value,
+              ),
+              SizedBox(height: 10),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text("Start date:"),
+                  IconButton(
+                    onPressed: () async {
+                      DateTime? picked = await showDatePicker(
+                        context: context,
+                        initialDate: DateTime.now(),
+                        firstDate: DateTime(2000),
+                        lastDate: DateTime(2101),
+                      );
+                      if (picked != null) setState(() => startDate = picked);
+                    },
+                    icon: Icon(Icons.calendar_month, size: 31),
+                  ),
+                ],
+              ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text("End date:"),
+                  IconButton(
+                    onPressed: () async {
+                      DateTime? picked = await showDatePicker(
+                        context: context,
+                        initialDate: DateTime.now(),
+                        firstDate: DateTime(2000),
+                        lastDate: DateTime(2101),
+                      );
+                      if (picked != null) setState(() => endDate = picked);
+                    },
+                    icon: Icon(Icons.calendar_month, size: 31),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
       actions: [
@@ -700,25 +708,25 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
               showToast(msg: 'Please fill in all fields');
               return;
             }
-            _addProject(projectName, projectDescription, userId!, userId!,selectedTeamId!, startDate!, endDate!);
+            _addProject(projectName, projectDescription, userId!, userId!, selectedTeamId!, startDate!, endDate!);
           },
           child: Text('Add', style: TextStyle(color: Colors.white)),
         ),
-
         TextButton(
           onPressed: () => Navigator.pop(context),
           child: Text('Cancel'),
         ),
       ],
       titleHeight: 65,
-
     );
   }
 
   Future<void> _addProject(String projectName, String projectDescription, int createdBy, int updatedBy,  int teamId,DateTime startDate, DateTime endDate) async {
     final response = await new ApiService().request(
       method: 'post',
-      endpoint: 'projects/AddProject',
+      endpoint: 'projects/create',
+      tokenRequired: true,
+
       body: {
         'projectName': projectName,
         'projectDescription': projectDescription,
@@ -770,7 +778,10 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
 
     final response = await new ApiService().request(
       method: 'post',
-      endpoint: 'projects/DeleteProject/$projectId',
+      endpoint: 'projects/Delete/$projectId',
+        tokenRequired: true
+
+
     );
     if (response['statusCode'] == 200) {
       String message = response['message'] ?? ' deleted successfully';
@@ -927,7 +938,8 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
   Future<void> _updateProject(int projectId, String projectName, String projectDescription, int createdBy, int updatedBy, int teamId, DateTime startDate, DateTime endDate) async {
     final response = await ApiService().request(
       method: 'post',
-      endpoint: 'projects/EditProject',
+      endpoint: 'projects/update',
+      tokenRequired: true,
       body: {
         'projectId': projectId,
         'projectName': projectName,

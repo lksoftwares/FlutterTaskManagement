@@ -24,7 +24,9 @@ class _TeamScreenState extends State<TeamScreen> {
 
     final response = await new ApiService().request(
       method: 'get',
-      endpoint: 'teams/GetAllTeamMember?teamId=$teamId',
+      endpoint: 'teams/GetTeamMembers?teamId=$teamId',
+        tokenRequired: true
+
     );
 
     if (response['statusCode'] == 200 && response['apiResponse'] != null) {
@@ -97,7 +99,9 @@ class _TeamScreenState extends State<TeamScreen> {
 
     final response = await new ApiService().request(
       method: 'get',
-      endpoint: 'teams/GetAllTeam',
+      endpoint: 'teams/',
+        tokenRequired: true
+
     );
     print('Response: $response');
     if (response['statusCode'] == 200 && response['apiResponse'] != null) {
@@ -122,7 +126,8 @@ class _TeamScreenState extends State<TeamScreen> {
   Future<void> _addTeam(String teamName, String tmDescription) async {
     final response = await new ApiService().request(
       method: 'post',
-      endpoint: 'teams/AddTeam',
+      endpoint: 'teams/create',
+      tokenRequired: true,
       body: {
         'teamName': teamName,
         'tmDescription': tmDescription,
@@ -234,7 +239,9 @@ class _TeamScreenState extends State<TeamScreen> {
 
     final response = await new ApiService().request(
       method: 'post',
-      endpoint: 'teams/deleteTeam/$teamId',
+      endpoint: 'teams/delete/$teamId',
+        tokenRequired: true
+
     );
     if (response['statusCode'] == 200) {
       String message = response['message'] ?? 'Team deleted successfully';
@@ -249,7 +256,8 @@ class _TeamScreenState extends State<TeamScreen> {
   Future<void> _updateTeam(int teamId, String teamName,String tmDescription) async {
     final response = await new ApiService().request(
       method: 'post',
-      endpoint: 'teams/EditTeam',
+      endpoint: 'teams/update',
+      tokenRequired: true,
       body: {
         'teamId': teamId,
         'teamName': teamName,

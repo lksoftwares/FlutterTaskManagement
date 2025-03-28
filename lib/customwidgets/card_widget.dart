@@ -22,7 +22,6 @@ Widget buildCardLayout({required Widget child}) {
     ),
   );
 }
-
 Widget buildUserCard({
   required Map<String, dynamic> userFields,
   Function? onEdit,
@@ -35,6 +34,10 @@ Widget buildUserCard({
   bool showplay = false,
   Widget? trailingIcon,
   Widget? leadingIcon,
+  Widget? leadingIcon2,
+  Widget? leadingIcon3,
+
+
   Widget? additionalContent,
 }) {
   List<Widget> fieldRows = [];
@@ -114,42 +117,54 @@ Widget buildUserCard({
               ),
               const SizedBox(width: 5),
               Expanded(
-                flex: 5,
-                child: displayValue,
-              ),
-              SizedBox(
-                width: 53,
+                flex: 6,
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    if (i == 2 && leadingIcon != null) ...[
+                    Expanded(child: displayValue),
+
+                    if (i == 3 && leadingIcon2 != null ) ...[
                       Padding(
-                        padding: const EdgeInsets.only(right: 5.0),
-                        child: leadingIcon,
+                        padding: const EdgeInsets.only(right: 00.0),
+                        child: leadingIcon2,
                       ),
                     ],
-                    if (i == 3) ...[
-                      if (showEdit)
-                        IconButton(
-                          icon: const Icon(Icons.edit, color: Colors.green),
-                          onPressed: onEdit as void Function()?,
-                        ),
-                      if (showDelete)
-                        IconButton(
-                          icon: const Icon(Icons.delete, color: Colors.red),
-                          onPressed: onDelete as void Function()?,
-                        ),
-                      if (showView)
-                        IconButton(
-                          icon: const Icon(Icons.zoom_in, color: Colors.blue),
-                          onPressed: onView as void Function()?,
-                        ),
-                      if (showplay)
-                        IconButton(
-                          icon: const Icon(Icons.play_circle, color: Colors.green),
-                          onPressed: onPlay as void Function()?,
-                        ),
-                    ]
+                    if (i == 8 && leadingIcon3 != null ) ...[
+                      Padding(
+                        padding: const EdgeInsets.only(right: 00.0),
+                        child: leadingIcon3,
+                      ),
+                    ],
+                    SizedBox(
+                      width: 55,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          if (showEdit && i == 1)
+                            IconButton(
+                              icon: const Icon(Icons.edit, color: Colors.green),
+                              onPressed: onEdit as void Function()?,
+                            ),
+                          if ( i == 2 && leadingIcon!=null)
+                            Padding(
+                              padding: const EdgeInsets.only(right: 00.0),
+                              child: leadingIcon,
+                            ),
+                          if (showView && i == 3)
+                            IconButton(
+                              icon: const Icon(Icons.zoom_in, color: Colors.blue), // View icon
+                              onPressed: onView as void Function()?,
+                            ),
+                          if (showplay && i == 4)
+                            IconButton(
+                              icon: const Icon(Icons.play_circle, color: Colors.green), // Play button
+                              onPressed: onPlay as void Function()?,
+                            ),
+
+                        ],
+                      ),
+                    ),
+
                   ],
                 ),
               ),

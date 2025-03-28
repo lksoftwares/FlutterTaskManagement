@@ -33,7 +33,6 @@ Future<void> showCustomAlertDialog(
             ),
             child: Column(
               children: [
-                // Title Section
                 Stack(
                   clipBehavior: Clip.none,
                   children: [

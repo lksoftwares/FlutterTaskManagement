@@ -33,6 +33,7 @@ class _HolidaysScreenState extends State<HolidaysScreen> {
     final response = await new ApiService().request(
       method: 'get',
       endpoint: 'holidays',
+      tokenRequired: true
     );
     print('Response: $response');
     if (response['statusCode'] == 200 && response['apiResponse'] != null) {
@@ -50,7 +51,7 @@ class _HolidaysScreenState extends State<HolidaysScreen> {
         );
       });
     } else {
-      showToast(msg: response['message'] ?? 'Failed to load roles');
+      print('Failed to load holiday');
     }
     setState(() {
       isLoading = false;
@@ -66,6 +67,8 @@ class _HolidaysScreenState extends State<HolidaysScreen> {
         'description': Description,
         'holidayDate': dueDate?.toIso8601String(),
       },
+        tokenRequired: true
+
     );
     if (response.isNotEmpty && response['statusCode'] == 200) {
       fetchHoliday();
@@ -193,6 +196,8 @@ class _HolidaysScreenState extends State<HolidaysScreen> {
     final response = await new ApiService().request(
       method: 'post',
       endpoint: 'holidays/delete/$holidayId',
+        tokenRequired: true
+
     );
     if (response['statusCode'] == 200) {
       String message = response['message'] ?? 'Holiday deleted successfully';
@@ -216,6 +221,8 @@ class _HolidaysScreenState extends State<HolidaysScreen> {
         'holidayDate': dueDate?.toIso8601String(),
         'updateFlag': true,
       },
+        tokenRequired: true
+
     );
     if (response['statusCode'] == 200) {
       showToast(msg: response['message'] ?? 'Task updated successfully', backgroundColor: Colors.green);

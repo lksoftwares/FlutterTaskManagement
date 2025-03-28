@@ -342,6 +342,7 @@ class _NavBarState extends State<NavBar> {
     final response = await ApiService().request(
       method: 'GET',
       endpoint: 'Permission/GetRoleBasedMenus/$roleId',
+      tokenRequired: true
     );
 
     if (response['statusCode'] == 200) {
@@ -508,6 +509,8 @@ class _NavBarState extends State<NavBar> {
     final response = await ApiService().request(
       method: 'GET',
       endpoint: 'Permission/GetRoleBasedMenus/$roleId',
+        tokenRequired: true
+
     );
 
     if (response['statusCode'] == 200) {

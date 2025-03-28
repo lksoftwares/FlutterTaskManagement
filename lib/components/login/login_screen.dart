@@ -1,5 +1,6 @@
 import 'package:lktaskmanagementapp/packages/headerfiles.dart';
 
+
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -15,6 +16,7 @@ class _LoginScreenState extends State<LoginScreen> {
   List<Map<String, dynamic>> roles = [];
   bool isLoading = true;
   bool _obscurePassword = true;
+
 
   @override
   void initState() {
@@ -73,11 +75,6 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  Future<void> printDeviceId() async {
-    String deviceId = await getDeviceId();
-    print("Device ID: $deviceId");
-  }
-
   Future<void> loginUser() async {
     String username = usernameController.text;
     String password = passwordController.text;
@@ -104,16 +101,14 @@ class _LoginScreenState extends State<LoginScreen> {
         int role_Id = response['apiResponse']['role_Id'];
         String user_Name = response['apiResponse']['user_Name'];
         String role_Name = response['apiResponse']['role_Name'];
+        String token = response['apiResponse']['token'];
 
         SharedPreferences prefs = await SharedPreferences.getInstance();
         await prefs.setInt('user_Id', user_Id);
         await prefs.setInt('role_Id', role_Id);
         await prefs.setString('user_Name', user_Name);
         await prefs.setString('role_Name', role_Name);
-
-
-        await printDeviceId();
-
+        await prefs.setString('token', token);
         showToast(msg: response['message'] ?? 'Login successfully',
             backgroundColor: Colors.green);
         Navigator.pushReplacement(
@@ -139,10 +134,7 @@ class _LoginScreenState extends State<LoginScreen> {
         children: [
           Container(
             width: double.infinity,
-            height: MediaQuery
-                .of(context)
-                .size
-                .height,
+            height: MediaQuery.of(context).size.height,
             child: Image.asset(
               'images/Login8.jpg',
               fit: BoxFit.cover,
@@ -184,53 +176,31 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                           SizedBox(height: 20),
                           // Username TextField
-                          Stack(
-                            children: [
-                              CustomTextField(
-                                controller: usernameController,
-                                label: 'Username',
-                                hintText: 'Enter your username',
-                                prefixIcon: Icon(Icons.people_alt_outlined),
-                              ),
-                              if (isLoading)
-                                Positioned.fill(
-                                  child: Align(
-                                    alignment: Alignment.center,
-                                    child: CircularProgressIndicator(),
-                                  ),
-                                ),
-                            ],
+                          CustomTextField(
+                            controller: usernameController,
+                            label: 'Username',
+                            hintText: 'Enter your username',
+                            prefixIcon: Icon(Icons.people_alt_outlined),
                           ),
                           SizedBox(height: 10),
                           // Password TextField
-                          Stack(
-                            children: [
-                              CustomTextField(
-                                controller: passwordController,
-                                label: 'Password',
-                                hintText: 'Enter your password',
-                                obscureText: _obscurePassword,
-                                prefixIcon: Icon(Icons.lock),
-                                maxLines: 1,
-                                suffixIcon: Icon(
-                                  _obscurePassword
-                                      ? Icons.visibility_off
-                                      : Icons.visibility,
-                                ),
-                                onSuffixIconPressed: () {
-                                  setState(() {
-                                    _obscurePassword = !_obscurePassword;
-                                  });
-                                },
-                              ),
-                              if (isLoading)
-                                Positioned.fill(
-                                  child: Align(
-                                    alignment: Alignment.center,
-                                    child: CircularProgressIndicator(),
-                                  ),
-                                ),
-                            ],
+                          CustomTextField(
+                            controller: passwordController,
+                            label: 'Password',
+                            hintText: 'Enter your password',
+                            obscureText: _obscurePassword,
+                            prefixIcon: Icon(Icons.lock),
+                            maxLines: 1,
+                            suffixIcon: Icon(
+                              _obscurePassword
+                                  ? Icons.visibility_off
+                                  : Icons.visibility,
+                            ),
+                            onSuffixIconPressed: () {
+                              setState(() {
+                                _obscurePassword = !_obscurePassword;
+                              });
+                            },
                           ),
                           SizedBox(height: 15),
                           CustomButton(
@@ -239,6 +209,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             color: primaryColor,
                             width: 170,
                           ),
+
                         ],
                       ],
                     ),
@@ -251,221 +222,5 @@ class _LoginScreenState extends State<LoginScreen> {
       ),
     );
   }
-
 }
 
-// import 'dart:convert';
-// import 'dart:typed_data';
-// import 'package:local_auth/local_auth.dart';
-// import 'package:local_auth/error_codes.dart' as auth_error;
-// import 'package:flutter/material.dart';
-// import '../../packages/headerfiles.dart';
-//
-// class LoginScreen extends StatefulWidget {
-//   const LoginScreen({super.key});
-//
-//   @override
-//   State<LoginScreen> createState() => _LoginScreenState();
-// }
-//
-// class _LoginScreenState extends State<LoginScreen> {
-//   TextEditingController usernameController = TextEditingController();
-//   TextEditingController passwordController = TextEditingController();
-//
-//   Map<String, dynamic>? selectedRole;
-//   List<Map<String, dynamic>> roles = [];
-//   bool isLoading = true;
-//
-//   final LocalAuthentication localAuth = LocalAuthentication();
-//
-//   @override
-//   void initState() {
-//     super.initState();
-//     fetchRoles();
-//   }
-//   Future<String> getDeviceId() async {
-//     final deviceInfoPlugin = DeviceInfoPlugin();
-//     SharedPreferences prefs = await SharedPreferences.getInstance();
-//     const uuid = Uuid();
-//     String deviceId = prefs.getString('deviceId') ?? '';
-//
-//     if (deviceId.isEmpty) {
-//       try {
-//         if (Platform.isAndroid) {
-//           final androidInfo = await deviceInfoPlugin.androidInfo;
-//           deviceId = uuid.v4();
-//         } else if (Platform.isIOS) {
-//           final iosInfo = await deviceInfoPlugin.iosInfo;
-//           deviceId = iosInfo.identifierForVendor ?? uuid.v4();
-//         }
-//       } catch (e) {
-//         print("Error fetching generating device ID: $e");
-//         deviceId = uuid.v4();
-//       }
-//       await prefs.setString('deviceId', deviceId);
-//     }
-//     return deviceId;
-//   }
-//
-//   Future<void> fetchRoles() async {
-//     final response = await ApiService().request(
-//       method: 'GET',
-//       endpoint: 'Roles/GetAllRole',
-//     );
-//
-//     if (response['statusCode'] == 200) {
-//       List<Map<String, dynamic>> fetchedRoles = [];
-//       for (var role in response['apiResponse']) {
-//         fetchedRoles.add({
-//           'roleId': role['roleId'],
-//           'roleName': role['roleName'],
-//         });
-//       }
-//
-//       setState(() {
-//         roles = fetchedRoles;
-//         isLoading = false;
-//       });
-//     } else {
-//       showToast(msg: 'Failed to load roles');
-//       setState(() {
-//         isLoading = false;
-//       });
-//     }
-//   }
-//
-//   Future<bool> authenticateLocally() async {
-//     bool isAuthenticated = false;
-//     try {
-//       bool canAuthenticate = await localAuth.canCheckBiometrics;
-//       if (!canAuthenticate) {
-//         print('Biometrics not available');
-//         return false;
-//       }
-//
-//       isAuthenticated = await localAuth.authenticate(
-//         localizedReason: 'Please authenticate before using the app',
-//         options: const AuthenticationOptions(
-//           stickyAuth: true,
-//           useErrorDialogs: true,
-//         ),
-//       );
-//     } on PlatformException catch (e) {
-//       print('Authentication error: $e');
-//       if (e.code == auth_error.notEnrolled) {
-//         print('No biometrics enrolled');
-//       } else if (e.code == auth_error.lockedOut ||
-//           e.code == auth_error.permanentlyLockedOut) {
-//         print('Biometrics are locked out');
-//       }
-//     } catch (e) {
-//       print('Error: $e');
-//     }
-//     return isAuthenticated;
-//   }
-//
-//   Future<void> authenticateAndLogin() async {
-//     bool isAuthenticated = await authenticateLocally();
-//     String deviceId = await getDeviceId();
-//
-//     if (isAuthenticated) {
-//       Uint8List? fingerprintData = await AuthServices().getFingerprintBytes();
-//
-//
-//       if (fingerprintData != null) {
-//         String fingerprintBase64 = base64Encode(fingerprintData);
-//
-//         Map<String, dynamic> requestBody = {
-//           "deviceId": deviceId,
-//           "fingerLock": fingerprintData.toString(),
-//         };
-//
-//         print(fingerprintBase64);
-//
-//         final response = await ApiService().request(
-//           method: 'POST',
-//           endpoint: 'User/Login',
-//           body: requestBody,
-//         );
-//
-//         if (response['statusCode'] == 200) {
-//           int user_Id = response['apiResponse']['user_Id'];
-//           int role_Id = response['apiResponse']['role_Id'];
-//           String user_Name = response['apiResponse']['user_Name'];
-//           String role_Name = response['apiResponse']['role_Name'];
-//
-//           SharedPreferences prefs = await SharedPreferences.getInstance();
-//           await prefs.setInt('user_Id', user_Id);
-//           await prefs.setInt('role_Id', role_Id);
-//           await prefs.setString('user_Name', user_Name);
-//           await prefs.setString('role_Name', role_Name);
-//
-//           showToast(msg: response['message'] ?? 'Login successfully', backgroundColor: Colors.green);
-//           Navigator.pushReplacement(
-//             context,
-//             MaterialPageRoute(builder: (context) => DashboardScreen()),
-//           );
-//         } else {
-//           showToast(msg: 'Login Failed: ${response['message']}');
-//         }
-//       } else {
-//         showToast(msg: 'Please fill all fields');
-//       }
-//     } else {
-//       showToast(msg: 'Fingerprint authentication failed');
-//     }
-//   }
-//
-//   @override
-//   Widget build(BuildContext context) {
-//     return Scaffold(
-//       appBar: CustomAppBar(
-//         title: "Login",
-//       ),
-//       body: Stack(
-//         children: [
-//           Container(
-//             width: double.infinity,
-//             height: MediaQuery.of(context).size.height,
-//             child: Image.asset(
-//               'images/Login8.jpg',
-//               fit: BoxFit.cover,
-//             ),
-//           ),
-//           SingleChildScrollView(
-//             child: Padding(
-//               padding: const EdgeInsets.all(20.0),
-//               child: Center(
-//                 child: Column(
-//                   children: [
-//                     Image.asset(
-//                       'images/Logo.png',
-//                       width: 120,
-//                       height: 120,
-//                     ),
-//                     SizedBox(height: 20),
-//                     Column(
-//                       mainAxisAlignment: MainAxisAlignment.center,
-//                       children: [
-//                         if (isLoading)
-//                           CircularProgressIndicator(),
-//                         if (!isLoading) ...[
-//                           CustomButton(
-//                             buttonText: 'Authenticate',
-//                             onPressed: authenticateAndLogin,
-//                             color: primaryColor,
-//                             width: 220,
-//                           ),
-//                         ],
-//                       ],
-//                     ),
-//                   ],
-//                 ),
-//               ),
-//             ),
-//           ),
-//         ],
-//       ),
-//     );
-//   }
-// }

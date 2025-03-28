@@ -28,6 +28,8 @@ class _TasklogsScreenState extends State<TasklogsScreen> {
     final response = await new ApiService().request(
       method: 'get',
       endpoint: 'tasks/GetAllTaskLogs',
+        tokenRequired: true
+
     );
     print('Response: $response');
     if (response['statusCode'] == 200 && response['apiResponse'] != null) {
@@ -57,54 +59,56 @@ class _TasklogsScreenState extends State<TasklogsScreen> {
     });
   }
 
-
-
-  void _confirmDeleteTaskLogs(int taskLogsId) {
-    showCustomAlertDialog(
-      context,
-      title: 'Delete Task Logs',
-      content: Text('Are you sure you want to delete this log?'),
-      actions: [
-
-        ElevatedButton(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.red,
-          ),
-          onPressed: () {
-            _deleteTaskLogs(taskLogsId);
-            Navigator.pop(context);
-          },
-          child: Text('Delete',style: TextStyle(color: Colors.white),),
-        ),
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: Text('Cancel'),
-        ),
-      ],
-      titleHeight: 65,
-    );
-  }
-
-  Future<void> _deleteTaskLogs(int taskLogsId) async {
-    final response = await new ApiService().request(
-      method: 'post',
-      endpoint: 'Roles/deleteRole/$taskLogsId',
-    );
-    if (response['statusCode'] == 200) {
-      String message = response['message'] ?? 'Role deleted successfully';
-      showToast(msg: message, backgroundColor: Colors.green);
-      fetchTaskLogs();
-    } else {
-      String message = response['message'] ?? 'Failed to delete role';
-      showToast(msg: message);
-    }
-  }
+  //
+  //
+  // void _confirmDeleteTaskLogs(int taskLogsId) {
+  //   showCustomAlertDialog(
+  //     context,
+  //     title: 'Delete Task Logs',
+  //     content: Text('Are you sure you want to delete this log?'),
+  //     actions: [
+  //
+  //       ElevatedButton(
+  //         style: ElevatedButton.styleFrom(
+  //           backgroundColor: Colors.red,
+  //         ),
+  //         onPressed: () {
+  //           _deleteTaskLogs(taskLogsId);
+  //           Navigator.pop(context);
+  //         },
+  //         child: Text('Delete',style: TextStyle(color: Colors.white),),
+  //       ),
+  //       TextButton(
+  //         onPressed: () => Navigator.pop(context),
+  //         child: Text('Cancel'),
+  //       ),
+  //     ],
+  //     titleHeight: 65,
+  //   );
+  // }
+  //
+  // Future<void> _deleteTaskLogs(int taskLogsId) async {
+  //   final response = await new ApiService().request(
+  //     method: 'post',
+  //     endpoint: '/$taskLogsId',
+  //       tokenRequired: true
+  //
+  //   );
+  //   if (response['statusCode'] == 200) {
+  //     String message = response['message'] ?? 'Role deleted successfully';
+  //     showToast(msg: message, backgroundColor: Colors.green);
+  //     fetchTaskLogs();
+  //   } else {
+  //     String message = response['message'] ?? 'Failed to delete role';
+  //     showToast(msg: message);
+  //   }
+  // }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: CustomAppBar(
-        title: 'Roles',
+        title: 'Task Logs',
         onLogout: () => AuthService.logout(context),
       ),
       body: RefreshIndicator(
@@ -138,14 +142,14 @@ class _TasklogsScreenState extends State<TasklogsScreen> {
 
                       return buildUserCard(
                         userFields: logsFields,
-                        onDelete: () => _confirmDeleteTaskLogs(logs['roleId']),
+                        //onDelete: () => _confirmDeleteTaskLogs(logs['taskLogsId']),
                         trailingIcon:
                         Row(
                           mainAxisAlignment: MainAxisAlignment.end,
                           children: [
-
-                            IconButton(onPressed: ()=>_confirmDeleteTaskLogs(logs['roleId']),
-                                icon: Icon(Icons.delete,color: Colors.red,)),
+                            //
+                            // IconButton(onPressed: ()=>_confirmDeleteTaskLogs(logs['taskLogsId']),
+                            //     icon: Icon(Icons.delete,color: Colors.red,)),
 
                           ],
                         ),

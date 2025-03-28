@@ -101,7 +101,8 @@ class _DailyWorkingStatusState extends State<DailyWorkingStatus> {
   Future<void> fetchUsers() async {
     final response = await new ApiService().request(
       method: 'get',
-      endpoint: 'User/GetAllUsers',
+      endpoint: 'User/',
+      tokenRequired: true
     );
     print("responsesssss $response");
     if (response['statusCode'] == 200 && response['apiResponse'] != null) {
@@ -123,50 +124,51 @@ class _DailyWorkingStatusState extends State<DailyWorkingStatus> {
     String roleName = prefs.getString('role_Name') ?? "";
 
 
-    String endpoint = 'Working/GetWorking';
+    String endpoint = 'Working/';
 
     if (roleName == 'Admin') {
-      endpoint = 'Working/GetWorking';
+      endpoint = 'Working/';
     } else if (userId != null) {
-      endpoint = 'Working/GetWorking?userId=$userId';
+      endpoint = 'Working/?userId=$userId';
     }
 
-     final response = await new ApiService().request(
-        method: 'get',
-        endpoint: endpoint,
-      );
-      if (response['statusCode'] == 200 && response['apiResponse'] != null) {
-        setState(() {
-          var workingStatusList = response['apiResponse']['workingStatusList'];
+    final response = await new ApiService().request(
+      method: 'get',
+      endpoint: endpoint,
+      tokenRequired: true
+    );
+    if (response['statusCode'] == 200 && response['apiResponse'] != null) {
+      setState(() {
+        var workingStatusList = response['apiResponse']['workingStatusList'];
 
-          roles = List<Map<String, dynamic>>.from(
-            workingStatusList.map((role) {
-              String workingDateStr = role['workingDate'] ?? 'Unknown';
-              String formattedWorkingDate = 'Unknown';
-              try {
-                DateTime parsedDate = DateFormat("dd-MM-yyyy HH:mm:ss").parse(workingDateStr);
-                formattedWorkingDate = DateFormat('dd-MM-yyyy').format(parsedDate);
-              } catch (e) {
-                print("Error parsing date: $e");
-              }
-              return {
-                'txnId': role['txnId'] ?? 0,
-                'userName': role['userName'] ?? 'Unknown userName',
-                'workingDesc': role['workingDesc'] ?? 'Unknown Desc',
-                'workingDate': formattedWorkingDate,
-                'createdAt': role['createdAt'] ?? '',
-                'updatedAt': role['updatedAt'] ?? '',
-                'workingNote': role['workingNote'] ?? '',
-                'workingDescFilePath': role['workingDescFilePath'] ?? '',
-                'location': role['location'] ?? '',
-                'viewStatus': role['viewStatus'] ?? '',
-              };
-            }),
-          );
-        });
-      } else {
-        showToast(msg: response['message'] ?? 'Failed to load roles');
-      }
+        roles = List<Map<String, dynamic>>.from(
+          workingStatusList.map((role) {
+            String workingDateStr = role['workingDate'] ?? 'Unknown';
+            String formattedWorkingDate = 'Unknown';
+            try {
+              DateTime parsedDate = DateFormat("dd-MM-yyyy HH:mm:ss").parse(workingDateStr);
+              formattedWorkingDate = DateFormat('dd-MM-yyyy').format(parsedDate);
+            } catch (e) {
+              print("Error parsing date: $e");
+            }
+            return {
+              'txnId': role['txnId'] ?? 0,
+              'userName': role['userName'] ?? 'Unknown userName',
+              'workingDesc': role['workingDesc'] ?? 'Unknown Desc',
+              'workingDate': formattedWorkingDate,
+              'createdAt': role['createdAt'] ?? '',
+              'updatedAt': role['updatedAt'] ?? '',
+              'workingNote': role['workingNote'] ?? '',
+              'workingDescFilePath': role['workingDescFilePath'] ?? '',
+              'location': role['location'] ?? '',
+              'viewStatus': role['viewStatus'] ?? '',
+            };
+          }),
+        );
+      });
+    } else {
+      showToast(msg: response['message'] ?? 'Failed to load roles');
+    }
 
     setState(() {
       isLoading = false;
@@ -285,7 +287,7 @@ class _DailyWorkingStatusState extends State<DailyWorkingStatus> {
           child: Text('Cancel'),
         ),
       ],
-isFullScreen: true,
+      isFullScreen: true,
       additionalTitleContent: Padding(
         padding: const EdgeInsets.only(top: 1.0),
         child: Column(
@@ -306,18 +308,32 @@ isFullScreen: true,
   }
 
 
-
   Future<void> _addWorking(String workingDesc, int userId) async {
+    if (workingDesc.isEmpty && audioFilePath == null) {
+      showToast(msg: 'Please fill in either the description or add an audio recording.', backgroundColor: Colors.red);
+      return;
+    }
+
     if (workingDesc.isEmpty) {
       workingDesc = "Check audio";
     }
 
     await getCurrentLocation();
 
-    final uri = Uri.parse('${Config.apiUrl}Working/AddWorking');
+    final uri = Uri.parse('${Config.apiUrl}Working/create');
 
     try {
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      String? token = prefs.getString('token');
+
+      if (token == null) {
+        showToast(msg: 'No token found, please log in again.', backgroundColor: Colors.red);
+        return;
+      }
+
       var request = http.MultipartRequest('POST', uri);
+
+      request.headers['Authorization'] = 'Bearer $token';
 
       request.fields['workingDesc'] = workingDesc;
       request.fields['userId'] = userId.toString();
@@ -389,7 +405,7 @@ isFullScreen: true,
             backgroundColor: Colors.red,
           ),
           onPressed: () {
-            _deleteRole(txnId);
+            _deleteWorking(txnId);
             Navigator.pop(context);
           },
           child: Text('Delete',style: TextStyle(color: Colors.white),),
@@ -404,10 +420,11 @@ isFullScreen: true,
     );
   }
 
-  Future<void> _deleteRole(int txnId) async {
+  Future<void> _deleteWorking(int txnId) async {
     final response = await new ApiService().request(
       method: 'post',
-      endpoint: 'Working/DeleteWorking/$txnId',
+      endpoint: 'Working/Delete/$txnId',
+      tokenRequired: true
     );
     if (response.isNotEmpty && response['statusCode'] == 200) {
       fetchWorking();
@@ -611,7 +628,7 @@ isFullScreen: true,
     }
   }
   Future<void> _viewWorking(int txnId) async {
-      final response = await new ApiService().request(
+    final response = await new ApiService().request(
         method: 'post',
         endpoint: 'Working/ViewWorking',
         body: {
@@ -619,17 +636,17 @@ isFullScreen: true,
           'txnId': txnId.toString(),
         },
         isMultipart: true
-      );
+    );
 
-      if (response['statusCode'] == 200) {
-        // String message = response['message'] ?? 'View Status updated successfully';
-        // showToast(msg: message, backgroundColor: Colors.green);
-        fetchWorking();
-      } else {
-        String message = response['message'] ?? 'Failed to update status';
-        showToast(msg: message);
-      }
+    if (response['statusCode'] == 200) {
+      // String message = response['message'] ?? 'View Status updated successfully';
+      // showToast(msg: message, backgroundColor: Colors.green);
+      fetchWorking();
+    } else {
+      String message = response['message'] ?? 'Failed to update status';
+      showToast(msg: message);
     }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -764,43 +781,65 @@ isFullScreen: true,
                               }
                             },
                             trailingIcon: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                role['viewStatus'] == true
-                                    ? Icons.check_circle_outline
-                                    : Icons.check_circle_outline,
-                                color: role['viewStatus'] == true ? Colors.green : Colors.grey[400],
-                                size: 35,
-                              ),
-                              if (hasAudioFile)
-                                IconButton(
-                                  icon: Icon(
-                                    isPlayingMap[role['workingDescFilePath']] == true
-                                        ? Icons.pause_circle
-                                        : Icons.play_circle,
-                                    color: isPlayingMap[role['workingDescFilePath']] == true
-                                        ? Colors.red
-                                        : Colors.green,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  role['viewStatus'] == true
+                                      ? Icons.check_circle_outline
+                                      : Icons.check_circle_outline,
+                                  color: role['viewStatus'] == true ? Colors.green : Colors.grey[400],
+                                  size: 35,
+                                ),
+                                // if (hasAudioFile)
+                                //   IconButton(
+                                //     icon: Icon(
+                                //       isPlayingMap[role['workingDescFilePath']] == true
+                                //           ? Icons.pause_circle
+                                //           : Icons.play_circle,
+                                //       color: isPlayingMap[role['workingDescFilePath']] == true
+                                //           ? Colors.red
+                                //           : Colors.green,
+                                //     ),
+                                //     onPressed: () {
+                                //       if (isPlayingMap[role['workingDescFilePath']] == true) {
+                                //         _stopAudio(role['workingDescFilePath']);
+                                //       } else {
+                                //         _playAudio(role['workingDescFilePath']);
+                                //       }
+                                //     },
+                                //   ),
+                                if (isAdmin)
+                                  IconButton(
+                                    onPressed: () => _confirmDeleteRole(role['txnId']),
+                                    icon: Icon(Icons.delete, color: Colors.red),
                                   ),
-                                  onPressed: () {
-                                    if (isPlayingMap[role['workingDescFilePath']] == true) {
-                                      _stopAudio(role['workingDescFilePath']);
-                                    } else {
-                                      _playAudio(role['workingDescFilePath']);
-                                    }
-                                  },
-                                ),
-                              if (isAdmin)
-                                IconButton(
-                                  onPressed: () => _confirmDeleteRole(role['txnId']),
-                                  icon: Icon(Icons.delete, color: Colors.red),
-                                ),
 
-                            ],
-                          ),
-
-                          leadingIcon: Row(
+                              ],
+                            ),
+                            leadingIcon2:    Row(
+                              children: [
+                                if (hasAudioFile)
+                                  IconButton(
+                                    icon: Icon(
+                                      size: 25,
+                                      isPlayingMap[role['workingDescFilePath']] == true
+                                          ? Icons.pause_circle
+                                          : Icons.play_circle,
+                                      color: isPlayingMap[role['workingDescFilePath']] == true
+                                          ? Colors.red
+                                          : Colors.green,
+                                    ),
+                                    onPressed: () {
+                                      if (isPlayingMap[role['workingDescFilePath']] == true) {
+                                        _stopAudio(role['workingDescFilePath']);
+                                      } else {
+                                        _playAudio(role['workingDescFilePath']);
+                                      }
+                                    },
+                                  ),
+                              ],
+                            ),
+                            leadingIcon: Row(
                               children: [
                                 IconButton(
                                   onPressed: () {
@@ -816,10 +855,28 @@ isFullScreen: true,
                                   icon: Icon(
                                     icon,
                                     color: iconColor,
-                                    size: 20,
+                                    size: 25,
                                   ),
                                 ),
-
+                                // if (hasAudioFile)
+                                //   IconButton(
+                                //     icon: Icon(
+                                //       size: 25,
+                                //       isPlayingMap[role['workingDescFilePath']] == true
+                                //           ? Icons.pause_circle
+                                //           : Icons.play_circle,
+                                //       color: isPlayingMap[role['workingDescFilePath']] == true
+                                //           ? Colors.red
+                                //           : Colors.green,
+                                //     ),
+                                //     onPressed: () {
+                                //       if (isPlayingMap[role['workingDescFilePath']] == true) {
+                                //         _stopAudio(role['workingDescFilePath']);
+                                //       } else {
+                                //         _playAudio(role['workingDescFilePath']);
+                                //       }
+                                //     },
+                                //   ),
                               ],
                             ),
 

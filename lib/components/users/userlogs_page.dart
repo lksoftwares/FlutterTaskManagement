@@ -20,22 +20,29 @@ class _UserlogsPageState extends State<UserlogsPage> {
   @override
   void initState() {
     super.initState();
-
     final currentDate = DateTime.now();
     fromDate = DateTime(currentDate.year, currentDate.month, currentDate.day);
     toDate = fromDate;
     _getData();
+    _getsharedpref();
   }
 
   Future<void> _getData() async {
     await fetchUserlogs();
     await fetchUsers();
   }
+  Future<void> _getsharedpref() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    setState(() {
+      token = prefs.getString('token');
 
+    });
+  }
   Future<void> fetchUsers() async {
     final response = await new ApiService().request(
       method: 'get',
-      endpoint: 'User/GetAllUsers',
+      endpoint: 'User/',
+      tokenRequired: true
     );
     if (response['statusCode'] == 200 && response['apiResponse'] != null) {
       setState(() {
@@ -64,7 +71,9 @@ class _UserlogsPageState extends State<UserlogsPage> {
     final response = await new ApiService().request(
       method: 'get',
       endpoint: endpoint,
+      tokenRequired: true
     );
+    print(response);
     if (response['statusCode'] == 200 && response['apiResponse'] != null) {
       setState(() {
         userlogs = List<Map<String, dynamic>>.from(
@@ -227,13 +236,11 @@ class _UserlogsPageState extends State<UserlogsPage> {
                     children: groupedLogs.entries.map((entry) {
                       String userName = entry.key;
                       List<Map<String, dynamic>> logs = entry.value;
-
                       Map<String, dynamic> userInfo = {
                         'Username': '$userName (${logs.first['roleName']})',
                         '': '',
                         'Email': logs.first['userEmail'],
                       };
-
                       return buildUserCard(
                         userFields: userInfo,
                         additionalContent: Column(

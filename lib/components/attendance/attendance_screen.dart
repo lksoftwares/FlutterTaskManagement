@@ -43,6 +43,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     final response = await new ApiService().request(
       method: 'get',
       endpoint: 'holidays',
+      tokenRequired: true
     );
     print('Response: $response');
     if (response['statusCode'] == 200 && response['apiResponse'] != null) {
@@ -57,7 +58,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       });
       checkIfTodayIsHoliday();
     } else {
-      showToast(msg: response['message'] ?? 'Failed to load roles');
+      print( 'Failed to load holidays');
     }
     setState(() {
       isLoading = false;
@@ -181,6 +182,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       final response = await new ApiService().request(
         method: 'post',
         endpoint: 'attendance/MarkAttendnace',
+        tokenRequired: true,
         body: {
           'userId': userId,
           'inOutFlag': inOutFlag,
@@ -230,6 +232,8 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       final response = await new ApiService().request(
         method: 'post',
         endpoint: 'attendance/MarkAttendnace',
+        tokenRequired: true,
+
         body: {
           'userId': userId,
           'inOutFlag': inOutFlag,
@@ -264,16 +268,18 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     int? userId = prefs.getInt('user_Id');
     String roleName = prefs.getString('role_Name') ?? "";
-    String endpoint = 'attendance/GetAttendance';
+    String endpoint = 'attendance/';
 
     if (roleName == 'Admin') {
-      endpoint = 'attendance/GetAttendance';
+      endpoint = 'attendance/';
     } else if (userId != null) {
-      endpoint = 'attendance/GetAttendance?userId=$userId';
+      endpoint = 'attendance/?userId=$userId';
     }
     final response = await new ApiService().request(
       method: 'get',
       endpoint: endpoint,
+      tokenRequired: true,
+
     );
 
     if (response['statusCode'] == 200 && response['apiResponse'] != null) {
@@ -292,11 +298,8 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
           }),
         );
       });
-      print("123456$response");
     } else {
-      showToast(msg: response['message'] ?? 'Failed to load attendance data');
     }
-
     setState(() {
       isLoading = false;
     });

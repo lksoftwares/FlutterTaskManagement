@@ -33,21 +33,23 @@ class _TeamMembersScreenState extends State<TeamMembersScreen> {
   Future<void> fetchUsers() async {
     final response = await new ApiService().request(
       method: 'get',
-      endpoint: 'User/GetAllUsers',
+      endpoint: 'User/',
+        tokenRequired: true
+
     );
     if (response['statusCode'] == 200 && response['apiResponse'] != null) {
       setState(() {
         usersList = List<Map<String, dynamic>>.from(response['apiResponse']);
       });
     } else {
-      showToast(msg: 'Failed to load users');
+      print("Failed to load users");
     }
   }
 
   Future<void> fetchRoles() async {
     final response = await new ApiService().request(
       method: 'get',
-      endpoint: 'roles/GetAllRole',
+      endpoint: 'roles/',
     );
     if (response['statusCode'] == 200 && response['apiResponse'] != null) {
       setState(() {
@@ -61,7 +63,9 @@ class _TeamMembersScreenState extends State<TeamMembersScreen> {
   Future<void> fetchTeams() async {
     final response = await new ApiService().request(
       method: 'get',
-      endpoint: 'teams/GetAllTeam',
+      endpoint: 'teams/',
+        tokenRequired: true
+
     );
     if (response['statusCode'] == 200 && response['apiResponse'] != null) {
       setState(() {
@@ -79,7 +83,9 @@ class _TeamMembersScreenState extends State<TeamMembersScreen> {
 
     final response = await new ApiService().request(
       method: 'get',
-      endpoint: 'teams/GetAllTeamMember',
+      endpoint: 'teams/GetTeamMembers',
+        tokenRequired: true
+
     );
     print('Response: $response');
     if (response['statusCode'] == 200 && response['apiResponse'] != null) {
@@ -98,7 +104,7 @@ class _TeamMembersScreenState extends State<TeamMembersScreen> {
         );
       });
     } else {
-      showToast(msg: response['message'] ?? 'Failed to load team members');
+      print("Failed to load members");
     }
     setState(() {
       isLoading = false;
@@ -108,7 +114,8 @@ class _TeamMembersScreenState extends State<TeamMembersScreen> {
   Future<void> _addTeamMembers( int userId, int roleId, int teamId) async {
     final response = await new ApiService().request(
       method: 'post',
-      endpoint: 'teams/AddTeamMember',
+      endpoint: 'teams/TeamMember/create',
+      tokenRequired: true,
       body: {
 
         'userId': userId,
@@ -241,7 +248,9 @@ class _TeamMembersScreenState extends State<TeamMembersScreen> {
   Future<void> _deleteTeamMember(int tmemberId) async {
     final response = await new ApiService().request(
       method: 'post',
-      endpoint: 'teams/deleteTeamMember/$tmemberId',
+      endpoint: 'teams/TeamMember/delete/$tmemberId',
+        tokenRequired: true
+
     );
     if (response['statusCode'] == 200) {
       String message = response['message'] ?? 'Team Member deleted successfully';
@@ -257,7 +266,8 @@ class _TeamMembersScreenState extends State<TeamMembersScreen> {
   Future<void> _updateUserRole(int tmemberId, int userId, int roleId, int teamId) async {
     final response = await ApiService().request(
       method: 'post',
-      endpoint: 'teams/EditTeamMember',
+      endpoint: 'teams/TeamMember/update',
+      tokenRequired: true,
       body: {
         'tmemberId': tmemberId,
         'userId': userId,

@@ -32,7 +32,7 @@ class _MenuRolePageState extends State<MenuRolePage> {
   Future<void> _fetchRoles() async {
     final response = await new ApiService().request(
       method: 'GET',
-      endpoint: 'Roles/GetAllRole',
+      endpoint: 'Roles/',
     );
 
     if (response['statusCode'] == 200) {
@@ -56,6 +56,8 @@ class _MenuRolePageState extends State<MenuRolePage> {
     final response = await new ApiService().request(
       method: 'GET',
       endpoint: endpoint,
+        tokenRequired: true
+
     );
 
     if (response['statusCode'] == 200) {
@@ -75,6 +77,10 @@ class _MenuRolePageState extends State<MenuRolePage> {
   }
 
   Future<void> _sendPermissions() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    setState(() {
+      token = prefs.getString('token');
+    });
     if (selectedPermissions.isEmpty) {
       showToast(
         msg: 'Select values from the dropdown before adding',
@@ -82,14 +88,14 @@ class _MenuRolePageState extends State<MenuRolePage> {
       );
       return;
     }
-    final url = Uri.parse('${Config.apiUrl}RoleMenuPermission/AddMenuRolePermission');
+    final url = Uri.parse('${Config.apiUrl}RoleMenuPermission/create');
     final body = jsonEncode(selectedPermissions);
 
     try {
       final response = await http.post(
         url,
         body: body,
-        headers: {'Content-Type': 'application/json'},
+        headers: {'Content-Type': 'application/json', 'Authorization': "Bearer $token"},
       );
       print('Request Body: $body');
       if (response.statusCode == 200) {
@@ -411,17 +417,31 @@ class SubmenuPermissionDropdown extends StatefulWidget {
 class _SubmenuPermissionDropdownState extends State<SubmenuPermissionDropdown> {
   String? selectedPermission;
   List<Permission> permissionTypes = [];
-
+String? token;
   @override
   void initState() {
     super.initState();
     fetchPermissionTypes();
+    _getToken();
   }
-
+  Future<void> _getToken() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    setState(() {
+      token = prefs.getString('token');
+    });
+  }
   Future<void> fetchPermissionTypes() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    setState(() {
+      token = prefs.getString('token');
+    });
     try {
+
       final response = await http.get(
-        Uri.parse('${Config.apiUrl}permission/getallpermission'),
+        Uri.parse('${Config.apiUrl}permission/'),
+        headers: {
+          'Authorization': 'Bearer $token',
+        },
       );
 
       if (response.statusCode == 200) {
@@ -451,6 +471,7 @@ class _SubmenuPermissionDropdownState extends State<SubmenuPermissionDropdown> {
       print("Error fetching permission types: $e");
     }
   }
+
 
   @override
   Widget build(BuildContext context) {

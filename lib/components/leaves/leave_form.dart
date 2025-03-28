@@ -81,8 +81,9 @@ class _LeaveFormState extends State<LeaveForm> {
 
     final response = await ApiService().request(
       method: 'POST',
-      endpoint: "leave/AddLeave",
+      endpoint: "leave/applyLeave",
       body: body,
+      tokenRequired: true
     );
 
     print("Request Body: $body");

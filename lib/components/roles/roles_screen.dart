@@ -12,21 +12,22 @@ class _RolesPageState extends State<RolesPage> {
   List<Map<String, dynamic>> roles = [];
   String? selectedRoleName;
   bool isLoading = false;
+  String ?token;
 
 
   @override
   void initState() {
     super.initState();
-
+    _getToken();
       fetchRoles();
   }
 
-  // Future<void> _getToken() async {
-  //   SharedPreferences prefs = await SharedPreferences.getInstance();
-  //   setState(() {
-  //     token = prefs.getString('token');
-  //   });
-  // }
+  Future<void> _getToken() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    setState(() {
+      token = prefs.getString('token');
+    });
+  }
 
   Future<void> fetchRoles() async {
     setState(() {
@@ -35,7 +36,7 @@ class _RolesPageState extends State<RolesPage> {
 
     final response = await new ApiService().request(
       method: 'get',
-      endpoint: 'Roles/GetAllRole',
+      endpoint: 'Roles/',
     );
     print('Response: $response');
     if (response['statusCode'] == 200 && response['apiResponse'] != null) {
@@ -58,13 +59,20 @@ class _RolesPageState extends State<RolesPage> {
     });
   }
 
+
   Future<void> _addRole(String roleName) async {
+    if (token == null || token!.isEmpty) {
+      showToast(msg: 'Token not found');
+      return;
+    }
+
     final response = await new ApiService().request(
       method: 'post',
-      endpoint: 'Roles/AddRole',
+      endpoint: 'Roles/Create',
       body: {
         'roleName': roleName,
       },
+      tokenRequired: true,
     );
 
     if (response.isNotEmpty && response['statusCode'] == 200) {
@@ -74,12 +82,13 @@ class _RolesPageState extends State<RolesPage> {
         backgroundColor: Colors.green,
       );
       Navigator.pop(context);
-    }  else {
+    } else {
       showToast(
         msg: response['message'] ?? 'Failed to add role',
       );
     }
   }
+
 
   void _showAddRoleModal() {
     String roleName = '';
@@ -148,10 +157,13 @@ class _RolesPageState extends State<RolesPage> {
   }
 
   Future<void> _deleteRole(int roleId) async {
-
+    if (token == null || token!.isEmpty) {
+      showToast(msg: 'Token not found');
+      return;
+    }
     final response = await new ApiService().request(
       method: 'post',
-      endpoint: 'Roles/deleteRole/$roleId',
+      endpoint: 'Roles/delete/$roleId',tokenRequired: true
     );
     if (response['statusCode'] == 200) {
       String message = response['message'] ?? 'Role deleted successfully';
@@ -164,14 +176,19 @@ class _RolesPageState extends State<RolesPage> {
   }
 
   Future<void> _updateRole(int roleId, String roleName) async {
+    if (token == null || token!.isEmpty) {
+      showToast(msg: 'Token not found');
+      return;
+    }
     final response = await new ApiService().request(
       method: 'post',
-      endpoint: 'Roles/EditRole',
+      endpoint: 'Roles/Update',
       body: {
         'roleId': roleId,
         'roleName': roleName,
         'updateFlag': true,
       },
+      tokenRequired: true
     );
 
     print('Update Response: $response');

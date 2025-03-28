@@ -72,7 +72,7 @@ class AuthService {
 
     Navigator.pushAndRemoveUntil(
       context,
-      MaterialPageRoute(builder: (context) => SplashScreen()),
+      MaterialPageRoute(builder: (context) => LoginScreen()),
           (route) => false,
     );
   }

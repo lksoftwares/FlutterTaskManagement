@@ -39,6 +39,8 @@ class _AssigntaskScreenState extends State<AssigntaskScreen> {
     final response = await new ApiService().request(
       method: 'get',
       endpoint: 'teams/GetTeamMembers?taskId=$selectedTaskId',
+        tokenRequired: true
+
     );
 
     print('Fetching team members for task ID: $selectedTaskId');
@@ -50,7 +52,6 @@ class _AssigntaskScreenState extends State<AssigntaskScreen> {
       });
       print('Team members fetched: $team');
     } else {
-      showToast(msg: response['message'] ?? 'Failed to load team members');
     }
   }
 
@@ -62,6 +63,8 @@ class _AssigntaskScreenState extends State<AssigntaskScreen> {
     final response = await new ApiService().request(
       method: 'get',
       endpoint: 'tasks',
+        tokenRequired: true
+
     );
     if (response['statusCode'] == 200 && response['apiResponse'] != null) {
       setState(() {
@@ -73,7 +76,6 @@ class _AssigntaskScreenState extends State<AssigntaskScreen> {
         );
       });
     } else {
-      showToast(msg: response['message'] ?? 'Failed to load tasks');
     }
     setState(() {
       isLoading = false;
@@ -88,6 +90,8 @@ class _AssigntaskScreenState extends State<AssigntaskScreen> {
     final response = await new ApiService().request(
       method: 'get',
       endpoint: 'tasks/GetAllAssignTask',
+        tokenRequired: true
+
     );
     print('Response: $response');
     if (response['statusCode'] == 200 && response['apiResponse'] != null) {
@@ -107,7 +111,6 @@ class _AssigntaskScreenState extends State<AssigntaskScreen> {
         );
       });
     } else {
-      showToast(msg: response['message'] ?? 'Failed to load assigned tasks');
     }
     setState(() {
       isLoading = false;
@@ -123,6 +126,7 @@ class _AssigntaskScreenState extends State<AssigntaskScreen> {
     final response = await new ApiService().request(
       method: 'post',
       endpoint: 'tasks/AssignTask',
+      tokenRequired: true,
       body: {
         'taskId': selectedTaskId,
         'taskAssignedTo': selectedTeamMemberId,
@@ -250,6 +254,8 @@ class _AssigntaskScreenState extends State<AssigntaskScreen> {
     final response = await new ApiService().request(
       method: 'post',
       endpoint: 'tasks/DeleteAssignTask/$taskAssId',
+        tokenRequired: true
+
     );
     if (response['statusCode'] == 200) {
       String message =
@@ -271,6 +277,7 @@ class _AssigntaskScreenState extends State<AssigntaskScreen> {
     final response = await new ApiService().request(
       method: 'post',
       endpoint: 'tasks/EditAssignTask',
+      tokenRequired: true,
       body: {
         'taskId': selectedTaskId,
         'taskAssignedTo': selectedTeamMemberId,

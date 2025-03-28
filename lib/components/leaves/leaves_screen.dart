@@ -43,16 +43,18 @@ class _LeavesScreenState extends State<LeavesScreen> {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     int? userId = prefs.getInt('user_Id');
     String roleName = prefs.getString('role_Name') ?? "";
-    String endpoint = 'leave/GetAllLeave';
+    String endpoint = 'leave/';
 
     if (roleName == 'Admin') {
-      endpoint = 'leave/GetAllLeave';
+      endpoint = 'leave/';
     } else if (userId != null) {
-      endpoint = 'leave/GetAllLeave?userId=$userId';
+      endpoint = 'leave/?userId=$userId';
     }
     final response = await new ApiService().request(
       method: 'get',
       endpoint: endpoint,
+        tokenRequired: true
+
     );
     print('Response: $response');
     if (response['statusCode'] == 200 && response['apiResponse'] != null) {
@@ -110,7 +112,9 @@ class _LeavesScreenState extends State<LeavesScreen> {
   Future<void> _deleteLeave(int leaveId) async {
     final response = await new ApiService().request(
       method: 'post',
-      endpoint: 'leave/deleteleave/$leaveId',
+      endpoint: 'leave/delete/$leaveId',
+        tokenRequired: true
+
     );
     if (response['statusCode'] == 200) {
       String message = response['message'] ?? 'Leave deleted successfully';
@@ -193,7 +197,8 @@ class _LeavesScreenState extends State<LeavesScreen> {
 
     final response = await new ApiService().request(
       method: 'post',
-      endpoint: 'leave/EditLeave',
+      endpoint: 'leave/Update',
+      tokenRequired: true,
       body: {
         'leaveId': leaveId,
         'leaveStatus': newLeaveStatus,
