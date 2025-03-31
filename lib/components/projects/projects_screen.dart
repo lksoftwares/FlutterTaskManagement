@@ -520,6 +520,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
   List<Map<String, dynamic>> projects = [];
   List<Map<String, dynamic>> usersList = [];
   List<Map<String, dynamic>> teamsList = [];
+String? selectedTeamName;
   bool isLoading = false;
   DateTime? startDate;
   DateTime? endDate;
@@ -739,13 +740,15 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
     );
 
     if (response['statusCode'] == 200) {
-      showToast(msg: 'Project added successfully', backgroundColor: Colors.green);
-      fetchProjects();
+      showToast(msg: response['message'] ?? 'Project created successfully',
+          backgroundColor: Colors.green);
       Navigator.pop(context);
+      fetchProjects();
     } else {
-      showToast(msg: response['message'] ?? 'Failed to add project');
+      showToast(msg: response['message'] ?? 'Failed to create Project');
     }
   }
+
   void _confirmDeleteProject(int projectId) {
     showCustomAlertDialog(
       context,
@@ -962,7 +965,16 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
       showToast(msg: response['message'] ?? 'Failed to update project');
     }
   }
+  List<Map<String, dynamic>> getFilteredData() {
+    return projects.where((project) {
+      bool matchesTeamName = true;
+      if (selectedTeamName != null && selectedTeamName!.isNotEmpty) {
+        matchesTeamName = project['teamName'] == selectedTeamName;
+      }
 
+      return matchesTeamName;
+    }).toList();
+  }
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -977,10 +989,50 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
             padding: const EdgeInsets.all(8.0),
             child: Column(
               children: [
-                SizedBox(height: 20),
+                SizedBox(height: 15),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
+                    Autocomplete<String>(
+                      optionsBuilder: (TextEditingValue textEditingValue) {
+                        return teamsList
+                            .where((team) => team['teamName']!
+                            .toLowerCase()
+                            .contains(textEditingValue.text.toLowerCase()))
+                            .map((team) => team['teamName'] as String)
+                            .toList();
+                      },
+                      onSelected: (String teamName) {
+                        setState(() {
+                          selectedTeamName = teamName;
+                        });
+                        fetchProjects();
+                      },
+                      fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+                        return Container(
+                          width: 290,
+                          child: TextField(
+                            controller: controller,
+                            focusNode: focusNode,
+                            decoration: InputDecoration(
+                              labelText: 'Select Team',
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              prefixIcon: Icon(Icons.people_rounded),
+                            ),
+                            onChanged: (value) {
+                              if (value.isEmpty) {
+                                setState(() {
+                                  selectedTeamName = null;
+                                });
+                                fetchProjects();
+                              }
+                            },
+                          ),
+                        );
+                      },
+                    ),
                     IconButton(
                       icon: Icon(Icons.add_circle, color: Colors.blue, size: 30),
                       onPressed: _showAddProjectModal,
@@ -992,9 +1044,11 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                   Center(child: CircularProgressIndicator())
                 else if (projects.isEmpty)
                   NoDataFoundScreen()
+                else if (getFilteredData().isEmpty)
+                    NoDataFoundScreen()
                 else
                   Column(
-                    children: projects.map((role) {
+                    children: getFilteredData().map((role) {
                       return buildUserCard(
                         userFields: {
                           'ProjectName': role['projectName'],

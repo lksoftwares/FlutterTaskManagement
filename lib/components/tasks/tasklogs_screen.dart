@@ -10,16 +10,42 @@ class TasklogsScreen extends StatefulWidget {
 
 class _TasklogsScreenState extends State<TasklogsScreen> {
   List<Map<String, dynamic>> tasklogs = [];
+  List<Map<String, dynamic>> tasks = [];
   bool isLoading = false;
-
+ String? selectedTaskName;
 
   @override
   void initState() {
     super.initState();
-
+    fetchTasks();
     fetchTaskLogs();
   }
+  Future<void> fetchTasks() async {
+    setState(() {
+      isLoading = true;
+    });
 
+    final response = await new ApiService().request(
+        method: 'get',
+        endpoint: 'tasks',
+        tokenRequired: true
+
+    );
+    if (response['statusCode'] == 200 && response['apiResponse'] != null) {
+      setState(() {
+        tasks = List<Map<String, dynamic>>.from(
+          response['apiResponse'].map((project) => {
+            'taskId': project['taskId'] ?? 0,
+            'taskTitle': project['taskTitle'] ?? 'Unknown taskTitle',
+          }),
+        );
+      });
+    } else {
+    }
+    setState(() {
+      isLoading = false;
+    });
+  }
   Future<void> fetchTaskLogs() async {
     setState(() {
       isLoading = true;
@@ -103,7 +129,16 @@ class _TasklogsScreenState extends State<TasklogsScreen> {
   //     showToast(msg: message);
   //   }
   // }
+  List<Map<String, dynamic>> getFilteredData() {
+    return tasklogs.where((task) {
+      bool matchestaskName = true;
+      if (selectedTaskName != null && selectedTaskName!.isNotEmpty) {
+        matchestaskName = task['taskTitle'] == selectedTaskName;
+      }
 
+      return matchestaskName;
+    }).toList();
+  }
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -118,14 +153,66 @@ class _TasklogsScreenState extends State<TasklogsScreen> {
             padding: const EdgeInsets.all(8.0),
             child: Column(
               children: [
+                Column(
+                  children: [
+                    SizedBox(height: 15,),
+                    Row(
+                      children: [
+
+                        Autocomplete<String>(
+                          optionsBuilder: (TextEditingValue textEditingValue) {
+                            return tasks
+                                .where((tasks) => tasks['taskTitle']!
+                                .toLowerCase()
+                                .contains(textEditingValue.text.toLowerCase()))
+                                .map((tasks) => tasks['taskTitle'] as String)
+                                .toList();
+                          },
+                          onSelected: (String taskTitle) {
+                            setState(() {
+                              selectedTaskName = taskTitle;
+                            });
+                            fetchTaskLogs();
+                          },
+                          fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+                            return Container(
+                              width: 330,
+                              child: TextField(
+                                controller: controller,
+                                focusNode: focusNode,
+                                decoration: InputDecoration(
+                                  labelText: 'Select Task',
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  prefixIcon: Icon(Icons.task),
+                                ),
+                                onChanged: (value) {
+                                  if (value.isEmpty) {
+                                    setState(() {
+                                      selectedTaskName = null;
+                                    });
+                                    fetchTaskLogs();
+                                  }
+                                },
+                              ),
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
                 SizedBox(height: 20),
                 if (isLoading)
                   Center(child: CircularProgressIndicator())
                 else if (tasklogs.isEmpty)
                   NoDataFoundScreen()
+                else if (getFilteredData().isEmpty)
+                    NoDataFoundScreen()
                 else
                   Column(
-                    children: tasklogs.map((logs) {
+                    children: getFilteredData().map((logs) {
                       Map<String, dynamic> logsFields = {
                         'TaskTitle': logs['taskTitle'],
                         '': logs[''],
@@ -141,7 +228,19 @@ class _TasklogsScreenState extends State<TasklogsScreen> {
                       };
 
                       return buildUserCard(
-                        userFields: logsFields,
+                        userFields: {
+                          'TaskTitle': logs['taskTitle'],
+                          '': logs[''],
+                          'OldStatus': logs['oldStatus'] ,
+                          'NewStatus': logs['newStatus'],
+                          'OldPriority': logs['oldPriority'],
+                          'NewPriority': logs['newPriority'],
+                          'ChangedBy': logs['changedByUser'],
+                          'OldAssigned': logs['oldAssignedToUser'],
+                          'Newassigned': logs['newAssignedToUser'],
+                          'CreatedAt': logs['createdAt'],
+                          'UpdatedAt': logs['updatedAt'],
+                        },
                         //onDelete: () => _confirmDeleteTaskLogs(logs['taskLogsId']),
                         trailingIcon:
                         Row(

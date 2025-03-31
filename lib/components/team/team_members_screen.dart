@@ -14,6 +14,7 @@ class _TeamMembersScreenState extends State<TeamMembersScreen> {
   List<Map<String, dynamic>> rolesList = [];
   List<Map<String, dynamic>> teamsList = [];
   int? selectedUserId;
+  String? selectedTeamName;
   int? selectedRoleId;
   int? selectedTeamId;
   bool isLoading = false;
@@ -117,7 +118,6 @@ class _TeamMembersScreenState extends State<TeamMembersScreen> {
       endpoint: 'teams/TeamMember/create',
       tokenRequired: true,
       body: {
-
         'userId': userId,
         'roleId': roleId,
         'teamId': teamId,
@@ -168,7 +168,6 @@ class _TeamMembersScreenState extends State<TeamMembersScreen> {
                 },
                 labelText: 'Select Team',
               ),
-
               SizedBox(height: 10),
               CustomDropdown<int>(
                 options: usersList.map<int>((user) => user['userId'] as int).toList(),
@@ -366,6 +365,16 @@ class _TeamMembersScreenState extends State<TeamMembersScreen> {
       titleHeight: 65,
     );
   }
+  List<Map<String, dynamic>> getFilteredData() {
+    return teams.where((project) {
+      bool matchesTeamName = true;
+      if (selectedTeamName != null && selectedTeamName!.isNotEmpty) {
+        matchesTeamName = project['teamName'] == selectedTeamName;
+      }
+
+      return matchesTeamName;
+    }).toList();
+  }
 
   Map<String, List<Map<String, dynamic>>> groupmembersByteam() {
     Map<String, List<Map<String, dynamic>>> groupedteam = {};
@@ -383,7 +392,7 @@ class _TeamMembersScreenState extends State<TeamMembersScreen> {
   @override
   Widget build(BuildContext context) {
     Map<String, List<Map<String, dynamic>>> groupedteam = groupmembersByteam();
-
+    List<Map<String, dynamic>> filteredTeams = getFilteredData();
     return Scaffold(
       appBar: CustomAppBar(
         title: 'Team Members',
@@ -400,6 +409,46 @@ class _TeamMembersScreenState extends State<TeamMembersScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
+                    Autocomplete<String>(
+                      optionsBuilder: (TextEditingValue textEditingValue) {
+                        return teamsList
+                            .where((team) => team['teamName']!
+                            .toLowerCase()
+                            .contains(textEditingValue.text.toLowerCase()))
+                            .map((team) => team['teamName'] as String)
+                            .toList();
+                      },
+                      onSelected: (String teamName) {
+                        setState(() {
+                          selectedTeamName = teamName;
+                        });
+                        fetchTeamsMembers();
+                      },
+                      fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+                        return Container(
+                          width: 290,
+                          child: TextField(
+                            controller: controller,
+                            focusNode: focusNode,
+                            decoration: InputDecoration(
+                              labelText: 'Select Team',
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              prefixIcon: Icon(Icons.people_rounded),
+                            ),
+                            onChanged: (value) {
+                              if (value.isEmpty) {
+                                setState(() {
+                                  selectedTeamName = null;
+                                });
+                                fetchTeamsMembers();
+                              }
+                            },
+                          ),
+                        );
+                      },
+                    ),
                     IconButton(
                       icon: Icon(Icons.add_circle, color: Colors.blue, size: 30),
                       onPressed: _showAddRoleModal,
@@ -411,15 +460,22 @@ class _TeamMembersScreenState extends State<TeamMembersScreen> {
                   Center(child: CircularProgressIndicator())
                 else if (teams.isEmpty)
                   NoDataFoundScreen()
+                else if (filteredTeams.isEmpty)
+                    NoDataFoundScreen()
                 else
-                  Column(
-                    children: groupedteam.entries.map((entry) {
-                      String teamName = entry.key;
-                      List<Map<String, dynamic>> logs = entry.value;
-                      Map<String, dynamic> roleFields = {
-                        'Teamname': teamName,
-                        '': "",
-                      };
+                    Column(
+                      children: groupedteam.entries.map((entry) {
+                        String teamName = entry.key;
+                        List<Map<String, dynamic>> logs = entry.value;
+
+                        if (selectedTeamName != null && teamName != selectedTeamName) {
+                          return SizedBox();
+                        }
+
+                        Map<String, dynamic> roleFields = {
+                          'Teamname': teamName,
+                          '': "",
+                        };
                       return buildUserCard(
                         userFields: roleFields,
                         additionalContent: Column(

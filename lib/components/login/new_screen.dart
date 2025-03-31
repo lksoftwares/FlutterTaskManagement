@@ -82,7 +82,8 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
     final apiService = ApiService();
     final response = await apiService.request(
       method: 'GET',
-      endpoint: 'leave/GetAllLeave',
+      endpoint: 'leave/',
+      tokenRequired: true
     );
     if (response['statusCode'] == 200) {
       setState(() {
@@ -105,7 +106,9 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
     final apiService = ApiService();
     final response = await apiService.request(
       method: 'GET',
-      endpoint: 'working/GetWorking',
+      endpoint: 'working/',
+        tokenRequired: true
+
     );
     if (response['statusCode'] == 200) {
       setState(() {
@@ -155,7 +158,9 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
   Future<void> _fetchTodaysAbsents() async {
     final response = await new ApiService().request(
       method: 'get',
-      endpoint: 'leave/GetAllLeave',
+      endpoint: 'leave/',
+        tokenRequired: true
+
     );
 
     if (response['statusCode'] == 200) {

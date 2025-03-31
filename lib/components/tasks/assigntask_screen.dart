@@ -9,6 +9,9 @@ class AssigntaskScreen extends StatefulWidget {
 
 class _AssigntaskScreenState extends State<AssigntaskScreen> {
   List<Map<String, dynamic>> tasks = [];
+  List<Map<String, dynamic>> users = [];
+  String? selectedUserName;
+
   List<Map<String, dynamic>> assigntasks = [];
   int? selectedTaskId;
   int? selectedTeamMemberId;
@@ -23,6 +26,7 @@ class _AssigntaskScreenState extends State<AssigntaskScreen> {
     super.initState();
     fetchTasks();
     fetchAssigntask();
+    fetchUsers();
     _getUserId();
   }
 
@@ -32,7 +36,22 @@ class _AssigntaskScreenState extends State<AssigntaskScreen> {
       userId = prefs.getInt('user_Id');
     });
   }
+  Future<void> fetchUsers() async {
+    final response = await new ApiService().request(
+        method: 'get',
+        endpoint: 'User/',
+        tokenRequired: true
+    );
+    print("responsesssss $response");
+    if (response['statusCode'] == 200 && response['apiResponse'] != null) {
+      setState(() {
+        users = List<Map<String, dynamic>>.from(response['apiResponse']);
+      });
 
+    } else {
+      showToast(msg: response['message'] ?? 'Failed to load users');
+    }
+  }
   Future<void> fetchTeamMembers() async {
     if (selectedTaskId == null) return;
 
@@ -381,7 +400,16 @@ class _AssigntaskScreenState extends State<AssigntaskScreen> {
       titleHeight: 65,
     );
   }
+  List<Map<String, dynamic>> getFilteredData() {
+    return assigntasks.where((user) {
+      bool matchesuserName = true;
+      if (selectedUserName != null && selectedUserName!.isNotEmpty) {
+        matchesuserName = user['taskAssignedToName'] == selectedUserName;
+      }
 
+      return matchesuserName;
+    }).toList();
+  }
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -400,6 +428,47 @@ class _AssigntaskScreenState extends State<AssigntaskScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
+                    Autocomplete<String>(
+                      optionsBuilder: (TextEditingValue textEditingValue) {
+                        return users
+                            .where((user) => user['userName']!
+                            .toLowerCase()
+                            .contains(textEditingValue.text.toLowerCase()))
+                            .map((user) => user['userName'] as String)
+                            .toList();
+                      },
+                      onSelected: (String userName) {
+                        setState(() {
+                          selectedUserName = userName;
+                        });
+                        fetchAssigntask();
+                      },
+                      fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+                        return Container(
+                          width: 290,
+                          child: TextField(
+                            controller: controller,
+                            focusNode: focusNode,
+                            decoration: InputDecoration(
+                              labelText: 'Select User',
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              prefixIcon: Icon(Icons.person),
+                            ),
+                            onChanged: (value) {
+                              if (value.isEmpty) {
+                                setState(() {
+                                  selectedUserName = null;
+                                });
+                                fetchAssigntask();
+                              }
+                            },
+                          ),
+                        );
+                      },
+                    ),
+
                     IconButton(
                       icon:
                       Icon(Icons.add_circle, color: Colors.blue, size: 30),
@@ -412,9 +481,11 @@ class _AssigntaskScreenState extends State<AssigntaskScreen> {
                   Center(child: CircularProgressIndicator())
                 else if (assigntasks.isEmpty)
                   NoDataFoundScreen()
+                else if (getFilteredData().isEmpty)
+                    NoDataFoundScreen()
                 else
                   Column(
-                    children: assigntasks.map((task) {
+                    children: getFilteredData().map((task) {
                       Map<String, dynamic> taskFields = {
                         'Title': task['taskTitle'],
                         '': task[''],
@@ -424,7 +495,14 @@ class _AssigntaskScreenState extends State<AssigntaskScreen> {
                         'updatedAt': task['updatedAt'],
                       };
                       return buildUserCard(
-                        userFields: taskFields,
+                        userFields: {
+                          'Title': task['taskTitle'],
+                          '': task[''],
+                          'AssignedBy': task['taskAssignedByName'],
+                          'AssignedTo': task['taskAssignedToName'],
+                          'createdAt': task['createdAt'],
+                          'updatedAt': task['updatedAt'],
+                        },
                         onEdit: () => _showEditTaskModal(
                           task['taskAssId'],
                         ),

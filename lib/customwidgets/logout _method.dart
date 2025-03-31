@@ -64,6 +64,8 @@ class AuthService {
     await prefs.remove('user_Id');
     await prefs.remove('user_Name');
     await prefs.remove('role_Name');
+    await prefs.remove('token');
+
     await prefs.remove('role_Id');
     MenuDataHolder().menuData.clear();
     MenuDataHolder().isMenuDataLoaded = false;

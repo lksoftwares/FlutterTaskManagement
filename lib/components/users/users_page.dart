@@ -276,46 +276,7 @@ class _UsersPageState extends State<UsersPage> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
-                    Autocomplete<String>(
-                      optionsBuilder: (TextEditingValue textEditingValue) {
-                        return users
-                            .where((user) => user['userName']!
-                            .toLowerCase()
-                            .contains(textEditingValue.text.toLowerCase()))
-                            .map((user) => user['userName'] as String)
-                            .toList();
-                      },
-                      onSelected: (String roleName) {
-                        setState(() {
-                          selectedUserName = roleName;
-                        });
-                        fetchUsers();
-                      },
-                      fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
-                        return Container(
-                          width: 280,
-                          child: TextField(
-                            controller: controller,
-                            focusNode: focusNode,
-                            decoration: InputDecoration(
-                              labelText: 'Select Role',
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              prefixIcon: Icon(Icons.person),
-                            ),
-                            onChanged: (value) {
-                              if (value.isEmpty) {
-                                setState(() {
-                                  selectedUserName = null;
-                                });
-                                fetchUsers();
-                              }
-                            },
-                          ),
-                        );
-                      },
-                    ),
+
                     IconButton(
                       icon: Icon(Icons.add_circle, color: Colors.blue, size: 30),
                       onPressed: () => _showUserForm(),

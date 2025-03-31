@@ -1,5 +1,4 @@
 import 'package:lktaskmanagementapp/packages/headerfiles.dart';
-
 class MenuScreen extends StatefulWidget {
   const MenuScreen({super.key});
 
@@ -16,13 +15,14 @@ class _MenuScreenState extends State<MenuScreen> {
   final TextEditingController _menuNameController = TextEditingController();
   final TextEditingController _pageNameController = TextEditingController();
   final TextEditingController _searchController = TextEditingController();
+  final TextEditingController _orderNoController = TextEditingController();
+
   int? _selectedMenuId;
   File? _selectedImage;
   bool isLoading = false;
 
 
   Future<void> _fetchMenuData() async {
-
     setState(() {
       isLoading = true;
     });
@@ -30,7 +30,6 @@ class _MenuScreenState extends State<MenuScreen> {
       method: 'get',
       endpoint: 'Menus/',
         tokenRequired: true
-
     );
     if (response['statusCode'] == 200 && response['isSuccess']) {
       setState(() {
@@ -40,6 +39,7 @@ class _MenuScreenState extends State<MenuScreen> {
             'menuName': item['menuName'],
             'iconPath': item['iconPath'],
             'pageName': item['pageName'],
+            'orderNo': item['orderNo'],
             'subMenus': item['subMenus'] ?? [],
           };
         }).toList());
@@ -69,10 +69,10 @@ class _MenuScreenState extends State<MenuScreen> {
       _filteredMenuData = filteredMenus;
     });
   }
-
-  void _showMenuDialog({int? menuId, String? currentName, String? currentImage}) {
+  void _showMenuDialog({int? menuId, String? currentName, String? currentPageName, String? currentImage, int? currentOrderNo}) {
     _menuNameController.text = currentName ?? '';
-    _pageNameController.text = '';
+    _pageNameController.text = currentPageName ?? '';
+    _orderNoController.text = currentOrderNo?.toString() ?? '';
     _selectedMenuId = menuId;
     _selectedImage = null;
     _selectedMenuName = null;
@@ -85,11 +85,14 @@ class _MenuScreenState extends State<MenuScreen> {
       _pageNameController.text = selectedMenu['pageName']?.isNotEmpty == true
           ? selectedMenu['pageName']!
           : '';
+      _orderNoController.text = selectedMenu['orderNo']?.toString() ?? '';
 
       if (_selectedParentMenuId != 0) {
         _selectedMenuName = _allMenus.firstWhere(
                 (menu) => menu['menuId'] == _selectedParentMenuId)['menuName'];
       }
+    } else {
+      _orderNoController.text = ''; // Clear order number for adding new menu
     }
 
     showCustomAlertDialog(
@@ -137,6 +140,15 @@ class _MenuScreenState extends State<MenuScreen> {
               prefixIcon: Icon(Icons.menu),
             ),
             const SizedBox(height: 8),
+            TextField(
+              controller: _orderNoController,
+              decoration: InputDecoration(
+                border: OutlineInputBorder(),
+                labelText: 'Enter Order Number',
+              ),
+              keyboardType: TextInputType.number,
+            ),
+            const SizedBox(height: 8),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -171,7 +183,7 @@ class _MenuScreenState extends State<MenuScreen> {
           onPressed: () {
             final menuName = _menuNameController.text.trim();
             final pageName = _pageNameController.text.trim();
-
+            final orderNo = _orderNoController.text.trim();
             if (menuName.isEmpty) {
               showToast(
                 msg: 'Menu Name cannot be empty',
@@ -191,6 +203,7 @@ class _MenuScreenState extends State<MenuScreen> {
             Navigator.of(context).pop();
             _menuNameController.clear();
             _pageNameController.clear();
+            _orderNoController.clear();
             setState(() {
               _selectedImage = null;
             });
@@ -201,6 +214,7 @@ class _MenuScreenState extends State<MenuScreen> {
       titleHeight: 70,
     );
   }
+
 
 
   Future<void> _pickImage() async {
@@ -216,10 +230,12 @@ class _MenuScreenState extends State<MenuScreen> {
 
   Future<void> _addMenu(String menuName, String pageName, File? imageFile, int? parentMenuId) async {
     try {
+      final orderNo = _orderNoController.text.trim();
       Map<String, dynamic> body = {
         'menuName': menuName,
         'pageName': pageName.isNotEmpty ? pageName : '',
         'parentId': parentMenuId?.toString() ?? '',
+        'orderNo': orderNo.isNotEmpty ? orderNo : '0',
       };
 
       Map<String, File> files = {};
@@ -253,12 +269,13 @@ class _MenuScreenState extends State<MenuScreen> {
 
   Future<void> _updateMenu(int menuId, String menuName, String pageName, File? imageFile, int? parentMenuId) async {
     try {
+      final orderNo = _orderNoController.text.trim();
       Map<String, dynamic> body = {
         'menuId': menuId.toString(),
         'menuName': menuName,
         'pageName': pageName.isNotEmpty ? pageName : '',
         'parentId': parentMenuId?.toString() ?? '',
-        'orderNo': '0',
+        'orderNo': orderNo.isNotEmpty ? orderNo : '0',
         'updateFlag': 'true',
       };
 

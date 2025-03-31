@@ -10,16 +10,21 @@ class LeavesScreen extends StatefulWidget {
 
 class _LeavesScreenState extends State<LeavesScreen> {
   List<Map<String, dynamic>> leaves = [];
+  List<Map<String, dynamic>> users = [];
+
   String? selectedRoleName;
   bool isLoading = false;
   String? selectedLeaveStatus;
   String? roleName;
+  String? selectedUserName;
+
 
   @override
   void initState() {
     super.initState();
     fetchLeaves();
     _getRoleName();
+    fetchUsers();
   }
 
   List<Map<String, String>> leaveStatuses = [
@@ -27,7 +32,22 @@ class _LeavesScreenState extends State<LeavesScreen> {
     {"status": "Reject"},
     {"status": "pending"}
   ];
+  Future<void> fetchUsers() async {
+    final response = await new ApiService().request(
+        method: 'get',
+        endpoint: 'User/',
+        tokenRequired: true
+    );
+    print("responsesssss $response");
+    if (response['statusCode'] == 200 && response['apiResponse'] != null) {
+      setState(() {
+        users = List<Map<String, dynamic>>.from(response['apiResponse']);
+      });
 
+    } else {
+      showToast(msg: response['message'] ?? 'Failed to load users');
+    }
+  }
   Future<void> _getRoleName() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     setState(() {
@@ -221,12 +241,12 @@ class _LeavesScreenState extends State<LeavesScreen> {
 
 
   List<Map<String, dynamic>> getFilteredData() {
-    return leaves.where((role) {
-      bool matchesRoleName = true;
-      if (selectedRoleName != null && selectedRoleName!.isNotEmpty) {
-        matchesRoleName = role['roleName'] == selectedRoleName;
+    return leaves.where((user) {
+      bool matchesUserName = true;
+      if (selectedUserName != null && selectedUserName!.isNotEmpty) {
+        matchesUserName = user['userName'] == selectedUserName;
       }
-      return matchesRoleName;
+      return matchesUserName;
     }).toList();
   }
 
@@ -244,9 +264,51 @@ class _LeavesScreenState extends State<LeavesScreen> {
             padding: const EdgeInsets.all(8.0),
             child: Column(
               children: [
+                SizedBox(height: 15,),
+
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
+                    Autocomplete<String>(
+                      optionsBuilder: (TextEditingValue textEditingValue) {
+                        return users
+                            .where((user) => user['userName']!
+                            .toLowerCase()
+                            .contains(textEditingValue.text.toLowerCase()))
+                            .map((user) => user['userName'] as String)
+                            .toList();
+                      },
+                      onSelected: (String userName) {
+                        setState(() {
+                          selectedUserName = userName;
+                        });
+                        fetchLeaves();
+                      },
+                      fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+                        return Container(
+                          width: 290,
+                          child: TextField(
+                            controller: controller,
+                            focusNode: focusNode,
+                            decoration: InputDecoration(
+                              labelText: 'Select User',
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              prefixIcon: Icon(Icons.person),
+                            ),
+                            onChanged: (value) {
+                              if (value.isEmpty) {
+                                setState(() {
+                                  selectedUserName = null;
+                                });
+                                fetchLeaves();
+                              }
+                            },
+                          ),
+                        );
+                      },
+                    ),
 
                     IconButton(
                       icon: Icon(
@@ -268,6 +330,9 @@ class _LeavesScreenState extends State<LeavesScreen> {
                 else
                   if (leaves.isEmpty)
                     NoDataFoundScreen()
+                  else
+                    if (getFilteredData().isEmpty)
+                      NoDataFoundScreen()
                   else
                     Column(
                       children: getFilteredData().map((leave) {

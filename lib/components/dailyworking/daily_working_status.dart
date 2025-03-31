@@ -627,10 +627,12 @@ class _DailyWorkingStatusState extends State<DailyWorkingStatus> {
       print('Location permission not granted');
     }
   }
+
   Future<void> _viewWorking(int txnId) async {
     final response = await new ApiService().request(
         method: 'post',
         endpoint: 'Working/ViewWorking',
+        tokenRequired: true,
         body: {
           'updateFlag': 'true',
           'txnId': txnId.toString(),

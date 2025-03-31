@@ -17,7 +17,7 @@ class _UserroleScreenState extends State<UserroleScreen> {
   String? token;
   List<Map<String, dynamic>> rolesList = [];
   List<Map<String, dynamic>> rolessList = [];
-
+  String? selectedRoleName;
   List<Map<String, dynamic>> usersList = [];
   int? selectedUserId;
   int? selectedRoleId;
@@ -453,6 +453,17 @@ class _UserroleScreenState extends State<UserroleScreen> {
       ],
     );
   }
+  List<Map<String, dynamic>> getFilteredData() {
+    return roles.where((role) {
+      bool matchesRoleName = true;
+      if (selectedRoleName != null && selectedRoleName!.isNotEmpty) {
+        matchesRoleName = role['roleName'] == selectedRoleName;
+      }
+
+      return matchesRoleName;
+    }).toList();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -471,6 +482,46 @@ class _UserroleScreenState extends State<UserroleScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
+                    Autocomplete<String>(
+                      optionsBuilder: (TextEditingValue textEditingValue) {
+                        return rolessList
+                            .where((role) => role['roleName']!
+                            .toLowerCase()
+                            .contains(textEditingValue.text.toLowerCase()))
+                            .map((role) => role['roleName'] as String)
+                            .toList();
+                      },
+                      onSelected: (String roleName) {
+                        setState(() {
+                          selectedRoleName = roleName;
+                        });
+                        fetchUserRoles();
+                      },
+                      fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+                        return Container(
+                          width: 290,
+                          child: TextField(
+                            controller: controller,
+                            focusNode: focusNode,
+                            decoration: InputDecoration(
+                              labelText: 'Select Role',
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              prefixIcon: Icon(Icons.people),
+                            ),
+                            onChanged: (value) {
+                              if (value.isEmpty) {
+                                setState(() {
+                                  selectedRoleName = null;
+                                });
+                                fetchUserRoles();
+                              }
+                            },
+                          ),
+                        );
+                      },
+                    ),
                     IconButton(
                       icon: Icon(Icons.add_circle, color: Colors.blue, size: 30),
                       onPressed: _showAddRoleModal,
@@ -482,9 +533,11 @@ class _UserroleScreenState extends State<UserroleScreen> {
                   Center(child: CircularProgressIndicator())
                 else if (roles.isEmpty)
                   NoDataFoundScreen()
+                else if (getFilteredData().isEmpty)
+                    NoDataFoundScreen()
                 else
                   Column(
-                    children: roles.map((user) {
+                    children: getFilteredData().map((user) {
                       Map<String, dynamic> userFields = {
                         'Username': user['userName'],
                         '': user[''],
@@ -492,7 +545,12 @@ class _UserroleScreenState extends State<UserroleScreen> {
                         'CreatedAt': user['createdAt'],
                       };
                       return buildUserCard(
-                        userFields: userFields,
+                        userFields: {
+                          'Username': user['userName'],
+                          '': user[''],
+                          'Rolename': user['roleName'],
+                          'CreatedAt': user['createdAt'],
+                        },
                         onDelete: () => _confirmDeleteRole(user['userId'],user['userRoleId']),
                         trailingIcon: Row(
                           mainAxisAlignment: MainAxisAlignment.end,

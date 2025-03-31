@@ -11,6 +11,8 @@ class TasksScreen extends StatefulWidget {
 class _TasksScreenState extends State<TasksScreen> {
   List<Map<String, dynamic>> projects = [];
   List<Map<String, dynamic>> team = [];
+  String? selectedProjectName;
+
   bool isLoading = false;
   String? selectedStatus = 'open';
   String? selectedPriority = 'medium';
@@ -716,7 +718,16 @@ class _TasksScreenState extends State<TasksScreen> {
       ),
     );
   }
+  List<Map<String, dynamic>> getFilteredData() {
+    return tasks.where((project) {
+      bool matchesprojectName = true;
+      if (selectedProjectName != null && selectedProjectName!.isNotEmpty) {
+        matchesprojectName = project['projectName'] == selectedProjectName;
+      }
 
+      return matchesprojectName;
+    }).toList();
+  }
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -735,6 +746,46 @@ class _TasksScreenState extends State<TasksScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
+                    Autocomplete<String>(
+                      optionsBuilder: (TextEditingValue textEditingValue) {
+                        return projects
+                            .where((user) => user['projectName']!
+                            .toLowerCase()
+                            .contains(textEditingValue.text.toLowerCase()))
+                            .map((user) => user['projectName'] as String)
+                            .toList();
+                      },
+                      onSelected: (String projectName) {
+                        setState(() {
+                          selectedProjectName = projectName;
+                        });
+                        fetchTasks();
+                      },
+                      fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+                        return Container(
+                          width: 290,
+                          child: TextField(
+                            controller: controller,
+                            focusNode: focusNode,
+                            decoration: InputDecoration(
+                              labelText: 'Select Project',
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              prefixIcon: Icon(Icons.note_alt_rounded),
+                            ),
+                            onChanged: (value) {
+                              if (value.isEmpty) {
+                                setState(() {
+                                  selectedProjectName = null;
+                                });
+                                fetchTasks();
+                              }
+                            },
+                          ),
+                        );
+                      },
+                    ),
                     IconButton(
                       icon: Icon(
                           Icons.add_circle, color: Colors.blue, size: 30),
@@ -749,8 +800,11 @@ class _TasksScreenState extends State<TasksScreen> {
                   if (tasks.isEmpty)
                     NoDataFoundScreen()
                   else
+                    if (getFilteredData().isEmpty)
+                      NoDataFoundScreen()
+                  else
                     Column(
-                      children: tasks.map((task) {
+                      children: getFilteredData().map((task) {
                         String allComments = (task['comments'] as List<
                             dynamic>?) == null ||
                             (task['comments'] as List<dynamic>).isEmpty
@@ -770,11 +824,22 @@ class _TasksScreenState extends State<TasksScreen> {
                           'CreatedBy': task['taskCreatedByName'],
                           'UpdatedBy': task['taskUpdatedByName'],
                         };
-
                         bool canComment = task['taskStatus'] == 'open' ||
                             task['taskStatus'] == 'in-progress';
                         return buildUserCard(
-                          userFields: taskFields,
+                          userFields: {
+                            'projectName': task['projectName'],
+                            '': task[''],
+                            'Title': task['taskTitle'],
+                            'Description': task['taskDescription'],
+                            'AssignedTo': task['taskAssignedToName'],
+                            'Priority': task['taskPriority'],
+                            'Status': task['taskStatus'],
+                            'DueDate': task['taskDueDate'],
+                            'Comment': allComments,
+                            'CreatedBy': task['taskCreatedByName'],
+                            'UpdatedBy': task['taskUpdatedByName'],
+                          },
                           onEdit: () => _showEditTaskModal(task['taskId']),
                           onDelete: () => _confirmDeleteTask(task['taskId']),
                           leadingIcon3: Row(
