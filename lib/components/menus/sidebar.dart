@@ -387,7 +387,8 @@ class _NavBarState extends State<NavBar> {
     'HolidaysScreen': (context) => HolidaysScreen(),
     'TasklogsScreen': (context) => TasklogsScreen(),
     'TaskscommentsScreen': (context) => TaskscommentsScreen(),
-
+    'ShiftsScreen': (context) => ShiftsScreen(),
+    'AssignShifts': (context) => AssignShifts(),
   };
 
   Widget buildMenuItem(Map<String, dynamic> menu) {

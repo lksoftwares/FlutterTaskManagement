@@ -16,8 +16,6 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   String? username = '';
   String? userRole = '';
   bool showHolidayCheckbox = false;
-  bool hasCheckedIn = false;
-  bool hasCheckedOut = false;
   String? roleName;
   DateTime? fromDate;
   List<Map<String, dynamic>> holidays = [];
@@ -33,17 +31,17 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     fetchUserData();
     fetchAttendance();
     fetchHoliday();
-    loadAttendanceState();
   }
+
   Future<void> fetchHoliday() async {
     setState(() {
       isLoading = true;
     });
 
     final response = await new ApiService().request(
-      method: 'get',
-      endpoint: 'holidays',
-      tokenRequired: true
+        method: 'get',
+        endpoint: 'holidays',
+        tokenRequired: true
     );
     print('Response: $response');
     if (response['statusCode'] == 200 && response['apiResponse'] != null) {
@@ -58,19 +56,22 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       });
       checkIfTodayIsHoliday();
     } else {
-      print( 'Failed to load holidays');
+      print('Failed to load holidays');
     }
     setState(() {
       isLoading = false;
     });
   }
+
   void checkIfTodayIsHoliday() {
     DateTime today = DateTime.now();
     for (var holiday in holidays) {
       String holidayDateString = holiday['holidayDate'];
       try {
-        DateTime holidayDate = DateFormat('yyyy-MM-dd').parse(holidayDateString); // Assuming the date format is 'yyyy-MM-dd'
-        if (today.year == holidayDate.year && today.month == holidayDate.month && today.day == holidayDate.day) {
+        DateTime holidayDate = DateFormat('yyyy-MM-dd').parse(
+            holidayDateString); // Assuming the date format is 'yyyy-MM-dd'
+        if (today.year == holidayDate.year &&
+            today.month == holidayDate.month && today.day == holidayDate.day) {
           setState(() {
             showHolidayCheckbox = true;
           });
@@ -93,19 +94,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     });
   }
 
-  Future<void> loadAttendanceState() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    setState(() {
-      hasCheckedIn = prefs.getBool('hasCheckedIn') ?? false;
-      hasCheckedOut = prefs.getBool('hasCheckedOut') ?? false;
-    });
-  }
 
-  Future<void> saveAttendanceState() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('hasCheckedIn', hasCheckedIn);
-    await prefs.setBool('hasCheckedOut', hasCheckedOut);
-  }
 
   Map<dynamic, List<Map<String, dynamic>>> getFilteredData() {
     List<Map<String, dynamic>> filteredAttendance = attendance.where((role) {
@@ -158,9 +147,11 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         permission == LocationPermission.whileInUse) {
       Position position = await Geolocator.getCurrentPosition(
           desiredAccuracy: LocationAccuracy.high);
-      print('Current location: Latitude: ${position.latitude}, Longitude: ${position.longitude}');
+      print('Current location: Latitude: ${position
+          .latitude}, Longitude: ${position.longitude}');
 
-      List<Placemark> placemarks = await placemarkFromCoordinates(position.latitude, position.longitude);
+      List<Placemark> placemarks = await placemarkFromCoordinates(
+          position.latitude, position.longitude);
       if (placemarks.isNotEmpty) {
         Placemark placemark = placemarks.first;
         currentLocation = '${placemark.street}, ${placemark.locality}';
@@ -173,7 +164,8 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     }
   }
 
-  Future<void> markAttendanceCheckin(String inOutFlag, String inLocation) async {
+  Future<void> markAttendanceCheckin(String inOutFlag,
+      String inLocation) async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     int userId = prefs.getInt('user_Id') ?? 0;
 
@@ -204,12 +196,9 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
           return;
         }
 
-        showToast(msg: response['message'] ?? 'Added', backgroundColor: Colors.green);
-        setState(() {
-          hasCheckedIn = true;
-          hasCheckedOut = false;
-        });
-        await saveAttendanceState();
+        showToast(
+            msg: response['message'] ?? 'Added', backgroundColor: Colors.green);
+
       } else {
         showToast(msg: response['message'] ?? 'Failed to mark attendance');
       }
@@ -222,8 +211,8 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     }
   }
 
-
-  Future<void> markAttendanceCheckout(String inOutFlag, String outLocation) async {
+  Future<void> markAttendanceCheckout(String inOutFlag,
+      String outLocation) async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     int userId = prefs.getInt('user_Id') ?? 0;
 
@@ -245,12 +234,8 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       );
 
       if (response['statusCode'] >= 200 && response['statusCode'] < 400) {
-        showToast(msg: response['message'] ?? 'Added', backgroundColor: Colors.green);
-        setState(() {
-          hasCheckedIn = false;
-          hasCheckedOut = true;
-        });
-        await saveAttendanceState();
+        showToast(
+            msg: response['message'] ?? 'Added', backgroundColor: Colors.green);
       } else {
         showToast(msg: response['message'] ?? 'Failed to mark attendance');
       }
@@ -278,6 +263,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     } else if (userId != null) {
       endpoint = 'attendance/?userId=$userId';
     }
+
     final response = await new ApiService().request(
       method: 'get',
       endpoint: endpoint,
@@ -287,7 +273,8 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     if (response['statusCode'] == 200 && response['apiResponse'] != null) {
       setState(() {
         attendance = List<Map<String, dynamic>>.from(
-          response['apiResponse'].map((member) => {
+          response['apiResponse'].map((member) =>
+          {
             'atTxnId': member['atTxnId'] ?? 0,
             'inDateTime': member['inDateTime'] ?? "----/----/-------- --:--",
             'userId': member['userId'] ?? 0,
@@ -296,19 +283,20 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
             'inLocation': member['inLocation'] ?? null,
             'outLocation': member['outLocation'] ?? null,
             'dailyWorkingHour': member['dailyWorkingHour'] ?? '',
-
           }),
         );
       });
-    } else {
     }
+
     setState(() {
       isLoading = false;
     });
   }
 
+
   Widget buildAttendanceCard(String date, String? inTime, String? outTime,
-      String inLocation, String outLocation, String dailyWorkingHour, String userName) {
+      String inLocation, String outLocation, String dailyWorkingHour,
+      String userName) {
     String formattedDate = Dateformat.formatWorkingDate(date);
 
     return Container(
@@ -334,7 +322,9 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  "$formattedDate ${dailyWorkingHour != '00:00' ? '($dailyWorkingHour)' : ''}",
+                  "$formattedDate ${dailyWorkingHour != '00:00'
+                      ? '($dailyWorkingHour)'
+                      : ''}",
                   style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
@@ -458,15 +448,16 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                     ),
                   ],
                 ),
-
                 Row(
                   children: [
-                    if (!hasCheckedIn)
+                    if (!attendance.any((record) =>
+                    record['outLocation'] == null))
                       SliderButton(
                         action: () async {
                           await getCurrentLocation();
                           if (currentLocation != null) {
-                            await markAttendanceCheckin("intime", currentLocation!);
+                            await markAttendanceCheckin("intime",
+                                currentLocation!);
                             await fetchAttendance();
                           }
                           return false;
@@ -486,13 +477,14 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                         buttonSize: 40,
                         backgroundColor: Colors.green,
                       ),
-
-                    if (hasCheckedIn && !hasCheckedOut)
+                    if (attendance.any((record) =>
+                    record['outLocation'] == null))
                       SliderButton(
                         action: () async {
                           await getCurrentLocation();
                           if (currentLocation != null) {
-                            await markAttendanceCheckout("outtime", currentLocation!);
+                            await markAttendanceCheckout("outtime",
+                                currentLocation!);
                             await fetchAttendance();
                           }
                           return false;
@@ -519,7 +511,8 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
             if (showHolidayCheckbox)
               Row(
                 children: [
-                  Text("Today is Holiday. Want to Work Today? ", style: TextStyle(fontSize: 15)),
+                  Text("Today is Holiday. Want to Work Today? ",
+                      style: TextStyle(fontSize: 15)),
                   Checkbox(
                     value: attendanceOnHoliday,
                     onChanged: (value) {
@@ -537,11 +530,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                 : getFilteredData().isEmpty
                 ? Center(child: NoDataFoundScreen())
                 : Expanded(
-              child: isLoading
-                  ? Center(child: CircularProgressIndicator())
-                  : getFilteredData().isEmpty
-                  ? Center(child: NoDataFoundScreen())
-                  : ListView.builder(
+              child: ListView.builder(
                 itemCount: getFilteredData().length,
                 itemBuilder: (context, index) {
                   var groupedAttendance = getFilteredData();
@@ -556,10 +545,13 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                         itemCount: userAttendance.length,
                         itemBuilder: (context, index) {
                           var attendanceRecord = userAttendance[index];
-                          String inTime = attendanceRecord['inDateTime'] ?? "--:--";
-                          String outTime = attendanceRecord['outDateTime'] ?? "--:--";
+                          String inTime = attendanceRecord['inDateTime'] ??
+                              "--:--";
+                          String outTime = attendanceRecord['outDateTime'] ??
+                              "--:--";
                           return buildAttendanceCard(
-                            attendanceRecord['inDateTime'] ?? '--/--/---- --:--',
+                            attendanceRecord['inDateTime'] ??
+                                '--/--/---- --:--',
                             inTime,
                             outTime,
                             attendanceRecord['inLocation'] ?? '',
@@ -573,8 +565,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                   );
                 },
               ),
-            )
-
+            ),
           ],
         ),
       ),

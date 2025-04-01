@@ -150,7 +150,6 @@ class _LeavesScreenState extends State<LeavesScreen> {
       String currentRemarks) async {
     TextEditingController remarksController = TextEditingController(
         text: currentRemarks);
-
     setState(() {
       selectedLeaveStatus = currentLeaveStatus;
     });
