@@ -1,4 +1,3 @@
-
 import 'package:intl/intl.dart';
 import 'package:lktaskmanagementapp/packages/headerfiles.dart';
 
@@ -12,7 +11,7 @@ class _TasksScreenState extends State<TasksScreen> {
   List<Map<String, dynamic>> projects = [];
   List<Map<String, dynamic>> team = [];
   String? selectedProjectName;
-
+  bool isAllFieldsVisible = false;
   bool isLoading = false;
   String? selectedStatus = 'open';
   String? selectedPriority = 'medium';
@@ -22,22 +21,75 @@ class _TasksScreenState extends State<TasksScreen> {
   String taskDescription = '';
   DateTime? dueDate;
   int? userId;
+  Map<String, bool> taskExpansionStates = {};
   int? selectedTeamMemberId;
   int? selectedprojectId;
+  String? roleName;
+  FlutterSoundRecorder? _recorder;
+  FlutterSoundPlayer? _player;
+  bool isRecording = false;
+  String? audioFilePath;
+  bool isPlaying = false;
+  Map<String, bool> isPlayingMap = {};
 
 
   @override
   void initState() {
     super.initState();
+    _initializeRecorder();
+    _initializePlayer();
     fetchProjects();
     fetchTasks();
     _getUserId();
+  }
+
+  Future<void> _initializeRecorder() async {
+    _recorder = FlutterSoundRecorder();
+    await _recorder!.openRecorder();
+  }
+  Future<void> _initializePlayer() async {
+    _player = FlutterSoundPlayer();
+    await _player!.openPlayer();
+  }
+
+  Future<void> _startRecording() async {
+
+    PermissionStatus status = await Permission.microphone.request();
+    if (status.isGranted) {
+      String path = await _getFilePath();
+      await _recorder!.startRecorder(toFile: path);
+      setState(() {
+        audioFilePath = path;
+      });
+      showToast(msg: "Recording started!",backgroundColor: Colors.green);
+
+      print("Recording started. File path: $audioFilePath");
+    } else {
+      showToast(msg: "Permission denied. Please allow microphone access.");
+    }
+  }
+
+  Future<void> _stopRecording() async {
+    await _recorder!.stopRecorder();
+    setState(() {
+      isRecording=false;
+    });
+    showToast(msg: "Recording stopped!",backgroundColor: Colors.green);
+    print("Recording stopped. File saved at: $audioFilePath");
+  }
+
+  Future<String> _getFilePath() async {
+    Directory appDirectory = await getApplicationDocumentsDirectory();
+    String path = '${appDirectory.path}/recording.aac';
+    return path;
   }
 
   Future<void> _getUserId() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     setState(() {
       userId = prefs.getInt('user_Id');
+      roleName = prefs.getString('role_Name');
+
     });
   }
 
@@ -45,10 +97,9 @@ class _TasksScreenState extends State<TasksScreen> {
     if (selectedprojectId == null) return;
 
     final response = await new ApiService().request(
-      method: 'get',
-      endpoint: 'teams/GetTeamMembers?projectId=$selectedprojectId',
+        method: 'get',
+        endpoint: 'teams/GetTeamMembers?projectId=$selectedprojectId',
         tokenRequired: true
-
     );
 
     print('Fetching team members for project ID: $selectedprojectId');
@@ -63,17 +114,14 @@ class _TasksScreenState extends State<TasksScreen> {
     }
   }
 
-
   Future<void> fetchProjects() async {
     setState(() {
       isLoading = true;
     });
-
     final response = await new ApiService().request(
-      method: 'get',
-      endpoint: 'projects/',
+        method: 'get',
+        endpoint: 'projects/',
         tokenRequired: true
-
     );
     if (response['statusCode'] == 200 && response['apiResponse'] != null) {
       setState(() {
@@ -99,10 +147,9 @@ class _TasksScreenState extends State<TasksScreen> {
     });
 
     final response = await new ApiService().request(
-      method: 'get',
-      endpoint: 'tasks',
+        method: 'get',
+        endpoint: 'tasks',
         tokenRequired: true
-
     );
 
     if (response['statusCode'] == 200 && response['apiResponse'] != null) {
@@ -116,13 +163,16 @@ class _TasksScreenState extends State<TasksScreen> {
               'taskTitle': role['taskTitle'] ?? 'Unknown title',
               'taskDescription': role['taskDescription'] ?? 'Unknown description',
               'taskPriority': role['taskPriority'] ?? '',
+              'taskAssignedTo': role['taskAssignedTo'] ?? '',
               'taskStatus': role['taskStatus'] ?? '',
               'projectName': role['projectName'] ?? '',
               'comments': (role['taskComments'] as List<dynamic>?)
                   ?.map((commentMap) => commentMap['comment'])
                   .toList() ??
                   [],
-              'userName': taskComments?.isNotEmpty == true ? taskComments![0]['userName'] : '',
+              'userName': taskComments?.isNotEmpty == true
+                  ? taskComments![0]['userName']
+                  : '',
               'taskAssignedToName': role['taskAssignedToName'],
               'taskCreatedByName': role['taskCreatedByName'] ?? '',
               'taskUpdatedByName': role['taskUpdatedByName'] ?? '',
@@ -132,16 +182,15 @@ class _TasksScreenState extends State<TasksScreen> {
         );
       });
       print(tasks);
-    } else {
-    }
+    } else {}
 
     setState(() {
       isLoading = false;
     });
   }
 
-
   Future<void> _addTask() async {
+    final dueDateToSend = dueDate?.toIso8601String() ?? DateTime.now().toIso8601String();
     final response = await new ApiService().request(
       method: 'post',
       endpoint: 'tasks/create',
@@ -151,7 +200,7 @@ class _TasksScreenState extends State<TasksScreen> {
         'taskTitle': taskTitle,
         'taskDescription': taskDescription,
         'taskPriority': selectedPriority,
-        'taskDueDate': dueDate?.toIso8601String(),
+        'taskDueDate': dueDateToSend,
         'taskStatus': selectedStatus,
         'taskAssignedTo': selectedTeamMemberId,
         'taskCreatedBy': userId,
@@ -176,6 +225,7 @@ class _TasksScreenState extends State<TasksScreen> {
       selectedTeamMemberId = null;
       dueDate = null;
       team.clear();
+
     });
 
     showCustomAlertDialog(
@@ -184,122 +234,130 @@ class _TasksScreenState extends State<TasksScreen> {
       content: StatefulBuilder(
         builder: (context, setState) {
           return SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
+            child: Padding(
+              padding: const EdgeInsets.all(20.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  CustomDropdown<String>(
+                    options: projects.map((project) =>
+                        project['projectId'].toString()).toList(),
+                    displayValue: (projectId) {
+                      final project = projects.firstWhere(
+                              (project) =>
+                          project['projectId'].toString() == projectId);
+                      return project['projectName'];
+                    },
+                    onChanged: (value) async {
+                      setState(() {
+                        selectedprojectId =
+                        value != null ? int.tryParse(value) : null;
+                        team.clear();
+                      });
 
-                CustomDropdown<String>(
-                  options: projects.map((project) =>
-                      project['projectId'].toString()).toList(),
-                  displayValue: (projectId) {
-                    final project = projects.firstWhere(
-                            (project) =>
-                        project['projectId'].toString() == projectId);
-                    return project['projectName'];
-                  },
-                  onChanged: (value) async {
-                    setState(() {
-                      selectedprojectId =
-                      value != null ? int.tryParse(value) : null;
-                      team.clear();
-                    });
+                      print("Selected project ID: $selectedprojectId");
 
-                    print("Selected project ID: $selectedprojectId");
-
-                    if (selectedprojectId != null) {
-                      await fetchTeamMembers();
-                    }
-                    setState(() {});
-                  },
-                  labelText: ' Select Project',
-                ),
-                SizedBox(height: 10),
-                DropdownButtonFormField<int>(
-                  decoration: InputDecoration(labelText: 'Select Team Member',
-                      border: OutlineInputBorder()),
-                  items: team.map((member) {
-                    return DropdownMenuItem<int>(
-                      value: member['userId'],
-                      child: Text(member['userName'] ?? 'Unknown'),
-                    );
-                  }).toList(),
-                  onChanged: (value) {
-                    setState(() {
-                      selectedTeamMemberId = value;
-                    });
-                  },
-                ),
-                SizedBox(height: 10),
-                TextField(
-                  onChanged: (value) => taskTitle = value,
-                  decoration: InputDecoration(
-                    labelText: 'Task Title',
-                    border: OutlineInputBorder(),
+                      if (selectedprojectId != null) {
+                        await fetchTeamMembers();
+                      }
+                      setState(() {});
+                    },
+                    labelText: ' Select Project',
                   ),
-                ),
-                SizedBox(height: 10),
-                TextField(
-                  onChanged: (value) => taskDescription = value,
-                  decoration: InputDecoration(
-                    labelText: 'Task Description',
-                    border: OutlineInputBorder(),
+                  SizedBox(height: 10),
+                  DropdownButtonFormField<int>(
+                    decoration: InputDecoration(
+                      labelText: 'Select Team Member',
+                      border: OutlineInputBorder(),
+                    ),
+                    items: team.map((member) {
+                      return DropdownMenuItem<int>(
+                        value: member['userId'],
+                        child: Text(
+                          '${member['userName'] ?? 'Unknown'} (${member['roleName'] ?? 'No Role'})',
+                          style: TextStyle(fontSize: 16),
+                        ),
+                      );
+                    }).toList(),
+                    onChanged: (value) {
+                      setState(() {
+                        selectedTeamMemberId = value;
+                      });
+                    },
                   ),
-                  maxLines: 3,
-                ),
-                SizedBox(height: 10),
 
-                CustomDropdown<String>(
-                  options: ['low', 'medium', 'high'],
-                  displayValue: (priority) => priority,
-                  onChanged: (value) {
-                    setState(() {
-                      selectedPriority = value;
-                    });
-                  },
-                  labelText: ' Select Priority',
-                ),
-                SizedBox(height: 10),
-                CustomDropdown<String>(
-                  options: ['open', 'in-progress', 'completed', 'blocked'],
-                  displayValue: (status) => status,
-                  onChanged: (value) {
-                    setState(() {
-                      selectedStatus = value;
-                    });
-                  },
-                  labelText: 'Select Status',
-                ),
-
-
-                SizedBox(height: 10),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      dueDate != null
-                          ? DateformatddMMyyyy.formatDateddMMyyyy(dueDate!)
-                          : 'Select Due Date:', style: TextStyle(fontSize: 19),
+                  SizedBox(height: 10),
+                  TextField(
+                    onChanged: (value) => taskTitle = value,
+                    decoration: InputDecoration(
+                      labelText: 'Task Title',
+                      border: OutlineInputBorder(),
                     ),
-                    IconButton(
-                      onPressed: () async {
-                        DateTime? pickedDate = await showDatePicker(
-                          context: context,
-                          initialDate: dueDate ?? DateTime.now(),
-                          firstDate: DateTime(2000),
-                          lastDate: DateTime(2101),
-                        );
-                        if (pickedDate != null) {
-                          setState(() {
-                            dueDate = pickedDate;
-                            print(dueDate);
-                          });
-                        }
-                      },
-                      icon: Icon(Icons.calendar_month, size: 34),
+                  ),
+                  SizedBox(height: 10),
+                  TextField(
+                    onChanged: (value) => taskDescription = value,
+                    decoration: InputDecoration(
+                      labelText: 'Task Description',
+                      border: OutlineInputBorder(),
                     ),
-                  ],
-                )
-              ],
+                    maxLines: 3,
+                  ),
+                  SizedBox(height: 10),
+
+                  CustomDropdown<String>(
+                    options: ['low', 'medium', 'high'],
+                    displayValue: (priority) => priority,
+                    onChanged: (value) {
+                      setState(() {
+                        selectedPriority = value;
+                      });
+                    },
+                    labelText: ' Select Priority',
+                  ),
+                  SizedBox(height: 10),
+                  CustomDropdown<String>(
+                    options: ['open', 'in-progress', 'completed', 'blocked'],
+                    displayValue: (status) => status,
+                    onChanged: (value) {
+                      setState(() {
+                        selectedStatus = value;
+                      });
+                    },
+                    labelText: 'Select Status',
+                  ),
+
+                  SizedBox(height: 15),
+                  TextField(
+                    controller: TextEditingController(
+                        text: dueDate != null
+                            ? DateformatddMMyyyy.formatDateddMMyyyy(dueDate!)
+                            : DateformatddMMyyyy.formatDateddMMyyyy(DateTime.now())
+                    ),
+                    readOnly: true,
+                    onTap: () async {
+                      DateTime? pickedDate = await showDatePicker(
+                        context: context,
+                        initialDate: dueDate ?? DateTime.now(),
+                        firstDate: DateTime(2000),
+                        lastDate: DateTime(2101),
+                      );
+                      if (pickedDate != null) {
+                        setState(() {
+                          dueDate = pickedDate;
+                        });
+                      }
+                    },
+                    decoration: InputDecoration(
+                      labelText: 'Select Due Date',
+                      border: OutlineInputBorder(),
+                      suffixIcon: Icon(Icons.calendar_month),
+
+                    ),
+                  )
+
+                ],
+              ),
             ),
           );
         },
@@ -316,6 +374,7 @@ class _TasksScreenState extends State<TasksScreen> {
         ),
       ],
       titleHeight: 65,
+      isFullScreen: true
     );
   }
 
@@ -348,9 +407,9 @@ class _TasksScreenState extends State<TasksScreen> {
 
   Future<void> _deleteTask(int taskId) async {
     final response = await new ApiService().request(
-      method: 'post',
-      endpoint: 'tasks/delete/$taskId',
-      tokenRequired: true
+        method: 'post',
+        endpoint: 'tasks/delete/$taskId',
+        tokenRequired: true
     );
     if (response['statusCode'] == 200) {
       String message = response['message'] ?? ' deleted successfully';
@@ -415,125 +474,134 @@ class _TasksScreenState extends State<TasksScreen> {
       content: StatefulBuilder(
         builder: (context, setState) {
           return SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                CustomDropdown<String>(
-                  options: projects.map((project) =>
-                      project['projectId'].toString()).toList(),
-                  displayValue: (projectId) {
-                    final project = projects.firstWhere(
-                            (project) =>
-                        project['projectId'].toString() == projectId);
-                    return project['projectName'];
-                  },
-                  selectedOption: selectedprojectId?.toString(),
-                  onChanged: (value) async {
-                    setState(() {
-                      selectedprojectId =
-                      value != null ? int.tryParse(value) : null;
-                      team.clear();
-                    });
-                    if (selectedprojectId != null) {
-                      await fetchTeamMembers();
-                      if (!team.any((member) =>
-                      member['userId'] == selectedTeamMemberId)) {
-                        selectedTeamMemberId = null;
-                      }
-                    }
-                    setState(() {});
-                  },
-                  labelText: 'Select Project',
-                ),
-                SizedBox(height: 10),
-                DropdownButtonFormField<int>(
-                  value: selectedTeamMemberId,
-                  decoration: InputDecoration(labelText: 'Select Team Member',
-                      border: OutlineInputBorder()),
-                  items: team.map((member) {
-                    return DropdownMenuItem<int>(
-                      value: member['userId'],
-                      child: Text(member['userName'] ?? 'Unknown'),
-                    );
-                  }).toList(),
-                  onChanged: (value) {
-                    setState(() {
-                      selectedTeamMemberId = value;
-                    });
-                  },
-                ),
-                SizedBox(height: 10),
-                TextField(
-                  controller: TextEditingController(text: taskTitle),
-                  onChanged: (value) => taskTitle = value,
-                  decoration: InputDecoration(
-                    labelText: 'Task Title',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                SizedBox(height: 10),
-
-                TextField(
-                  controller: TextEditingController(text: taskDescription),
-                  onChanged: (value) => taskDescription = value,
-                  decoration: InputDecoration(
-                    labelText: 'Task Description',
-                    border: OutlineInputBorder(),
-                  ),
-                  maxLines: 3,
-                ),
-                SizedBox(height: 10),
-
-                CustomDropdown<String>(
-                  options: ['low', 'medium', 'high'],
-                  displayValue: (priority) => priority,
-                  selectedOption: selectedPriority,
-                  onChanged: (value) {
-                    setState(() {
-                      selectedPriority = value;
-                    });
-                  },
-                  labelText: 'Select Priority',
-                ),
-                SizedBox(height: 10),
-                CustomDropdown<String>(
-                  options: ['open', 'in-progress', 'completed', 'blocked'],
-                  displayValue: (status) => status,
-                  selectedOption: selectedStatus,
-                  onChanged: (value) {
-                    setState(() {
-                      selectedStatus = value;
-                    });
-                  },
-                  labelText: 'Select Status',
-                ),
-                SizedBox(height: 10),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      dueDate != null
-                          ? DateformatddMMyyyy.formatDateddMMyyyy(dueDate!)
-                          : 'Select Due Date:', style: TextStyle(fontSize: 19),
-                    ), IconButton(
-                      onPressed: () async {
-                        DateTime? pickedDate = await showDatePicker(
-                          context: context,
-                          initialDate: dueDate ?? DateTime.now(),
-                          firstDate: DateTime(2000),
-                          lastDate: DateTime(2101),
-                        );
-                        if (pickedDate != null) {
-                          setState(() {
-                            dueDate = pickedDate;
-                          });
+            child: Padding(
+              padding: const EdgeInsets.all(20.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  CustomDropdown<String>(
+                    options: projects.map((project) =>
+                        project['projectId'].toString()).toList(),
+                    displayValue: (projectId) {
+                      final project = projects.firstWhere(
+                              (project) =>
+                          project['projectId'].toString() == projectId);
+                      return project['projectName'];
+                    },
+                    selectedOption: selectedprojectId?.toString(),
+                    onChanged: (value) async {
+                      setState(() {
+                        selectedprojectId =
+                        value != null ? int.tryParse(value) : null;
+                        team.clear();
+                      });
+                      if (selectedprojectId != null) {
+                        await fetchTeamMembers();
+                        if (!team.any((member) =>
+                        member['userId'] == selectedTeamMemberId)) {
+                          selectedTeamMemberId = null;
                         }
-                      },
-                      icon: Icon(Icons.calendar_month, size: 34),
+                      }
+                      setState(() {});
+                    },
+                    labelText: 'Select Project',
+                  ),
+                  SizedBox(height: 10),
+                  DropdownButtonFormField<int>(
+                    value: selectedTeamMemberId,
+                    decoration: InputDecoration(labelText: 'Select Team Member',
+                        border: OutlineInputBorder()),
+                    items: team.map((member) {
+                      return DropdownMenuItem<int>(
+                        value: member['userId'],
+                        child: Text(
+                          '${member['userName'] ?? 'Unknown'} (${member['roleName'] ?? 'No Role'})',
+                          style: TextStyle(fontSize: 16),
+                        ),                      );
+                    }).toList(),
+                    onChanged: (value) {
+                      setState(() {
+                        selectedTeamMemberId = value;
+                      });
+                    },
+                  ),
+                  SizedBox(height: 10),
+                  TextField(
+                    controller: TextEditingController(text: taskTitle),
+                    onChanged: (value) => taskTitle = value,
+                    decoration: InputDecoration(
+                      labelText: 'Task Title',
+                      border: OutlineInputBorder(),
                     ),
-                  ],
-                ),
-              ],
+                  ),
+                  SizedBox(height: 10),
+
+                  TextField(
+                    controller: TextEditingController(text: taskDescription),
+                    onChanged: (value) => taskDescription = value,
+                    decoration: InputDecoration(
+                      labelText: 'Task Description',
+                      border: OutlineInputBorder(),
+                    ),
+                    maxLines: 3,
+                  ),
+                  SizedBox(height: 10),
+
+                  CustomDropdown<String>(
+                    options: ['low', 'medium', 'high'],
+                    displayValue: (priority) => priority,
+                    selectedOption: selectedPriority,
+                    onChanged: (value) {
+                      setState(() {
+                        selectedPriority = value;
+                      });
+                    },
+                    labelText: 'Select Priority',
+                  ),
+                  SizedBox(height: 10),
+                  CustomDropdown<String>(
+                    options: ['open', 'in-progress', 'completed', 'blocked'],
+                    displayValue: (status) => status,
+                    selectedOption: selectedStatus,
+                    onChanged: (value) {
+                      setState(() {
+                        selectedStatus = value;
+                      });
+                    },
+                    labelText: 'Select Status',
+                  ),
+                  SizedBox(height: 15),
+
+                  TextField(
+                    controller: TextEditingController(
+                        text: dueDate != null
+                            ? DateFormat('dd-MM-yyyy').format(dueDate!)
+                            : 'Select Due Date'
+
+                    ),
+
+                    readOnly: true,
+                    onTap: () async {
+                      DateTime? pickedDate = await showDatePicker(
+                        context: context,
+                        initialDate: dueDate ?? DateTime.now(),
+                        firstDate: DateTime(2000),
+                        lastDate: DateTime(2101),
+                      );
+                      if (pickedDate != null) {
+                        setState(() {
+                          dueDate = pickedDate;
+                        });
+                      }
+                    },
+                    decoration: InputDecoration(
+                      labelText: 'Select Due Date',
+                      border: OutlineInputBorder(),
+                      suffixIcon: Icon(Icons.calendar_month),
+                    ),
+                  ),
+                ],
+              ),
             ),
           );
         },
@@ -552,6 +620,7 @@ class _TasksScreenState extends State<TasksScreen> {
         ),
       ],
       titleHeight: 65,
+      isFullScreen: true
     );
   }
 
@@ -596,19 +665,51 @@ class _TasksScreenState extends State<TasksScreen> {
       labelText: 'Comment',
       border: OutlineInputBorder(),
     );
+    setState(() {
+      audioFilePath = null;
+      isRecording = false;
+      isPlayingMap.clear();
+    });
     showCustomAlertDialog(
       context,
       title: 'Add Comment',
       content: StatefulBuilder(
         builder: (context, setState) {
-          return Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                onChanged: (value) => comment = value,
-                decoration: inputDecoration,
-              ),
-            ],
+          return Container(
+            height: 250,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  onChanged: (value) => comment = value,
+                  decoration: inputDecoration,
+                  maxLines: 4,
+                ),
+                SizedBox(height: 15,),
+                Text("Add Audio Comment", style: TextStyle(fontWeight: FontWeight.w900,fontSize: 20)),
+                SizedBox(height: 20,),
+                Center(
+                    child: GestureDetector(
+                        onTap: () {
+                          if (isRecording) {
+                            _stopRecording();
+                            setState(() {
+                              isRecording = false;
+                            });
+                          } else {
+                            setState(() {
+                              isRecording = true;
+                            });
+                            _startRecording();
+                          }
+                        },
+                        child: isRecording
+                            ? Avatar()
+                            : Icon(Icons.mic, color: Color(0xFF005296), size: 40)
+                    )
+                ),
+              ],
+            ),
           );
         },
       ),
@@ -668,8 +769,10 @@ class _TasksScreenState extends State<TasksScreen> {
                             ),
                             elevation: 4,
                             child: ListTile(
-                              contentPadding: EdgeInsets.symmetric(horizontal: 12.0),
-                              leading: Icon(Icons.comment_outlined, color: Colors.blue),
+                              contentPadding: EdgeInsets.symmetric(
+                                  horizontal: 12.0),
+                              leading: Icon(
+                                  Icons.comment_outlined, color: Colors.blue),
                               title: Text(
                                 comments[index].toString(),
                                 style: TextStyle(fontSize: 16),
@@ -718,16 +821,17 @@ class _TasksScreenState extends State<TasksScreen> {
       ),
     );
   }
+
   List<Map<String, dynamic>> getFilteredData() {
     return tasks.where((project) {
       bool matchesprojectName = true;
       if (selectedProjectName != null && selectedProjectName!.isNotEmpty) {
         matchesprojectName = project['projectName'] == selectedProjectName;
       }
-
       return matchesprojectName;
     }).toList();
   }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -802,85 +906,136 @@ class _TasksScreenState extends State<TasksScreen> {
                   else
                     if (getFilteredData().isEmpty)
                       NoDataFoundScreen()
-                  else
-                    Column(
-                      children: getFilteredData().map((task) {
-                        String allComments = (task['comments'] as List<
-                            dynamic>?) == null ||
-                            (task['comments'] as List<dynamic>).isEmpty
-                            ? 'No comments'
-                            : "Check Comment ";
+                    else
+                      Column(
+                        children: getFilteredData().map((task) {
+                          String allComments = (task['comments'] as List<
+                              dynamic>?) == null ||
+                              (task['comments'] as List<dynamic>).isEmpty
+                              ? 'No comments'
+                              : "Check Comment ";
 
-                        Map<String, dynamic> taskFields = {
-                          'projectName': task['projectName'],
-                          '': task[''],
-                          'Title': task['taskTitle'],
-                          'Description': task['taskDescription'],
-                          'AssignedTo': task['taskAssignedToName'],
-                          'Priority': task['taskPriority'],
-                          'Status': task['taskStatus'],
-                          'DueDate': task['taskDueDate'],
-                          'Comment': allComments,
-                          'CreatedBy': task['taskCreatedByName'],
-                          'UpdatedBy': task['taskUpdatedByName'],
-                        };
-                        bool canComment = task['taskStatus'] == 'open' ||
-                            task['taskStatus'] == 'in-progress';
-                        return buildUserCard(
-                          userFields: {
+                          Map<String, dynamic> taskFields = {
                             'projectName': task['projectName'],
-                            '': task[''],
                             'Title': task['taskTitle'],
                             'Description': task['taskDescription'],
                             'AssignedTo': task['taskAssignedToName'],
+                            'Comment': allComments,
                             'Priority': task['taskPriority'],
                             'Status': task['taskStatus'],
                             'DueDate': task['taskDueDate'],
-                            'Comment': allComments,
                             'CreatedBy': task['taskCreatedByName'],
                             'UpdatedBy': task['taskUpdatedByName'],
-                          },
-                          onEdit: () => _showEditTaskModal(task['taskId']),
-                          onDelete: () => _confirmDeleteTask(task['taskId']),
-                          leadingIcon3: Row(
-                            children: [
-                              if (task['comments'] == null ||
-                                  task['comments'].isEmpty)
-                                Container()
-                              else
+                          };
+                          bool canComment = task['taskStatus'] == 'open' ||
+                              task['taskStatus'] == 'in-progress';
+                          DateTime? dueDate;
+                          if (task['taskDueDate'] != null) {
+                            try {
+                              dueDate = DateFormat('dd-MM-yyyy').parse(task['taskDueDate']);
+                            } catch (e) {
+                              print('Error parsing due date: ${task['taskDueDate']} - $e');
+                            }
+                          }
+                          bool isOverdue = dueDate != null && dueDate.isBefore(DateTime.now());
+
+                          return buildUserCard(
+                            userFields: {
+                              'projectName': task['projectName'],
+                              '': task[''],
+                              'Title': task['taskTitle'],
+                              'Description': task['taskDescription'],
+                              'AssignedTo': task['taskAssignedToName'],
+                              'Comment': allComments,
+                              'DueDate': task['taskDueDate'],
+
+                            },
+                            onEdit: () => _showEditTaskModal(task['taskId']),
+                            onDelete: () => _confirmDeleteTask(task['taskId']),
+                            leadingIcon3: Row(
+                              children: [
+                                if (task['comments'] == null ||
+                                    task['comments'].isEmpty)
+                                  Container()
+                                else
+                                  IconButton(
+                                    icon: Icon(
+                                        Icons.comment, color: Colors.orange,
+                                        size: 25),
+                                    onPressed: () =>
+                                        _showCommentsModal(task['taskId']),
+                                  ),
+                              ],
+                            ),
+                            trailingIcon: Row(
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              children: [
+                                if (!(taskExpansionStates[task['taskId']
+                                    .toString()] ?? false))
+                                  IconButton(
+                                    onPressed: () {
+                                      setState(() {
+                                        taskExpansionStates[task['taskId']
+                                            .toString()] = true;
+                                      });
+                                    },
+                                  icon: Icon(Icons.arrow_downward),
+                                  ),
+                                if ((taskExpansionStates[task['taskId']
+                                    .toString()] ?? false))
+                                  IconButton(
+                                    onPressed: () {
+                                      setState(() {
+                                        taskExpansionStates[task['taskId']
+                                            .toString()] = false;
+                                      });
+                                    },
+                                    icon: Icon(Icons.arrow_upward),
+
+                                  ),
+                                if (canComment)
+                                  IconButton(
+                                    onPressed: () =>
+                                        _showAddCommentModal(task['taskId']),
+                                    icon: Icon(
+                                        Icons.comment, color: Colors.orange),
+                                  ),
+                                if(roleName == "Admin")
                                 IconButton(
-                                  icon: Icon(
-                                      Icons.comment, color: Colors.orange,size: 25,),
                                   onPressed: () =>
-                                      _showCommentsModal(task['taskId']),
+                                      _showEditTaskModal(task['taskId']),
+                                  icon: Icon(Icons.edit, color: Colors.green),
                                 ),
-                            ],
-                          ),
-                          trailingIcon: Row(
-                            mainAxisAlignment: MainAxisAlignment.end,
-                            children: [
-                              if (canComment)
                                 IconButton(
                                   onPressed: () =>
-                                      _showAddCommentModal(task['taskId']),
-                                  icon: Icon(
-                                      Icons.comment, color: Colors.orange),
+                                      _confirmDeleteTask(task['taskId']),
+                                  icon: Icon(Icons.delete, color: Colors.red),
                                 ),
-                              IconButton(
-                                onPressed: () =>
-                                    _showEditTaskModal(task['taskId']),
-                                icon: Icon(Icons.edit, color: Colors.green),
-                              ),
-                              IconButton(
-                                onPressed: () =>
-                                    _confirmDeleteTask(task['taskId']),
-                                icon: Icon(Icons.delete, color: Colors.red),
-                              ),
-                            ],
-                          ),
-                        );
-                      }).toList(),
-                    ),
+                              ],
+                            ),
+                            additionalContent: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                if (taskExpansionStates[task['taskId']
+                                    .toString()] ?? false)
+                                  buildUserCard(
+                                    userFields: {
+                                      'Priority': task['taskPriority'],
+                                      '': task[''],
+                                      'Status': task['taskStatus'],
+                                      'CreatedBy': task['taskCreatedByName'],
+                                      'UpdatedBy': task['taskUpdatedByName'],
+                                    },
+                                    backgroundColor: isOverdue ? Colors.red.shade400 : null,
+
+                                  ),
+                              ],
+                            ),
+                            backgroundColor: isOverdue ? Colors.red.shade400 : null,
+
+                          );
+                        }).toList(),
+                      )
               ],
             ),
           ),

@@ -68,6 +68,7 @@ class _TasklogsScreenState extends State<TasklogsScreen> {
             'newStatus': logs['newStatus'] ?? '',
             'oldPriority': logs['oldPriority'] ?? '',
             'newPriority': logs['newPriority'] ?? '',
+            'projectName': logs['projectName'] ?? "unknown project",
             'taskTitle': logs['taskTitle'] ?? "unknown title",
             'changedByUser': logs['changedByUser'] ?? "unknown user",
             'oldAssignedToUser': logs['oldAssignedToUser'] ?? "unknown user",
@@ -214,8 +215,9 @@ class _TasklogsScreenState extends State<TasklogsScreen> {
                   Column(
                     children: getFilteredData().map((logs) {
                       Map<String, dynamic> logsFields = {
-                        'TaskTitle': logs['taskTitle'],
+                        'projectName': logs['projectName'],
                         '': logs[''],
+                        'TaskTitle': logs['taskTitle'],
                         'OldStatus': logs['oldStatus'] ,
                         'NewStatus': logs['newStatus'],
                         'OldPriority': logs['oldPriority'],
@@ -229,8 +231,9 @@ class _TasklogsScreenState extends State<TasklogsScreen> {
 
                       return buildUserCard(
                         userFields: {
-                          'TaskTitle': logs['taskTitle'],
+                          'projectName': logs['projectName'],
                           '': logs[''],
+                          'TaskTitle': logs['taskTitle'],
                           'OldStatus': logs['oldStatus'] ,
                           'NewStatus': logs['newStatus'],
                           'OldPriority': logs['oldPriority'],

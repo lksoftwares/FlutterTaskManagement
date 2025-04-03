@@ -46,4 +46,13 @@ class DateformatddMMyyyy {
       return 'Invalid date';
     }
   }
+  static DateTime parseDateddMMyyyy(String dateStr) {
+    try {
+      return DateFormat('dd-MM-yyyy').parse(dateStr);
+    } catch (e) {
+      print("Error parsing date: $e");
+      return DateTime(2000);
+    }
+
+  }
 }

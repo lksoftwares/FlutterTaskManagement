@@ -1,13 +1,13 @@
-import 'package:lktaskmanagementapp/packages/headerfiles.dart';
+import 'package:flutter/material.dart';
 
-Widget buildCardLayout({required Widget child}) {
+Widget buildCardLayout({required Widget child, Color? backgroundColor}) {
   return Card(
     margin: const EdgeInsets.symmetric(vertical: 8),
     elevation: 8,
     shape: RoundedRectangleBorder(
       borderRadius: BorderRadius.circular(15),
     ),
-    color: Colors.white,
+    color: backgroundColor ?? Colors.white,
     shadowColor: Colors.black.withOpacity(0.3),
     child: Container(
       decoration: BoxDecoration(
@@ -22,22 +22,22 @@ Widget buildCardLayout({required Widget child}) {
     ),
   );
 }
+
 Widget buildUserCard({
   required Map<String, dynamic> userFields,
   Function? onEdit,
   Function? onDelete,
   Function? onView,
+  Color? backgroundColor,
   Function? onPlay,
   bool showEdit = false,
   bool showDelete = false,
   bool showView = false,
-  bool showplay = false,
+  bool showPlay = false,
   Widget? trailingIcon,
   Widget? leadingIcon,
   Widget? leadingIcon2,
   Widget? leadingIcon3,
-
-
   Widget? additionalContent,
 }) {
   List<Widget> fieldRows = [];
@@ -87,9 +87,13 @@ Widget buildUserCard({
       if (value is Widget) {
         displayValue = value;
       } else if (value is bool) {
-        displayValue = Icon(
-          value ? Icons.check_circle : Icons.cancel,
-          color: value ? Colors.green : Colors.red,
+        displayValue = Row(
+          children: [
+            Icon(
+              value ? Icons.check_circle : Icons.cancel,
+              color: value ? Colors.green : Colors.red,
+            ),
+          ],
         );
       } else {
         displayValue = Text(
@@ -122,14 +126,13 @@ Widget buildUserCard({
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Expanded(child: displayValue),
-
-                    if (i == 3 && leadingIcon2 != null ) ...[
+                    if (i == 3 && leadingIcon2 != null) ...[
                       Padding(
                         padding: const EdgeInsets.only(right: 00.0),
                         child: leadingIcon2,
                       ),
                     ],
-                    if (i == 8 && leadingIcon3 != null ) ...[
+                    if (i == 5 && leadingIcon3 != null) ...[
                       Padding(
                         padding: const EdgeInsets.only(right: 00.0),
                         child: leadingIcon3,
@@ -145,7 +148,7 @@ Widget buildUserCard({
                               icon: const Icon(Icons.edit, color: Colors.green),
                               onPressed: onEdit as void Function()?,
                             ),
-                          if ( i == 2 && leadingIcon!=null)
+                          if (i == 2 && leadingIcon != null)
                             Padding(
                               padding: const EdgeInsets.only(right: 00.0),
                               child: leadingIcon,
@@ -155,16 +158,14 @@ Widget buildUserCard({
                               icon: const Icon(Icons.zoom_in, color: Colors.blue), // View icon
                               onPressed: onView as void Function()?,
                             ),
-                          if (showplay && i == 4)
+                          if (showPlay && i == 4)
                             IconButton(
                               icon: const Icon(Icons.play_circle, color: Colors.green), // Play button
                               onPressed: onPlay as void Function()?,
                             ),
-
                         ],
                       ),
                     ),
-
                   ],
                 ),
               ),
@@ -173,7 +174,6 @@ Widget buildUserCard({
         ),
       );
     }
-  } else if (keys.isNotEmpty) {
   }
 
   return buildCardLayout(
@@ -199,5 +199,6 @@ Widget buildUserCard({
         ],
       ),
     ),
+    backgroundColor: backgroundColor,
   );
 }

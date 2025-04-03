@@ -142,6 +142,7 @@ class _TeamMembersScreenState extends State<TeamMembersScreen> {
   Future<void> _showAddRoleModal() async {
 
     setState(() {
+      selectedTeamId = null;
       selectedUserId = null;
       selectedRoleId = null;
       rolesList.clear();

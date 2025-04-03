@@ -147,7 +147,74 @@ class _AssignShiftsState extends State<AssignShifts> {
           )
       );
    }
-
+  // void _editShift(Map<String, dynamic> shift) {
+  //   if (shift['shiftName'] == null || shift['shiftName'] == '') {
+  //     selectedShiftId = null;
+  //   } else {
+  //     selectedShiftId = shift['shiftId'];
+  //   }
+  //
+  //   showCustomAlertDialog(
+  //     context,
+  //     title: 'Edit Shift',
+  //     content: StatefulBuilder(
+  //       builder: (context, setState) {
+  //         return Column(
+  //           mainAxisSize: MainAxisSize.min,
+  //           children: [
+  //             SizedBox(height: 10,),
+  //             CustomDropdown<int>(
+  //               options: shifts.map<int>((user) => user['shiftId'] as int).toList(),
+  //               selectedOption: selectedShiftId,
+  //               displayValue: (userId) {
+  //                 if (userId == null) {
+  //                   return 'No Shift';
+  //                 }
+  //                 return shifts.firstWhere((user) => user['shiftId'] == userId)['shiftName'] ?? 'Unknown Shift';
+  //               },
+  //               onChanged: (value) {
+  //                 setState(() {
+  //                   selectedShiftId = value;
+  //                 });
+  //               },
+  //               labelText: 'Select Shift',
+  //             ),
+  //           ],
+  //         );
+  //       },
+  //     ),
+  //     actions: [
+  //       ElevatedButton(
+  //         style: ElevatedButton.styleFrom(
+  //           backgroundColor: Colors.green,
+  //         ),
+  //         onPressed: () async {
+  //           if (selectedShiftId != null) {
+  //             await updateUserShift(shift['userId'], selectedShiftId!);
+  //             Navigator.of(context).pop();
+  //             fetchUsers();
+  //           } else {
+  //             showToast(msg: 'Please select a shift');
+  //           }
+  //         },
+  //         child: Text('Update', style: TextStyle(color: Colors.white)),
+  //       ),
+  //       TextButton(
+  //         onPressed: () {
+  //           Navigator.of(context).pop();
+  //         },
+  //         child: Text('Cancel'),
+  //       ),
+  //     ],
+  //     titleHeight: 80,
+  //     additionalTitleContent: Row(
+  //       mainAxisAlignment: MainAxisAlignment.center,
+  //       children: [
+  //         Text('UserName : ${shift['userName']}', style: TextStyle(fontSize: 16, color: Colors.white)),
+  //       ],
+  //     ),
+  //   );
+  // }
 
   Future<void> updateUserShift(int userId, int shiftId) async {
     setState(() {

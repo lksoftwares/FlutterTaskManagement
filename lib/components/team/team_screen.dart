@@ -186,7 +186,7 @@ class _TeamScreenState extends State<TeamScreen> {
             backgroundColor: Colors.green,
           ),
           onPressed: () {
-            if (teamName.isEmpty || tmDescription.isEmpty) {
+            if (teamName.isEmpty ) {
               showToast(msg: 'Please fill in both fields');
             } else {
               _addTeam(teamName, tmDescription);
@@ -317,7 +317,7 @@ class _TeamScreenState extends State<TeamScreen> {
             backgroundColor: Colors.green,
           ),
           onPressed: () {
-            if (_teamController.text.isEmpty || _descriptionController.text.isEmpty) {
+            if (_teamController.text.isEmpty) {
               showToast(msg: 'Please fill in both fields');
             } else {
               _updateTeam(teamId, _teamController.text, _descriptionController.text);

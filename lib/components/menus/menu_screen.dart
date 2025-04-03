@@ -92,7 +92,7 @@ class _MenuScreenState extends State<MenuScreen> {
                 (menu) => menu['menuId'] == _selectedParentMenuId)['menuName'];
       }
     } else {
-      _orderNoController.text = ''; // Clear order number for adding new menu
+      _orderNoController.text = '';
     }
 
     showCustomAlertDialog(
@@ -313,11 +313,9 @@ class _MenuScreenState extends State<MenuScreen> {
 
 
   void _showDeleteConfirmationDialog(int menuId) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text('Delete Menu'),
+    showCustomAlertDialog(
+      context,
+          title: 'Delete Menu',
           content: Text('Are you sure you want to delete this menu?'),
           actions: [
             TextButton(
@@ -332,8 +330,7 @@ class _MenuScreenState extends State<MenuScreen> {
               child: Text('Delete'),
             ),
           ],
-        );
-      },
+titleHeight: 70
     );
   }
   Future<void> _deleteMenu(int menuId) async {

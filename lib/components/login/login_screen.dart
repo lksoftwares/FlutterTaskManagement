@@ -51,7 +51,7 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> fetchRoles() async {
     final response = await ApiService().request(
       method: 'GET',
-      endpoint: 'Roles/GetAllRole',
+      endpoint: 'Roles/',
     );
 
     if (response['statusCode'] == 200) {
