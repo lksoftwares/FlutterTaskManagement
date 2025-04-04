@@ -132,7 +132,7 @@ Widget buildUserCard({
                         child: leadingIcon2,
                       ),
                     ],
-                    if (i == 5 && leadingIcon3 != null) ...[
+                    if (i == 6 && leadingIcon3 != null) ...[
                       Padding(
                         padding: const EdgeInsets.only(right: 00.0),
                         child: leadingIcon3,

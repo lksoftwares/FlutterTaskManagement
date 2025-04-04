@@ -126,6 +126,7 @@ class _LeavesScreenState extends State<LeavesScreen> {
         ),
       ],
       titleHeight: 65,
+      isFullScreen: false
     );
   }
 
@@ -204,6 +205,7 @@ class _LeavesScreenState extends State<LeavesScreen> {
         ),
       ],
       titleHeight: 65,
+      isFullScreen: false
     );
   }
 

@@ -12,7 +12,7 @@ Future<void> showCustomAlertDialog(
       Widget? additionalTitleContent,
       double titleHeight = 102,
       double titleTopPadding = 13.0,
-      bool isFullScreen = false,
+      bool isFullScreen = true,
     }) async {
   return showDialog(
     context: context,

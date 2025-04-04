@@ -25,6 +25,8 @@ export 'dart:async';
 export 'package:fluttertoast/fluttertoast.dart';
 export 'package:lktaskmanagementapp/components/projects/projects_screen.dart';
 export 'package:lktaskmanagementapp/components/team/team_members_screen.dart';
+export 'package:lktaskmanagementapp/components/team/teammemberrole_screen.dart';
+
 export 'package:lktaskmanagementapp/components/team/team_screen.dart';
 export 'package:flutter/services.dart';
 export 'package:lktaskmanagementapp/customwidgets/routes_method.dart';

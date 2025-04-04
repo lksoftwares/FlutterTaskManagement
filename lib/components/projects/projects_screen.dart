@@ -20,8 +20,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
   int? userId;
   int? selectedTeamId;
   String? selectedStage;
-
-
+  String? selectedStage2;
   @override
   void initState() {
     super.initState();
@@ -29,9 +28,8 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
     _getData();
   }
 
-  List<String> projectStages = ['Running', 'Completed', 'On Hold', 'Pending', 'Cancelled','In Progress'];
+  List<String> projectStages = ['Completed', 'On Hold', 'Pending', 'Cancelled','In Progress'];
   Map<String, bool> selectedStages = {
-    'Running': false,
     'Completed': false,
     'On Hold': false,
     'Pending': false,
@@ -133,123 +131,125 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
     DateTime endDate = DateTime.now();
     TextEditingController startDateController = TextEditingController(text: DateformatddMMyyyy.formatDateddMMyyyy(startDate));
     TextEditingController endDateController = TextEditingController(text: DateformatddMMyyyy.formatDateddMMyyyy(endDate));
-
+    String? selectedStage = 'Pending';
     showCustomAlertDialog(
       context,
       title: 'Add Project',
       content: StatefulBuilder(
           builder: (context, setState) {
             return SingleChildScrollView(
-              child: Container(
-                width: double.infinity,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    TextField(
-                      onChanged: (value) => projectName = value,
-                      decoration: InputDecoration(
-                        labelText: 'Project Name',
-                        border: OutlineInputBorder(),
+              child: Padding(
+                padding: const EdgeInsets.all(15.0),
+                child: Container(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TextField(
+                        onChanged: (value) => projectName = value,
+                        decoration: InputDecoration(
+                          labelText: 'Project Name',
+                          border: OutlineInputBorder(),
+                        ),
                       ),
-                    ),
-                    SizedBox(height: 10),
-                    TextField(
-                      onChanged: (value) => projectDescription = value,
-                      decoration: InputDecoration(
-                        labelText: 'Project Description',
-                        border: OutlineInputBorder(),
+                      SizedBox(height: 15),
+                      TextField(
+                        onChanged: (value) => projectDescription = value,
+                        decoration: InputDecoration(
+                          labelText: 'Project Description',
+                          border: OutlineInputBorder(),
+                        ),
                       ),
-                    ),
-                    SizedBox(height: 10),
-                    CustomDropdown<int>(
-                      options: teamsList.map<int>((
-                          team) => team['teamId'] as int).toList(),
-                      selectedOption: selectedTeamId,
-                      displayValue: (teamId) =>
-                      teamsList.firstWhere((team) =>
-                      team['teamId'] == teamId)['teamName'],
-                      onChanged: (value) {
-                        setState(() {
-                          selectedTeamId = value;
-                        });
-                      },
-                      labelText: 'Select Team',
-                    ),
-                    SizedBox(height: 10),
-                    CustomDropdown<String>(
-                      options: [
-                        'Pending',
-                        'In Progress',
-                        'Running',
-                        'Completed',
-                        'On Hold',
-                        'Cancelled'
-                      ],
-                      displayValue: (priority) => priority,
-                      onChanged: (value) {
-                        setState(() {
-                          selectedStage = value;
-                        });
-                      },
-                      labelText: ' Select Stage',
-                    ),
-                    SizedBox(height: 10),
+                      SizedBox(height: 15),
+                      CustomDropdown<int>(
+                        options: teamsList.map<int>((
+                            team) => team['teamId'] as int).toList(),
+                        selectedOption: selectedTeamId,
+                        displayValue: (teamId) =>
+                        teamsList.firstWhere((team) =>
+                        team['teamId'] == teamId)['teamName'],
+                        onChanged: (value) {
+                          setState(() {
+                            selectedTeamId = value;
+                          });
+                        },
+                        labelText: 'Select Team',
+                      ),
+                      SizedBox(height: 15),
+                      CustomDropdown<String>(
+                        options: [
+                          'Pending',
+                          'In Progress',
+                          'Completed',
+                          'On Hold',
+                          'Cancelled'
+                        ],
+                        selectedOption: selectedStage,
+                        displayValue: (priority) => priority,
+                        onChanged: (value) {
+                          setState(() {
+                            selectedStage = value;
+                          });
+                        },
+                        labelText: 'Select Stage',
+                      ),
+                      SizedBox(height: 15),
 
-                    GestureDetector(
-                      onTap: () async {
-                        DateTime? picked = await showDatePicker(
-                          context: context,
-                          initialDate: startDate,
-                          firstDate: DateTime(2000),
-                          lastDate: DateTime(2101),
-                        );
-                        if (picked != null) {
-                          setState(() {
-                            startDate = picked;
-                            startDateController.text =
-                                DateformatddMMyyyy.formatDateddMMyyyy(
-                                    startDate);
-                          });
-                        }
-                      },
-                      child: AbsorbPointer(
-                        child: TextField(
-                          controller: startDateController,
-                          decoration: InputDecoration(
-                            labelText: 'Start Date',
-                            border: OutlineInputBorder(),
+                      GestureDetector(
+                        onTap: () async {
+                          DateTime? picked = await showDatePicker(
+                            context: context,
+                            initialDate: startDate,
+                            firstDate: DateTime(2000),
+                            lastDate: DateTime(2101),
+                          );
+                          if (picked != null) {
+                            setState(() {
+                              startDate = picked;
+                              startDateController.text =
+                                  DateformatddMMyyyy.formatDateddMMyyyy(
+                                      startDate);
+                            });
+                          }
+                        },
+                        child: AbsorbPointer(
+                          child: TextField(
+                            controller: startDateController,
+                            decoration: InputDecoration(
+                              labelText: 'Start Date',
+                              border: OutlineInputBorder(),
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                    SizedBox(height: 10),
-                    GestureDetector(
-                      onTap: () async {
-                        DateTime? picked = await showDatePicker(
-                          context: context,
-                          initialDate: endDate,
-                          firstDate: DateTime(2000),
-                          lastDate: DateTime(2101),
-                        );
-                        if (picked != null) {
-                          setState(() {
-                            endDate = picked;
-                            endDateController.text =
-                                DateformatddMMyyyy.formatDateddMMyyyy(endDate);
-                          });
-                        }
-                      },
-                      child: AbsorbPointer(
-                        child: TextField(
-                          controller: endDateController,
-                          decoration: InputDecoration(
-                            labelText: 'End Date',
-                            border: OutlineInputBorder(),
+                      SizedBox(height: 15),
+                      GestureDetector(
+                        onTap: () async {
+                          DateTime? picked = await showDatePicker(
+                            context: context,
+                            initialDate: endDate,
+                            firstDate: DateTime(2000),
+                            lastDate: DateTime(2101),
+                          );
+                          if (picked != null) {
+                            setState(() {
+                              endDate = picked;
+                              endDateController.text =
+                                  DateformatddMMyyyy.formatDateddMMyyyy(endDate);
+                            });
+                          }
+                        },
+                        child: AbsorbPointer(
+                          child: TextField(
+                            controller: endDateController,
+                            decoration: InputDecoration(
+                              labelText: 'End Date',
+                              border: OutlineInputBorder(),
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             );
@@ -288,7 +288,6 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
         'createdBy': createdBy,
         'updatedBy': updatedBy,
         'projectStage': selectedStage,
-
         'teamId': teamId,
         'startDate': startDate.toIso8601String(),
         'endDate': endDate.toIso8601String(),
@@ -329,6 +328,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
         ),
       ],
       titleHeight: 65,
+      isFullScreen: false
 
     );
   }
@@ -361,132 +361,166 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
      int? selectedTeamId = project['teamId'];
     bool? selectedStatus = project['projectStatus'];
     selectedStage = project['projectStage'];
-
     showCustomAlertDialog(
       context,
       title: 'Edit Project',
       content: StatefulBuilder(
           builder: (context, setState) {
             return SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    controller: projectNameController,
-                    decoration: InputDecoration(
-                      labelText: 'Project Name',
-                      border: OutlineInputBorder(),
+              child: Padding(
+                padding: const EdgeInsets.all(15.0),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(
+                      controller: projectNameController,
+                      decoration: InputDecoration(
+                        labelText: 'Project Name',
+                        border: OutlineInputBorder(),
+                      ),
                     ),
-                  ),
-                  SizedBox(height: 10),
-                  TextField(
-                    controller: projectDescriptionController,
-                    decoration: InputDecoration(
-                      labelText: 'Project Description',
-                      border: OutlineInputBorder(),
+                    SizedBox(height: 15),
+                    TextField(
+                      controller: projectDescriptionController,
+                      decoration: InputDecoration(
+                        labelText: 'Project Description',
+                        border: OutlineInputBorder(),
+                      ),
                     ),
-                  ),
-                  SizedBox(height: 10),
-                  CustomDropdown<int>(
-                    options: teamsList.map<int>((team) => team['teamId'] as int).toList(),
-                    selectedOption: selectedTeamId,
-                    displayValue: (teamId) => teamsList.firstWhere((team) => team['teamId'] == teamId)['teamName'],
-                    onChanged: (value) {
-                      setState(() {
-                        selectedTeamId = value;
-                      });
-                    },
-                    labelText: 'Select Team',
-                  ),
-                  SizedBox(height: 10),
-
-                  CustomDropdown<bool>(
-                    options: [true, false],
-                    selectedOption: selectedStatus,
-                    displayValue: (status) => status == true ? 'Active' : 'Deactive',
-                    onChanged: (value) {
-                      setState(() {
-                        selectedStatus = value;
-                      });
-                    },
-                    labelText: 'Project Status',
-
-                  ),
-                  SizedBox(height: 10),
-                  CustomDropdown<String>(
-                    options: [
-                      'Pending',
-                      'In Progress',
-                      'Running',
-                      'Completed',
-                      'On Hold',
-                      'Cancelled'
-                    ],
-                    displayValue: (status) => status,
-                    selectedOption: selectedStage,
-                    onChanged: (value) {
-                      setState(() {
-                        selectedStage = value;
-                      });
-                    },
-                    labelText: 'Select Status',
-                  ),
-                  SizedBox(height: 10),
-
-                  GestureDetector(
-                    onTap: () async {
-                      DateTime? picked = await showDatePicker(
-                        context: context,
-                        initialDate: startDate,
-                        firstDate: DateTime(2000),
-                        lastDate: DateTime(2101),
-                      );
-                      if (picked != null) {
+                    SizedBox(height: 15),
+                    CustomDropdown<int>(
+                      options: teamsList.map<int>((team) => team['teamId'] as int).toList(),
+                      selectedOption: selectedTeamId,
+                      displayValue: (teamId) => teamsList.firstWhere((team) => team['teamId'] == teamId)['teamName'],
+                      onChanged: (value) {
                         setState(() {
-                          startDate = picked;
-                          startDateController.text = DateformatddMMyyyy
-                              .formatDateddMMyyyy(startDate);
+                          selectedTeamId = value;
                         });
-                      }
-                    },
-                    child: AbsorbPointer(
-                      child: TextField(
-                        controller: startDateController,
-                        decoration: InputDecoration(
-                          labelText: 'Start Date',
-                          border: OutlineInputBorder(),
+                      },
+                      labelText: 'Select Team',
+                    ),
+                    SizedBox(height: 15),
+
+
+                    CustomDropdown<String>(
+                      options: [
+                        'Pending',
+                        'In Progress',
+                        'Completed',
+                        'On Hold',
+                        'Cancelled'
+                      ],
+                      displayValue: (status) => status,
+                      selectedOption: selectedStage,
+                      onChanged: (value) {
+                        setState(() {
+                          selectedStage = value;
+                        });
+                      },
+                      labelText: 'Select Status',
+                    ),
+                    SizedBox(height: 15),
+
+                    GestureDetector(
+                      onTap: () async {
+                        DateTime? picked = await showDatePicker(
+                          context: context,
+                          initialDate: startDate,
+                          firstDate: DateTime(2000),
+                          lastDate: DateTime(2101),
+                        );
+                        if (picked != null) {
+                          setState(() {
+                            startDate = picked;
+                            startDateController.text = DateformatddMMyyyy
+                                .formatDateddMMyyyy(startDate);
+                          });
+                        }
+                      },
+                      child: AbsorbPointer(
+                        child: TextField(
+                          controller: startDateController,
+                          decoration: InputDecoration(
+                            labelText: 'Start Date',
+                            border: OutlineInputBorder(),
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                  SizedBox(height: 10),
-                  GestureDetector(
-                    onTap: () async {
-                      DateTime? picked = await showDatePicker(
-                        context: context,
-                        initialDate: endDate,
-                        firstDate: DateTime(2000),
-                        lastDate: DateTime(2101),
-                      );
-                      if (picked != null) {
-                        setState(() {
-                          endDate = picked;
-                          endDateController.text = DateformatddMMyyyy
-                              .formatDateddMMyyyy(endDate);
-                        });
-                      }
-                    },
-                    child: AbsorbPointer(
-                      child: TextField(
-                        controller: endDateController,
-                        decoration: InputDecoration(
-                          labelText: 'End Date',
-                          border: OutlineInputBorder(),
+                    SizedBox(height: 15),
+                    GestureDetector(
+                      onTap: () async {
+                        DateTime? picked = await showDatePicker(
+                          context: context,
+                          initialDate: endDate,
+                          firstDate: DateTime(2000),
+                          lastDate: DateTime(2101),
+                        );
+                        if (picked != null) {
+                          setState(() {
+                            endDate = picked;
+                            endDateController.text = DateformatddMMyyyy
+                                .formatDateddMMyyyy(endDate);
+                          });
+                        }
+                      },
+                      child: AbsorbPointer(
+                        child: TextField(
+                          controller: endDateController,
+                          decoration: InputDecoration(
+                            labelText: 'End Date',
+                            border: OutlineInputBorder(),
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                ],
+                    SizedBox(height: 10),
+
+                    Padding(
+                      padding: const EdgeInsets.only(right: 10.0),
+                      child: Wrap(
+                        spacing: 10.0,
+                        runSpacing: 4.0,
+                        children: [
+                          FilterChip(
+                            label: Text(
+                              'Active',
+                              style: TextStyle(
+                                color: selectedStatus == true ? Colors.white : Colors.black,
+                              ),
+                            ),
+                            selected: selectedStatus == true,
+                            onSelected: (bool selected) {
+                              setState(() {
+                                selectedStatus = true;
+                              });
+                            },
+                            selectedColor: Colors.green,
+                            backgroundColor: Colors.grey[200],
+                            checkmarkColor: Colors.white,
+                          ),
+                          FilterChip(
+                            label: Text(
+                              'Deactive',
+                              style: TextStyle(
+                                color: selectedStatus == false ? Colors.white : Colors.black,
+                              ),
+                            ),
+                            selected: selectedStatus == false,
+                            onSelected: (bool selected) {
+                              setState(() {
+                                selectedStatus = false;
+                              });
+                            },
+                            selectedColor: Colors.red,
+                            backgroundColor: Colors.grey[200],
+                            checkmarkColor: Colors.white,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
             );
           }
@@ -551,20 +585,16 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
     }
   }
   List<Map<String, dynamic>> getFilteredData() {
-    bool isAnyStageSelected = selectedStages.values.contains(true);
-
     return projects.where((project) {
       bool matchesTeamName = true;
       if (selectedTeamName != null && selectedTeamName!.isNotEmpty) {
         matchesTeamName = project['teamName'] == selectedTeamName;
       }
-      bool matchesStage = !isAnyStageSelected || selectedStages.entries.any((entry) =>
-      entry.value && project['projectStage'] == entry.key
-      );
-
+      bool matchesStage = selectedStage2 == null || project['projectStage'] == selectedStage2;
       return matchesTeamName && matchesStage;
     }).toList();
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -586,16 +616,13 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                   children: [
                     Autocomplete<String>(
                       optionsBuilder: (TextEditingValue textEditingValue) {
-                        return teamsList
-                            .where((team) => team['teamName']!
-                            .toLowerCase()
-                            .contains(textEditingValue.text.toLowerCase()))
-                            .map((team) => team['teamName'] as String)
+                        return projectStages
+                            .where((stage) => stage.toLowerCase().contains(textEditingValue.text.toLowerCase()))
                             .toList();
                       },
-                      onSelected: (String teamName) {
+                      onSelected: (String stage) {
                         setState(() {
-                          selectedTeamName = teamName;
+                          selectedStage2 = stage;
                         });
                         fetchProjects();
                       },
@@ -606,16 +633,16 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                             controller: controller,
                             focusNode: focusNode,
                             decoration: InputDecoration(
-                              labelText: 'Select Team',
+                              labelText: 'Select Project Stage',
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(10),
                               ),
-                              prefixIcon: Icon(Icons.people_rounded),
+                              prefixIcon: Icon(Icons.running_with_errors),
                             ),
                             onChanged: (value) {
                               if (value.isEmpty) {
                                 setState(() {
-                                  selectedTeamName = null;
+                                  selectedStage = null;
                                 });
                                 fetchProjects();
                               }
@@ -630,25 +657,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                     ),
                   ],
                 ),
-                Padding(
-                  padding: const EdgeInsets.only(right: 15.0),
-                  child: Wrap(
-                    spacing: 10.0,
-                    runSpacing: 4.0,
-                    children: projectStages.map((stage) {
-                      return FilterChip(
-                        label: Text(stage),
-                        selected: selectedStages[stage]!,
-                        onSelected: (bool selected) {
-                          setState(() {
-                            selectedStages[stage] = selected;
-                          });
-                          fetchProjects();
-                        },
-                      );
-                    }).toList(),
-                  ),
-                ),
+
                 SizedBox(height: 10),
                 if (isLoading)
                   Center(child: CircularProgressIndicator())

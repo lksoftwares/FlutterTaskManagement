@@ -125,6 +125,7 @@ class _RolesPageState extends State<RolesPage> {
         ),
       ],
       titleHeight: 65,
+      isFullScreen: false
     );
   }
 
@@ -151,6 +152,8 @@ class _RolesPageState extends State<RolesPage> {
         ),
       ],
       titleHeight: 65,
+        isFullScreen: false
+
 
     );
 
@@ -175,7 +178,7 @@ class _RolesPageState extends State<RolesPage> {
     }
   }
 
-  Future<void> _updateRole(int roleId, String roleName) async {
+  Future<void> _updateRole(int roleId, String roleName,bool roleStatus) async {
     if (token == null || token!.isEmpty) {
       showToast(msg: 'Token not found');
       return;
@@ -186,6 +189,8 @@ class _RolesPageState extends State<RolesPage> {
       body: {
         'roleId': roleId,
         'roleName': roleName,
+        'roleStatus': roleStatus,
+
         'updateFlag': true,
       },
       tokenRequired: true
@@ -208,20 +213,82 @@ class _RolesPageState extends State<RolesPage> {
   }
 
 
-  void _showEditRoleModal(int roleId, String currentRoleName) {
+  void _showEditRoleModal(int roleId, String currentRoleName, bool? roleStatus) {
     TextEditingController _roleController =
     TextEditingController(text: currentRoleName);
+    bool? selectedStatus =roleStatus;
 
     showCustomAlertDialog(
       context,
       title: 'Edit Role',
-      content: TextField(
-        controller: _roleController,
-        decoration: InputDecoration(
-          labelText: 'Role Name',
-          border: OutlineInputBorder(),
-        ),
+      content: StatefulBuilder(
+        builder: (context, setState) {
+return Container(
+          height: 150,
+          child: Column(
+            children: [
+              TextField(
+                controller: _roleController,
+                decoration: InputDecoration(
+                  labelText: 'Role Name',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              SizedBox(height: 15,),
+              Padding(
+                padding: const EdgeInsets.only(right: 10.0),
+                child: Wrap(
+                  spacing: 10.0,
+                  runSpacing: 4.0,
+                  children: [
+                    FilterChip(
+                      label: Text(
+                        'Active',
+                        style: TextStyle(
+                          color: selectedStatus == true
+                              ? Colors.white
+                              : Colors
+                              .black,
+                        ),
+                      ),
+                      selected: selectedStatus == true,
+                      onSelected: (bool selected) {
+                        setState(() {
+                          selectedStatus = true;
+                        });
+                      },
+                      selectedColor: Colors.green,
+                      backgroundColor: Colors.grey[200],
+                      checkmarkColor: Colors.white,
+                    ),
+                    FilterChip(
+                      label: Text(
+                        'Deactive',
+                        style: TextStyle(
+                          color: selectedStatus == false
+                              ? Colors.white
+                              : Colors
+                              .black,
+                        ),
+                      ),
+                      selected: selectedStatus == false,
+                      onSelected: (bool selected) {
+                        setState(() {
+                          selectedStatus = false;
+                        });
+                      },
+                      selectedColor: Colors.red,
+                      backgroundColor: Colors.grey[200],
+                      checkmarkColor: Colors.white,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );}
       ),
+
       actions: [
 
         ElevatedButton(
@@ -232,7 +299,7 @@ class _RolesPageState extends State<RolesPage> {
             if (_roleController.text.isEmpty) {
               showToast(msg: 'Please enter a role name');
             } else {
-              _updateRole(roleId, _roleController.text);
+              _updateRole(roleId, _roleController.text, selectedStatus ?? false);
             }
           },
           child: Text('Update',style: TextStyle(color: Colors.white),),
@@ -243,6 +310,8 @@ class _RolesPageState extends State<RolesPage> {
         ),
       ],
       titleHeight: 65,
+        isFullScreen: false
+
     );
   }
 
@@ -266,9 +335,10 @@ class _RolesPageState extends State<RolesPage> {
       body: RefreshIndicator(
         onRefresh: fetchRoles,
         child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Column(
+          child: StatefulBuilder(
+        builder: (context, setState) {
+
+    return Column(
               children: [
                 SizedBox(height: 20),
                 Row(
@@ -343,13 +413,13 @@ class _RolesPageState extends State<RolesPage> {
                           'Status': role['roleStatus'],
                           'CreatedAt': role['createdAt'],
                         },
-                        onEdit: () => _showEditRoleModal(role['roleId'], role['roleName']),
+                        onEdit: () => _showEditRoleModal(role['roleId'], role['roleName'], role['roleStatus']),
                         onDelete: () => _confirmDeleteRole(role['roleId']),
                         trailingIcon:
                         Row(
                           mainAxisAlignment: MainAxisAlignment.end,
                           children: [
-                            IconButton(onPressed: ()=>_showEditRoleModal(role['roleId'], role['roleName']),
+                            IconButton(onPressed: ()=>_showEditRoleModal(role['roleId'], role['roleName'], role['roleStatus']),
                                 icon: Icon(Icons.edit,color: Colors.green,)),
                             IconButton(onPressed: ()=>_confirmDeleteRole(role['roleId']),
                                 icon: Icon(Icons.delete,color: Colors.red,)),
@@ -361,7 +431,7 @@ class _RolesPageState extends State<RolesPage> {
                   )
 
               ],
-            ),
+            );}
           ),
         ),
       ),

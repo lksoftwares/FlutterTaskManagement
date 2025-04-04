@@ -123,7 +123,7 @@ class _AssigntaskScreenState extends State<AssigntaskScreen> {
             '': task[''],
             'taskAssignedByName': task['taskAssignedByName'] ?? 'unknown name',
             'taskAssignedToName': task['taskAssignedToName'] ?? 'unknown name',
-            'taskAssignedTo': task['taskAssignedTo'] ?? 0, // Ensure this is included
+            'taskAssignedTo': task['taskAssignedTo'] ?? 0,
             'createdAt': task['createdAt'] ?? '',
             'updatedAt': task['updatedAt'] ?? '',
           }),
@@ -174,49 +174,53 @@ class _AssigntaskScreenState extends State<AssigntaskScreen> {
       context,
       title: 'Assign Task',
       content: StatefulBuilder(builder: (context, setState) {
-        return Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            CustomDropdown<String>(
-              options:
-              tasks.map((task) => task['taskId'].toString()).toList(),
-              displayValue: (taskId) {
-                final task = tasks.firstWhere(
-                        (task) => task['taskId'].toString() == taskId);
-                return task['taskTitle'];
-              },
-              onChanged: (value) async {
-                setState(() {
-                  selectedTaskId =
-                  value != null ? int.tryParse(value) : null;
-                  team.clear();
-                });
-                print("Selected team ID: $selectedTaskId");
-                if (selectedTaskId != null) {
-                  await fetchTeamMembers();
-                }
-                setState(() {});
-              },
-              labelText: ' Select Task',
-            ),
-            SizedBox(height: 20),
-            DropdownButtonFormField<int>(
-              decoration: InputDecoration(
-                  labelText: 'Select Team Member',
-                  border: OutlineInputBorder()),
-              items: team.map((member) {
-                return DropdownMenuItem<int>(
-                  value: member['userId'],
-                  child: Text(member['userName'] ?? 'Unknown'),
-                );
-              }).toList(),
-              onChanged: (value) {
-                setState(() {
-                  selectedTeamMemberId = value;
-                });
-              },
-            ),
-          ],
+        return Padding(
+          padding: const EdgeInsets.all(15.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(height: 20,),
+              CustomDropdown<String>(
+                options:
+                tasks.map((task) => task['taskId'].toString()).toList(),
+                displayValue: (taskId) {
+                  final task = tasks.firstWhere(
+                          (task) => task['taskId'].toString() == taskId);
+                  return task['taskTitle'];
+                },
+                onChanged: (value) async {
+                  setState(() {
+                    selectedTaskId =
+                    value != null ? int.tryParse(value) : null;
+                    team.clear();
+                  });
+                  print("Selected team ID: $selectedTaskId");
+                  if (selectedTaskId != null) {
+                    await fetchTeamMembers();
+                  }
+                  setState(() {});
+                },
+                labelText: ' Select Task',
+              ),
+              SizedBox(height: 20),
+              DropdownButtonFormField<int>(
+                decoration: InputDecoration(
+                    labelText: 'Select Team Member',
+                    border: OutlineInputBorder()),
+                items: team.map((member) {
+                  return DropdownMenuItem<int>(
+                    value: member['userId'],
+                    child: Text(member['userName'] ?? 'Unknown'),
+                  );
+                }).toList(),
+                onChanged: (value) {
+                  setState(() {
+                    selectedTeamMemberId = value;
+                  });
+                },
+              ),
+            ],
+          ),
         );
       }),
       actions: [
@@ -266,6 +270,7 @@ class _AssigntaskScreenState extends State<AssigntaskScreen> {
         ),
       ],
       titleHeight: 65,
+      isFullScreen: false
     );
   }
 
@@ -333,53 +338,56 @@ class _AssigntaskScreenState extends State<AssigntaskScreen> {
       content: StatefulBuilder(
         builder: (context, setState) {
           return SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                SizedBox(height: 10),
-                CustomDropdown<String>(
-                  options: tasks
-                      .map((task) => task['taskId'].toString())
-                      .toList(),
-                  displayValue: (taskId) {
-                    final task = tasks.firstWhere(
-                            (task) => task['taskId'].toString() == taskId);
-                    return task['taskTitle'];
-                  },
-                  selectedOption: selectedTaskId?.toString(),
-                  onChanged: (value) async {
-                    setState(() {
-                      selectedTaskId =
-                      value != null ? int.tryParse(value) : null;
-                      team.clear();
-                    });
-                    if (selectedTaskId != null) {
-                      await fetchTeamMembers();
-                      if (!team.any((member) => member['userId'] == selectedTeamMemberId)) {
-                        selectedTeamMemberId = null;
+            child: Padding(
+              padding: const EdgeInsets.all(15.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(height: 10),
+                  CustomDropdown<String>(
+                    options: tasks
+                        .map((task) => task['taskId'].toString())
+                        .toList(),
+                    displayValue: (taskId) {
+                      final task = tasks.firstWhere(
+                              (task) => task['taskId'].toString() == taskId);
+                      return task['taskTitle'];
+                    },
+                    selectedOption: selectedTaskId?.toString(),
+                    onChanged: (value) async {
+                      setState(() {
+                        selectedTaskId =
+                        value != null ? int.tryParse(value) : null;
+                        team.clear();
+                      });
+                      if (selectedTaskId != null) {
+                        await fetchTeamMembers();
+                        if (!team.any((member) => member['userId'] == selectedTeamMemberId)) {
+                          selectedTeamMemberId = null;
+                        }
                       }
-                    }
-                    setState(() {});
-                  },
-                  labelText: 'Select Tasks',
-                ),
-                SizedBox(height: 10),
-                DropdownButtonFormField<int>(
-                  value: selectedTeamMemberId,
-                  decoration: InputDecoration(labelText: 'Select Team Member', border: OutlineInputBorder()),
-                  items: team.map((member) {
-                    return DropdownMenuItem<int>(
-                      value: member['userId'],
-                      child: Text(member['userName'] ?? 'Unknown'),
-                    );
-                  }).toList(),
-                  onChanged: (value) {
-                    setState(() {
-                      selectedTeamMemberId = value;
-                    });
-                  },
-                ),
-              ],
+                      setState(() {});
+                    },
+                    labelText: 'Select Tasks',
+                  ),
+                  SizedBox(height: 10),
+                  DropdownButtonFormField<int>(
+                    value: selectedTeamMemberId,
+                    decoration: InputDecoration(labelText: 'Select Team Member', border: OutlineInputBorder()),
+                    items: team.map((member) {
+                      return DropdownMenuItem<int>(
+                        value: member['userId'],
+                        child: Text(member['userName'] ?? 'Unknown'),
+                      );
+                    }).toList(),
+                    onChanged: (value) {
+                      setState(() {
+                        selectedTeamMemberId = value;
+                      });
+                    },
+                  ),
+                ],
+              ),
             ),
           );
         },

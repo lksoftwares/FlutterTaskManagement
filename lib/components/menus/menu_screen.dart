@@ -99,82 +99,86 @@ class _MenuScreenState extends State<MenuScreen> {
       context,
       title: menuId == null ? 'Add Menu' : 'Edit Menu',
       content: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: _menuNameController,
-              decoration: InputDecoration(
-                border: OutlineInputBorder(),
-                labelText: 'Enter Menu Name',
-              ),
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: _pageNameController,
-              decoration: InputDecoration(
-                border: OutlineInputBorder(),
-                labelText: 'Enter Page Name',
-              ),
-            ),
-            const SizedBox(height: 8),
-            CustomDropdown<String>(
-              options: _allMenus.map((menu) => menu['menuName'] as String).toList(),
-              selectedOption: _selectedMenuName,
-              displayValue: (menu) => menu,
-              onChanged: (String? newValue) {
-                setState(() {
-                  _selectedMenuName = newValue;
-
-                  if (newValue == 'No Parent') {
-                    _selectedParentMenuId = 0;
-                  } else {
-                    if (newValue != null) {
-                      _selectedParentMenuId = _allMenus.firstWhere(
-                              (menu) => menu['menuName'] == newValue)['menuId'];
-                    }
-                  }
-                });
-              },
-              labelText: 'Select Parent Menu',
-              prefixIcon: Icon(Icons.menu),
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: _orderNoController,
-              decoration: InputDecoration(
-                border: OutlineInputBorder(),
-                labelText: 'Enter Order Number',
-              ),
-              keyboardType: TextInputType.number,
-            ),
-            const SizedBox(height: 8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                ElevatedButton.icon(
-                  onPressed: _pickImage,
-                  icon: Icon(Icons.image),
-                  label: Text('Select Image'),
+        child: Padding(
+          padding: const EdgeInsets.all(15.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(height: 20,),
+              TextField(
+                controller: _menuNameController,
+                decoration: InputDecoration(
+                  border: OutlineInputBorder(),
+                  labelText: 'Enter Menu Name',
                 ),
-                const SizedBox(width: 8),
-                if (_selectedImage != null)
-                  Image.file(
-                    _selectedImage!,
-                    height: 55,
-                    width: 55,
-                    fit: BoxFit.cover,
-                  )
-                else if (currentImage != null)
-                  Image.network(
-                    currentImage,
-                    height: 55,
-                    width: 55,
-                    fit: BoxFit.cover,
+              ),
+              SizedBox(height: 15,),
+              TextField(
+                controller: _pageNameController,
+                decoration: InputDecoration(
+                  border: OutlineInputBorder(),
+                  labelText: 'Enter Page Name',
+                ),
+              ),
+              SizedBox(height: 15,),
+              CustomDropdown<String>(
+                options: _allMenus.map((menu) => menu['menuName'] as String).toList(),
+                selectedOption: _selectedMenuName,
+                displayValue: (menu) => menu,
+                onChanged: (String? newValue) {
+                  setState(() {
+                    _selectedMenuName = newValue;
+
+                    if (newValue == 'No Parent') {
+                      _selectedParentMenuId = 0;
+                    } else {
+                      if (newValue != null) {
+                        _selectedParentMenuId = _allMenus.firstWhere(
+                                (menu) => menu['menuName'] == newValue)['menuId'];
+                      }
+                    }
+                  });
+                },
+                labelText: 'Select Parent Menu',
+                prefixIcon: Icon(Icons.menu),
+              ),
+              SizedBox(height: 15,),
+              TextField(
+                controller: _orderNoController,
+                decoration: InputDecoration(
+                  border: OutlineInputBorder(),
+                  labelText: 'Enter Order Number',
+                ),
+                keyboardType: TextInputType.number,
+              ),
+              SizedBox(height: 15,),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  ElevatedButton.icon(
+                    onPressed: _pickImage,
+                    icon: Icon(Icons.image),
+                    label: Text('Select Image'),
                   ),
-              ],
-            ),
-          ],
+                  SizedBox(height: 15,),
+                  if (_selectedImage != null)
+                    Image.file(
+                      _selectedImage!,
+                      height: 55,
+                      width: 55,
+                      fit: BoxFit.cover,
+                    )
+                  else if (currentImage != null)
+                    Image.network(
+                      currentImage,
+                      height: 55,
+                      width: 55,
+                      fit: BoxFit.cover,
+                    ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
       actions: [
@@ -330,7 +334,8 @@ class _MenuScreenState extends State<MenuScreen> {
               child: Text('Delete'),
             ),
           ],
-titleHeight: 70
+titleHeight: 70,
+        isFullScreen: false
     );
   }
   Future<void> _deleteMenu(int menuId) async {

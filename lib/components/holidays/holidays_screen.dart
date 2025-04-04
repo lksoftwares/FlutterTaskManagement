@@ -59,13 +59,15 @@ class _HolidaysScreenState extends State<HolidaysScreen> {
   }
 
   Future<void> _addHoliday() async {
+    final holidayDateToSend = dueDate?.toIso8601String() ?? DateTime.now().toIso8601String();
+
     final response = await new ApiService().request(
       method: 'post',
       endpoint: 'holidays/create',
       body: {
         'holidayName': holidayName,
         'description': Description,
-        'holidayDate': dueDate?.toIso8601String(),
+        'holidayDate': holidayDateToSend,
       },
         tokenRequired: true
 
@@ -95,57 +97,61 @@ class _HolidaysScreenState extends State<HolidaysScreen> {
       content: StatefulBuilder(
         builder: (context, setState) {
           return SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                TextField(
-                  onChanged: (value) => holidayName = value,
-                  decoration: InputDecoration(
-                    labelText: 'Holiday Name',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                SizedBox(height: 10),
-                TextField(
-                  onChanged: (value) => Description = value,
-                  decoration: InputDecoration(
-                    labelText: ' Description',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                SizedBox(height: 10),
-
-                SizedBox(height: 10),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      dueDate != null
-                          ? DateformatddMMyyyy.formatDateddMMyyyy(dueDate!)
-                          : 'Select Holiday Date:',
-                      style: TextStyle(fontSize: 19),
+            child: Padding(
+              padding: const EdgeInsets.all(15.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(height: 20,),
+                  TextField(
+                    onChanged: (value) => holidayName = value,
+                    decoration: InputDecoration(
+                      labelText: 'Holiday Name',
+                      border: OutlineInputBorder(),
                     ),
-                    IconButton(
-                      onPressed: () async {
-                        DateTime? pickedDate = await showDatePicker(
-                          context: context,
-                          initialDate: dueDate ?? DateTime.now(),
-                          firstDate: DateTime(2000),
-                          lastDate: DateTime(2101),
-                        );
-                        if (pickedDate != null) {
-                          setState(() {
-                            dueDate = pickedDate;
-                            print(dueDate);
-                          });
-                        }
-                      },
-                      icon: Icon(Icons.calendar_month, size: 34),
+                  ),
+                  SizedBox(height: 15),
+                  TextField(
+                    onChanged: (value) => Description = value,
+                    decoration: InputDecoration(
+                      labelText: ' Description',
+                      border: OutlineInputBorder(),
                     ),
-                  ],
-                )
+                  ),
+                  SizedBox(height: 10),
 
-              ],
+                  SizedBox(height: 10),
+                  TextField(
+                    controller: TextEditingController(
+                        text: dueDate != null
+                            ? DateformatddMMyyyy.formatDateddMMyyyy(dueDate!)
+                            : DateformatddMMyyyy.formatDateddMMyyyy(DateTime.now())
+                    ),
+                    readOnly: true,
+                    onTap: () async {
+                      DateTime? pickedDate = await showDatePicker(
+                        context: context,
+                        initialDate: dueDate ?? DateTime.now(),
+                        firstDate: DateTime(2000),
+                        lastDate: DateTime(2101),
+                      );
+                      if (pickedDate != null) {
+                        setState(() {
+                          dueDate = pickedDate;
+                        });
+                      }
+                    },
+                    decoration: InputDecoration(
+                      labelText: 'Select Due Date',
+                      border: OutlineInputBorder(),
+                      suffixIcon: Icon(Icons.calendar_month),
+
+                    ),
+                  )
+
+
+                ],
+              ),
             ),
           );
         },
@@ -188,6 +194,7 @@ class _HolidaysScreenState extends State<HolidaysScreen> {
         ),
       ],
       titleHeight: 65,
+      isFullScreen: false
 
     );
   }
@@ -246,56 +253,61 @@ class _HolidaysScreenState extends State<HolidaysScreen> {
       content: StatefulBuilder(
         builder: (context, setState) {
           return SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                TextField(
-                  controller: TextEditingController(text: holidayName),
-                  onChanged: (value) => holidayName = value,
-                  decoration: InputDecoration(
-                    labelText: 'Holiday Name',
-                    border: OutlineInputBorder(),
+            child: Padding(
+              padding: const EdgeInsets.all(15.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(height: 20,),
+                  TextField(
+                    controller: TextEditingController(text: holidayName),
+                    onChanged: (value) => holidayName = value,
+                    decoration: InputDecoration(
+                      labelText: 'Holiday Name',
+                      border: OutlineInputBorder(),
+                    ),
                   ),
-                ),
-                SizedBox(height: 10),
-                TextField(
-                  controller: TextEditingController(text: Description),
-                  onChanged: (value) => Description = value,
-                  decoration: InputDecoration(
-                    labelText: 'Description',
-                    border: OutlineInputBorder(),
+                  SizedBox(height: 15),
+                  TextField(
+                    controller: TextEditingController(text: Description),
+                    onChanged: (value) => Description = value,
+                    decoration: InputDecoration(
+                      labelText: 'Description',
+                      border: OutlineInputBorder(),
+                    ),
                   ),
-                ),
 
-                SizedBox(height: 10),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      dueDate != null
-                          ? DateformatddMMyyyy.formatDateddMMyyyy(dueDate!)
-                          : 'Select Holiday Date:',style: TextStyle(fontSize: 19),
+                  SizedBox(height: 15),
+                  TextField(
+                    controller: TextEditingController(
+                        text: dueDate != null
+                            ? DateformatddMMyyyy.formatDateddMMyyyy(dueDate!)
+                            : DateformatddMMyyyy.formatDateddMMyyyy(DateTime.now())
                     ),
-                    IconButton(
-                      onPressed: () async {
-                        DateTime? pickedDate = await showDatePicker(
-                          context: context,
-                          initialDate: dueDate ?? DateTime.now(),
-                          firstDate: DateTime(2025),
-                          lastDate: DateTime(2028),
-                        );
-                        if (pickedDate != null) {
-                          setState(() {
-                            dueDate = pickedDate;
-                            print(dueDate);
-                          });
-                        }
-                      },
-                      icon: Icon(Icons.calendar_month, size: 34),
+                    readOnly: true,
+                    onTap: () async {
+                      DateTime? pickedDate = await showDatePicker(
+                        context: context,
+                        initialDate: dueDate ?? DateTime.now(),
+                        firstDate: DateTime(2000),
+                        lastDate: DateTime(2101),
+                      );
+                      if (pickedDate != null) {
+                        setState(() {
+                          dueDate = pickedDate;
+                        });
+                      }
+                    },
+                    decoration: InputDecoration(
+                      labelText: 'Select Due Date',
+                      border: OutlineInputBorder(),
+                      suffixIcon: Icon(Icons.calendar_month),
+
                     ),
-                  ],
-                ),
-              ],
+                  )
+
+                ],
+              ),
             ),
           );
         },

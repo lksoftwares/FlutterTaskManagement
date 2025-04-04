@@ -65,90 +65,92 @@ class _ShiftsScreenState extends State {
     showCustomAlertDialog(
       context,
       title: 'Add Shift',
-      content: Container(
-        height: 320,
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              SizedBox(height: 15),
-              TextField(
-                onChanged: (value) => shiftName = value,
-                decoration: inputDecoration,
-              ),
-              SizedBox(height: 20),
-              TextField(
-                controller: graceTimeController,
-                onChanged: (value) {
-                  graceTime = int.tryParse(value) ?? 0;
-                },
-                decoration: InputDecoration(
-                  labelText: 'Grace Time (in minutes)',
-                  border: OutlineInputBorder(),
+      content: Padding(
+        padding: const EdgeInsets.all(15.0),
+        child: Container(
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(height: 15),
+                TextField(
+                  onChanged: (value) => shiftName = value,
+                  decoration: inputDecoration,
                 ),
-                keyboardType: TextInputType.number,
-              ),
-              SizedBox(height: 20),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: startTimeController,
-                      readOnly: true,
-                      decoration: InputDecoration(
-                        border: OutlineInputBorder(),
-                        hintText: "Select Start Time",
-                        labelText: "Select Start Time",
-                        suffixIcon: IconButton(
-                          icon: Icon(Icons.access_time_filled_outlined, size: 25),
-                          onPressed: () async {
-                            String? selectedStartTime =
-                            await TimePickerClass.selectTime(context, true);
-                            if (selectedStartTime != null) {
-                              setState(() {
-                                startTime = selectedStartTime;
-                                startTimeController.text = selectedStartTime;
-                              });
-                            }
-                          },
+                SizedBox(height: 20),
+                TextField(
+                  controller: graceTimeController,
+                  onChanged: (value) {
+                    graceTime = int.tryParse(value) ?? 0;
+                  },
+                  decoration: InputDecoration(
+                    labelText: 'Grace Time (in minutes)',
+                    border: OutlineInputBorder(),
+                  ),
+                  keyboardType: TextInputType.number,
+                ),
+                SizedBox(height: 20),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: startTimeController,
+                        readOnly: true,
+                        decoration: InputDecoration(
+                          border: OutlineInputBorder(),
+                          hintText: "Select Start Time",
+                          labelText: "Select Start Time",
+                          suffixIcon: IconButton(
+                            icon: Icon(Icons.access_time_filled_outlined, size: 25),
+                            onPressed: () async {
+                              String? selectedStartTime =
+                              await TimePickerClass.selectTime(context, true);
+                              if (selectedStartTime != null) {
+                                setState(() {
+                                  startTime = selectedStartTime;
+                                  startTimeController.text = selectedStartTime;
+                                });
+                              }
+                            },
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                ],
-              ),
-              SizedBox(height: 10),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: endTimeController,
-                      readOnly: true,
-                      decoration: InputDecoration(
-                        border: OutlineInputBorder(),
-                        hintText: "Select End Time",
-                        labelText: "Select End Time",
-                        suffixIcon: IconButton(
-                          icon: Icon(Icons.access_time_filled_outlined, size: 25),
-                          onPressed: () async {
-                            String? selectedEndTime =
-                            await TimePickerClass.selectTime(context, false);
-                            if (selectedEndTime != null) {
-                              setState(() {
-                                endTime = selectedEndTime;
-                                endTimeController.text = selectedEndTime;
-                              });
-                            }
-                          },
+                  ],
+                ),
+                SizedBox(height: 20),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: endTimeController,
+                        readOnly: true,
+                        decoration: InputDecoration(
+                          border: OutlineInputBorder(),
+                          hintText: "Select End Time",
+                          labelText: "Select End Time",
+                          suffixIcon: IconButton(
+                            icon: Icon(Icons.access_time_filled_outlined, size: 25),
+                            onPressed: () async {
+                              String? selectedEndTime =
+                              await TimePickerClass.selectTime(context, false);
+                              if (selectedEndTime != null) {
+                                setState(() {
+                                  endTime = selectedEndTime;
+                                  endTimeController.text = selectedEndTime;
+                                });
+                              }
+                            },
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                ],
-              ),
-            ],
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -237,6 +239,7 @@ class _ShiftsScreenState extends State {
         ),
       ],
       titleHeight: 65,
+      isFullScreen: false
     );
   }
 
@@ -268,90 +271,92 @@ class _ShiftsScreenState extends State {
     showCustomAlertDialog(
       context,
       title: 'Edit Shift',
-      content: Container(
-        height: 320,
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              SizedBox(height: 15),
-              TextField(
-                controller: _shiftNameController,
-                decoration: InputDecoration(
-                  labelText: 'Shift Name',
-                  border: OutlineInputBorder(),
+      content: Padding(
+        padding: const EdgeInsets.all(15.0),
+        child: Container(
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(height: 15),
+                TextField(
+                  controller: _shiftNameController,
+                  decoration: InputDecoration(
+                    labelText: 'Shift Name',
+                    border: OutlineInputBorder(),
+                  ),
                 ),
-              ),
-              SizedBox(height: 20),
-              TextField(
-                controller: _graceTimeController,
-                keyboardType: TextInputType.number,
-                decoration: InputDecoration(
-                  labelText: 'Grace Time (in minutes)',
-                  border: OutlineInputBorder(),
+                SizedBox(height: 20),
+                TextField(
+                  controller: _graceTimeController,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                    labelText: 'Grace Time (in minutes)',
+                    border: OutlineInputBorder(),
+                  ),
                 ),
-              ),
-              SizedBox(height: 20),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: startTimeController,
-                      readOnly: true,
-                      decoration: InputDecoration(
-                        border: OutlineInputBorder(),
-                        hintText: "Select Start Time",
-                        labelText: "Select Start Time",
-                        suffixIcon: IconButton(
-                          icon: Icon(Icons.access_time_filled_outlined, size: 25),
-                          onPressed: () async {
-                            String? selectedStartTime =
-                            await TimePickerClass.selectTime(context, true);
-                            if (selectedStartTime != null) {
-                              setState(() {
-                                startTime = selectedStartTime;
-                                startTimeController.text = selectedStartTime;
-                              });
-                            }
-                          },
+                SizedBox(height: 20),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: startTimeController,
+                        readOnly: true,
+                        decoration: InputDecoration(
+                          border: OutlineInputBorder(),
+                          hintText: "Select Start Time",
+                          labelText: "Select Start Time",
+                          suffixIcon: IconButton(
+                            icon: Icon(Icons.access_time_filled_outlined, size: 25),
+                            onPressed: () async {
+                              String? selectedStartTime =
+                              await TimePickerClass.selectTime(context, true);
+                              if (selectedStartTime != null) {
+                                setState(() {
+                                  startTime = selectedStartTime;
+                                  startTimeController.text = selectedStartTime;
+                                });
+                              }
+                            },
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                ],
-              ),
-              SizedBox(height: 10),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: endTimeController,
-                      readOnly: true,
-                      decoration: InputDecoration(
-                        border: OutlineInputBorder(),
-                        hintText: "Select End Time",
-                        labelText: "Select End Time",
-                        suffixIcon: IconButton(
-                          icon: Icon(Icons.access_time_filled_outlined, size: 25),
-                          onPressed: () async {
-                            String? selectedEndTime =
-                            await TimePickerClass.selectTime(context, false);
-                            if (selectedEndTime != null) {
-                              setState(() {
-                                endTime = selectedEndTime;
-                                endTimeController.text = selectedEndTime;
-                              });
-                            }
-                          },
+                  ],
+                ),
+                SizedBox(height: 20),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: endTimeController,
+                        readOnly: true,
+                        decoration: InputDecoration(
+                          border: OutlineInputBorder(),
+                          hintText: "Select End Time",
+                          labelText: "Select End Time",
+                          suffixIcon: IconButton(
+                            icon: Icon(Icons.access_time_filled_outlined, size: 25),
+                            onPressed: () async {
+                              String? selectedEndTime =
+                              await TimePickerClass.selectTime(context, false);
+                              if (selectedEndTime != null) {
+                                setState(() {
+                                  endTime = selectedEndTime;
+                                  endTimeController.text = selectedEndTime;
+                                });
+                              }
+                            },
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                ],
-              ),
-            ],
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),

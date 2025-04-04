@@ -147,38 +147,42 @@ class _TaskscommentsScreenState extends State<TaskscommentsScreen> {
       title: 'Add Comment',
       content: StatefulBuilder(
         builder: (context, setState) {
-          return Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                onChanged: (value) => comment = value,
-                decoration: inputDecoration,
-              ),
-              SizedBox(height: 10),
-              CustomDropdown<int>(
-                options: usersList.map<int>((user) => user['userId'] as int).toList(),
-                selectedOption: selectedUserId,
-                displayValue: (userId) => usersList.firstWhere((user) => user['userId'] == userId)['userName'],
-                onChanged: (value) {
-                  setState(() {
-                    selectedUserId = value;
-                  });
-                },
-                labelText: 'Select user',
-              ),
-              SizedBox(height: 10),
-              CustomDropdown<int>(
-                options: tasksList.map<int>((task) => task['taskId'] as int).toList(),
-                selectedOption: selectedtaskId,
-                displayValue: (taskId) => tasksList.firstWhere((task) => task['taskId'] == taskId)['taskTitle'],
-                onChanged: (value) {
-                  setState(() {
-                    selectedtaskId = value;
-                  });
-                },
-                labelText: 'Select Task',
-              ),
-            ],
+          return Padding(
+            padding: const EdgeInsets.all(15.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(height: 20,),
+                TextField(
+                  onChanged: (value) => comment = value,
+                  decoration: inputDecoration,
+                ),
+                SizedBox(height: 15),
+                CustomDropdown<int>(
+                  options: usersList.map<int>((user) => user['userId'] as int).toList(),
+                  selectedOption: selectedUserId,
+                  displayValue: (userId) => usersList.firstWhere((user) => user['userId'] == userId)['userName'],
+                  onChanged: (value) {
+                    setState(() {
+                      selectedUserId = value;
+                    });
+                  },
+                  labelText: 'Select user',
+                ),
+                SizedBox(height: 15),
+                CustomDropdown<int>(
+                  options: tasksList.map<int>((task) => task['taskId'] as int).toList(),
+                  selectedOption: selectedtaskId,
+                  displayValue: (taskId) => tasksList.firstWhere((task) => task['taskId'] == taskId)['taskTitle'],
+                  onChanged: (value) {
+                    setState(() {
+                      selectedtaskId = value;
+                    });
+                  },
+                  labelText: 'Select Task',
+                ),
+              ],
+            ),
           );
         },
       ),
@@ -222,6 +226,7 @@ class _TaskscommentsScreenState extends State<TaskscommentsScreen> {
         ),
       ],
       titleHeight: 65,
+      isFullScreen: false
     );
   }
 

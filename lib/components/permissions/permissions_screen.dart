@@ -119,7 +119,7 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
         ),
       ],
       titleHeight: 65,
-
+isFullScreen: false
     );
   }
 
@@ -147,6 +147,7 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
         ),
       ],
       titleHeight: 65,
+        isFullScreen: false
 
     );
   }
@@ -238,6 +239,7 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
         ),
       ],
       titleHeight: 65,
+        isFullScreen: false
 
     );
   }

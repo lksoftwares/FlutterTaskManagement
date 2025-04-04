@@ -50,7 +50,8 @@ class _TeamMembersScreenState extends State<TeamMembersScreen> {
   Future<void> fetchRoles() async {
     final response = await new ApiService().request(
       method: 'get',
-      endpoint: 'roles/',
+      endpoint: 'teams/GetALlTeamMemberRoles?status=1',
+      tokenRequired: true
     );
     if (response['statusCode'] == 200 && response['apiResponse'] != null) {
       setState(() {
@@ -95,11 +96,12 @@ class _TeamMembersScreenState extends State<TeamMembersScreen> {
           response['apiResponse'].map((role) => {
             'tmemberId': role['tmemberId'] ?? 0,
             'userId': role['userId'] ?? 0,
-            'roleId': role['roleId'] ?? 0,
+            'tMRoleId': role['tMRoleId'] ?? 0,
             'teamId': role['teamId'] ?? 0,
             'teamName': role['teamName'] ?? 'Unknown team',
             'createdAt': role['createdAt'] ?? '',
-            'roleName': role['roleName'] ?? 'Unknown role',
+            'projectName': role['projectName'] ?? '',
+            'teamMemberRole': role['teamMemberRole'] ?? 'Unknown role',
             'userName': role['userName'] ?? 'Unknown team',
           }),
         );
@@ -112,14 +114,14 @@ class _TeamMembersScreenState extends State<TeamMembersScreen> {
     });
   }
 
-  Future<void> _addTeamMembers( int userId, int roleId, int teamId) async {
+  Future<void> _addTeamMembers( int userId, int tMRoleId, int teamId) async {
     final response = await new ApiService().request(
       method: 'post',
       endpoint: 'teams/TeamMember/create',
       tokenRequired: true,
       body: {
         'userId': userId,
-        'roleId': roleId,
+        'tMRoleId': tMRoleId,
         'teamId': teamId,
       },
     );
@@ -155,46 +157,51 @@ class _TeamMembersScreenState extends State<TeamMembersScreen> {
       title: 'Add Team Members',
       content: StatefulBuilder(
         builder: (context, setState) {
-          return Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              CustomDropdown<int>(
-                options: teamsList.map<int>((team) => team['teamId'] as int).toList(),
-                selectedOption: selectedTeamId,
-                displayValue: (teamId) => teamsList.firstWhere((team) => team['teamId'] == teamId)['teamName'],
-                onChanged: (value) {
-                  setState(() {
-                    selectedTeamId = value;
-                  });
-                },
-                labelText: 'Select Team',
-              ),
-              SizedBox(height: 10),
-              CustomDropdown<int>(
-                options: usersList.map<int>((user) => user['userId'] as int).toList(),
-                selectedOption: selectedUserId,
-                displayValue: (userId) => usersList.firstWhere((user) => user['userId'] == userId)['userName'],
-                onChanged: (value) {
-                  setState(() {
-                    selectedUserId = value;
-                  });
-                },
-                labelText: 'Select user',
-              ),
-              SizedBox(height: 10),
-          CustomDropdown<int>(
-          options: rolesList.map<int>((role) => role['roleId'] as int).toList(),
-          selectedOption: selectedRoleId,
-          displayValue: (roleId) => rolesList.firstWhere((role) => role['roleId'] == roleId)['roleName'],
-          onChanged: (value) {
-          setState(() {
-          selectedRoleId = value;
-          });
-          },
-          labelText: 'Select Role',
-          ),
+          return Padding(
+            padding: const EdgeInsets.all(15.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(height: 20),
 
-            ],
+                CustomDropdown<int>(
+                  options: teamsList.map<int>((team) => team['teamId'] as int).toList(),
+                  selectedOption: selectedTeamId,
+                  displayValue: (teamId) => teamsList.firstWhere((team) => team['teamId'] == teamId)['teamName'],
+                  onChanged: (value) {
+                    setState(() {
+                      selectedTeamId = value;
+                    });
+                  },
+                  labelText: 'Select Team',
+                ),
+                SizedBox(height: 15),
+                CustomDropdown<int>(
+                  options: usersList.map<int>((user) => user['userId'] as int).toList(),
+                  selectedOption: selectedUserId,
+                  displayValue: (userId) => usersList.firstWhere((user) => user['userId'] == userId)['userName'],
+                  onChanged: (value) {
+                    setState(() {
+                      selectedUserId = value;
+                    });
+                  },
+                  labelText: 'Select user',
+                ),
+                SizedBox(height: 15),
+            CustomDropdown<int>(
+            options: rolesList.map<int>((role) => role['tMRoleId'] as int).toList(),
+            selectedOption: selectedRoleId,
+            displayValue: (tMRoleId) => rolesList.firstWhere((role) => role['tMRoleId'] == tMRoleId)['teamMemberRole'],
+            onChanged: (value) {
+            setState(() {
+            selectedRoleId = value;
+            });
+            },
+            labelText: 'Select Role',
+            ),
+
+              ],
+            ),
           );
         },
       ),
@@ -241,6 +248,7 @@ class _TeamMembersScreenState extends State<TeamMembersScreen> {
         ),
       ],
       titleHeight: 65,
+      isFullScreen: false
 
     );
   }
@@ -263,7 +271,7 @@ class _TeamMembersScreenState extends State<TeamMembersScreen> {
   }
 
 
-  Future<void> _updateUserRole(int tmemberId, int userId, int roleId, int teamId) async {
+  Future<void> _updateUserRole(int tmemberId, int userId, int tMRoleId, int teamId) async {
     final response = await ApiService().request(
       method: 'post',
       endpoint: 'teams/TeamMember/update',
@@ -271,7 +279,7 @@ class _TeamMembersScreenState extends State<TeamMembersScreen> {
       body: {
         'tmemberId': tmemberId,
         'userId': userId,
-        'roleId': roleId,
+        'tMRoleId': tMRoleId,
         'teamId': teamId,
         'updateFlag': true,
       },
@@ -290,7 +298,7 @@ class _TeamMembersScreenState extends State<TeamMembersScreen> {
     final currentMember = teams.firstWhere((member) => member['tmemberId'] == tmemberId);
 
     selectedUserId = currentMember['userId'];
-    selectedRoleId = currentMember['roleId'];
+    selectedRoleId = currentMember['tMRoleId'];
     selectedTeamId = currentMember['teamId'];
 
     print("Selected UserId: $selectedUserId");
@@ -302,47 +310,50 @@ class _TeamMembersScreenState extends State<TeamMembersScreen> {
       title: 'Edit Team Member',
       content: StatefulBuilder(
         builder: (context, setState) {
-          return Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              CustomDropdown<int>(
-                options: teamsList.map<int>((team) => team['teamId'] as int).toList(),
-                selectedOption: selectedTeamId,
-                displayValue: (teamId) => teamsList.firstWhere((team) => team['teamId'] == teamId)['teamName'],
-                onChanged: (value) {
-                  setState(() {
-                    selectedTeamId = value;
-                  });
-                },
-                labelText: 'Select Team',
-              ),
-              SizedBox(height: 10),
+          return Padding(
+            padding: const EdgeInsets.all(15.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(height: 20),
 
-              CustomDropdown<int>(
-                options: usersList.map<int>((user) => user['userId'] as int).toList(),
-                selectedOption: selectedUserId,
-                displayValue: (userId) => usersList.firstWhere((user) => user['userId'] == userId)['userName'],
-                onChanged: (value) {
-                  setState(() {
-                    selectedUserId = value;
-                  });
-                },
-                labelText: 'Select User',
-              ),
-              SizedBox(height: 10),
-
-              CustomDropdown<int>(
-                options: rolesList.map<int>((role) => role['roleId'] as int).toList(),
-                selectedOption: selectedRoleId,
-                displayValue: (roleId) => rolesList.firstWhere((role) => role['roleId'] == roleId)['roleName'],
-                onChanged: (value) {
-                  setState(() {
-                    selectedRoleId = value;
-                  });
-                },
-                labelText: 'Select Role',
-              ),
-            ],
+                CustomDropdown<int>(
+                  options: teamsList.map<int>((team) => team['teamId'] as int).toList(),
+                  selectedOption: selectedTeamId,
+                  displayValue: (teamId) => teamsList.firstWhere((team) => team['teamId'] == teamId)['teamName'],
+                  onChanged: (value) {
+                    setState(() {
+                      selectedTeamId = value;
+                    });
+                  },
+                  labelText: 'Select Team',
+                ),
+                SizedBox(height: 15),
+                CustomDropdown<int>(
+                  options: usersList.map<int>((user) => user['userId'] as int).toList(),
+                  selectedOption: selectedUserId,
+                  displayValue: (userId) => usersList.firstWhere((user) => user['userId'] == userId)['userName'],
+                  onChanged: (value) {
+                    setState(() {
+                      selectedUserId = value;
+                    });
+                  },
+                  labelText: 'Select User',
+                ),
+                SizedBox(height: 15),
+                CustomDropdown<int>(
+                  options: rolesList.map<int>((role) => role['tMRoleId'] as int).toList(),
+                  selectedOption: selectedRoleId,
+                  displayValue: (tMRoleId) => rolesList.firstWhere((role) => role['tMRoleId'] == tMRoleId)['teamMemberRole'],
+                  onChanged: (value) {
+                    setState(() {
+                      selectedRoleId = value;
+                    });
+                  },
+                  labelText: 'Select Member Role',
+                ),
+              ],
+            ),
           );
         },
       ),
@@ -468,11 +479,9 @@ class _TeamMembersScreenState extends State<TeamMembersScreen> {
                       children: groupedteam.entries.map((entry) {
                         String teamName = entry.key;
                         List<Map<String, dynamic>> logs = entry.value;
-
                         if (selectedTeamName != null && teamName != selectedTeamName) {
                           return SizedBox();
                         }
-
                         Map<String, dynamic> roleFields = {
                           'Teamname': teamName,
                           '': "",
@@ -486,6 +495,19 @@ class _TeamMembersScreenState extends State<TeamMembersScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 SizedBox(height: 20,),
+                                Row(
+                                  children: [
+                                    Text(
+                                      'ProjectName    : ',
+                                      style: AppTextStyle.boldTextStyle(),
+                                    ),
+                                    Text(
+                                      '${role['projectName']}',
+                                      style: AppTextStyle.regularTextStyle(),
+                                    ),
+                                  ],
+                                ),
+                                SizedBox(height: 7),
 
                                 Row(
                                   children: [
@@ -499,15 +521,16 @@ class _TeamMembersScreenState extends State<TeamMembersScreen> {
                                     ),
                                   ],
                                 ),
+
                                 SizedBox(height: 7),
                                 Row(
                                   children: [
                                     Text(
-                                      'Rolename         : ',
+                                      'MemberRole    : ',
                                       style: AppTextStyle.boldTextStyle(),
                                     ),
                                     Text(
-                                      '${role['roleName']}',
+                                      '${role['teamMemberRole']}',
                                       style: AppTextStyle.regularTextStyle(),
                                     ),
                                   ],

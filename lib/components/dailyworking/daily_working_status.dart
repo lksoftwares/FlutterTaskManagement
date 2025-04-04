@@ -416,6 +416,7 @@ class _DailyWorkingStatusState extends State<DailyWorkingStatus> {
         ),
       ],
       titleHeight: 65,
+      isFullScreen: false
 
     );
   }

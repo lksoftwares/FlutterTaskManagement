@@ -139,6 +139,7 @@ class _AssignShiftsState extends State<AssignShifts> {
         ),
       ],
       titleHeight: 80,
+        isFullScreen: false,
         additionalTitleContent: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [

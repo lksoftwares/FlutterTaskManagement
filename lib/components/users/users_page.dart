@@ -144,42 +144,91 @@ class _UsersPageState extends State<UsersPage> {
     showCustomAlertDialog(
       context,
       title: userId == null ? 'Add User' : 'Edit User',
-      content: Container(
-        height: userId == null ? 280 : 350,
-        child: SingleChildScrollView(
-          child: Column(
-            children: [
-              TextField(
-                controller: nameController,
-                decoration: InputDecoration(labelText: 'Username', border: OutlineInputBorder()),
-              ),
-              SizedBox(height: 15),
-              TextField(
-                controller: emailController,
-                decoration: InputDecoration(labelText: 'Email', border: OutlineInputBorder()),
-              ),
-              SizedBox(height: 15),
-              TextField(
-                controller: passwordController,
-                decoration: InputDecoration(labelText: 'Password', border: OutlineInputBorder()),
-              ),
-              SizedBox(height: 15),
-              if (userId != null)
-                CustomDropdown<bool>(
-                  options: [true, false],
-                  selectedOption: selectedStatus,
-                  displayValue: (status) => status == true ? 'Active' : 'Deactive',
-                  onChanged: (value) {
-                    setState(() {
-                      selectedStatus = value;
-                    });
-                  },
-                  labelText: 'User Status',
-                ),
+      content: StatefulBuilder(
+          builder: (context, setState) {
+            return Padding(
+              padding: const EdgeInsets.all(15.0),
+              child: Container(
+                height: userId == null ? 280 : 350,
+                child: SingleChildScrollView(
+                  child: Column(
+                    children: [
+                      SizedBox(height: 15,),
+                      TextField(
+                        controller: nameController,
+                        decoration: InputDecoration(
+                            labelText: 'Username', border: OutlineInputBorder()),
+                      ),
+                      SizedBox(height: 18),
+                      TextField(
+                        controller: emailController,
+                        decoration: InputDecoration(
+                            labelText: 'Email', border: OutlineInputBorder()),
+                      ),
+                      SizedBox(height: 18),
+                      TextField(
+                        controller: passwordController,
+                        decoration: InputDecoration(
+                            labelText: 'Password', border: OutlineInputBorder()),
+                      ),
+                      SizedBox(height: 18),
+                      if (userId != null)
+                        Padding(
+                          padding: const EdgeInsets.only(right: 10.0),
+                          child: Wrap(
+                            spacing: 10.0,
+                            runSpacing: 4.0,
+                            children: [
+                              FilterChip(
+                                label: Text(
+                                  'Active',
+                                  style: TextStyle(
+                                    color: selectedStatus == true
+                                        ? Colors.white
+                                        : Colors
+                                        .black,
+                                  ),
+                                ),
+                                selected: selectedStatus == true,
+                                onSelected: (bool selected) {
+                                  setState(() {
+                                    selectedStatus = true;
+                                  });
+                                },
+                                selectedColor: Colors.green,
+                                backgroundColor: Colors.grey[200],
+                                checkmarkColor: Colors.white,
+                              ),
+                              FilterChip(
+                                label: Text(
+                                  'Deactive',
+                                  style: TextStyle(
+                                    color: selectedStatus == false
+                                        ? Colors.white
+                                        : Colors
+                                        .black,
+                                  ),
+                                ),
+                                selected: selectedStatus == false,
+                                onSelected: (bool selected) {
+                                  setState(() {
+                                    selectedStatus = false;
+                                  });
+                                },
+                                selectedColor: Colors.red,
+                                backgroundColor: Colors.grey[200],
+                                checkmarkColor: Colors.white,
+                              ),
+                            ],
+                          ),
+                        ),
 
-            ],
-          ),
-        ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }
       ),
       actions: [
         ElevatedButton(
@@ -192,7 +241,7 @@ class _UsersPageState extends State<UsersPage> {
               return;
             }
             if (userId == null) {
-              _addUser(nameController.text, emailController.text, passwordController.text); // Default to 'false' (Deactive) for Add
+              _addUser(nameController.text, emailController.text, passwordController.text);
             } else {
               _updateUser(userId, nameController.text, emailController.text, passwordController.text, selectedStatus ?? false);
             }
@@ -229,6 +278,7 @@ class _UsersPageState extends State<UsersPage> {
         ),
       ],
       titleHeight: 65,
+      isFullScreen: false
 
     );
   }

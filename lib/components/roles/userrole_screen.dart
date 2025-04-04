@@ -182,38 +182,42 @@ class _UserroleScreenState extends State<UserroleScreen> {
       title: 'Assign Role',
       content: StatefulBuilder(
         builder: (context, setState) {
-          return Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              DropdownButtonFormField<int>(
-                decoration: InputDecoration(labelText: 'Select User', border: OutlineInputBorder()),
-                items: usersList.map((user) {
-                  return DropdownMenuItem<int>(
-                    value: user['userId'],
-                    child: Text(user['userName']),
-                  );
-                }).toList(),
-                onChanged: (value) async {
-                  setState(() {
-                    selectedUserId = value;
-                    rolesList.clear();
-                  });
-                  await fetchRoles();
-                  setState(() {});
-                },
-              ),
-              SizedBox(height: 10),
-              DropdownButtonFormField<int>(
-                decoration: InputDecoration(labelText: 'Select Role', border: OutlineInputBorder()),
-                items: rolesList.map((role) {
-                  return DropdownMenuItem<int>(
-                    value: role['roleId'],
-                    child: Text(role['roleName']),
-                  );
-                }).toList(),
-                onChanged: (value) => selectedRoleId = value,
-              ),
-            ],
+          return Padding(
+            padding: const EdgeInsets.all(15.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(height: 20,),
+                DropdownButtonFormField<int>(
+                  decoration: InputDecoration(labelText: 'Select User', border: OutlineInputBorder()),
+                  items: usersList.map((user) {
+                    return DropdownMenuItem<int>(
+                      value: user['userId'],
+                      child: Text(user['userName']),
+                    );
+                  }).toList(),
+                  onChanged: (value) async {
+                    setState(() {
+                      selectedUserId = value;
+                      rolesList.clear();
+                    });
+                    await fetchRoles();
+                    setState(() {});
+                  },
+                ),
+                SizedBox(height: 15),
+                DropdownButtonFormField<int>(
+                  decoration: InputDecoration(labelText: 'Select Role', border: OutlineInputBorder()),
+                  items: rolesList.map((role) {
+                    return DropdownMenuItem<int>(
+                      value: role['roleId'],
+                      child: Text(role['roleName']),
+                    );
+                  }).toList(),
+                  onChanged: (value) => selectedRoleId = value,
+                ),
+              ],
+            ),
           );
         },
       ),
@@ -304,7 +308,7 @@ class _UserroleScreenState extends State<UserroleScreen> {
           child: Text('Cancel'),
         ),
       ],
-
+isFullScreen: false,
       titleFontSize: 27.0,
       additionalTitleContent: Padding(
         padding: const EdgeInsets.only(top: 1.0),
