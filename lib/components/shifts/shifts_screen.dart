@@ -36,6 +36,7 @@ class _ShiftsScreenState extends State {
             'shiftName': role['shiftName'] ?? 'Unknown shift',
             'startTime': role['startTime'] ?? "",
             'graceTime': role['graceTime'] ?? "",
+            'shiftStatus': role['shiftStatus'] ?? false,
             'endTime': role['endTime'] ?? '',
             'createdAt': role['createdAt'] ?? '',
           }),
@@ -257,11 +258,12 @@ class _ShiftsScreenState extends State {
   }
 
   void _showEditShiftModal(int shiftId, String currentShiftName,
-      String currentStartTime, String currentEndTime, int currentGraceTime) {
+      String currentStartTime, String currentEndTime, int currentGraceTime, bool? shiftStatus) {
     TextEditingController _shiftNameController =
     TextEditingController(text: currentShiftName);
     TextEditingController _graceTimeController =
     TextEditingController(text: currentGraceTime.toString());
+    bool? selectedStatus = shiftStatus;
 
     String? startTime = currentStartTime;
     String? endTime = currentEndTime;
@@ -271,94 +273,154 @@ class _ShiftsScreenState extends State {
     showCustomAlertDialog(
       context,
       title: 'Edit Shift',
-      content: Padding(
-        padding: const EdgeInsets.all(15.0),
-        child: Container(
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                SizedBox(height: 15),
-                TextField(
-                  controller: _shiftNameController,
-                  decoration: InputDecoration(
-                    labelText: 'Shift Name',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                SizedBox(height: 20),
-                TextField(
-                  controller: _graceTimeController,
-                  keyboardType: TextInputType.number,
-                  decoration: InputDecoration(
-                    labelText: 'Grace Time (in minutes)',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                SizedBox(height: 20),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: startTimeController,
-                        readOnly: true,
+      content: StatefulBuilder(
+          builder: (context, setState) {
+            return Padding(
+              padding: const EdgeInsets.all(15.0),
+              child: Container(
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      SizedBox(height: 15),
+                      TextField(
+                        controller: _shiftNameController,
                         decoration: InputDecoration(
+                          labelText: 'Shift Name',
                           border: OutlineInputBorder(),
-                          hintText: "Select Start Time",
-                          labelText: "Select Start Time",
-                          suffixIcon: IconButton(
-                            icon: Icon(Icons.access_time_filled_outlined, size: 25),
-                            onPressed: () async {
-                              String? selectedStartTime =
-                              await TimePickerClass.selectTime(context, true);
-                              if (selectedStartTime != null) {
-                                setState(() {
-                                  startTime = selectedStartTime;
-                                  startTimeController.text = selectedStartTime;
-                                });
-                              }
-                            },
-                          ),
                         ),
                       ),
-                    ),
-                  ],
-                ),
-                SizedBox(height: 20),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: endTimeController,
-                        readOnly: true,
+                      SizedBox(height: 20),
+                      TextField(
+                        controller: _graceTimeController,
+                        keyboardType: TextInputType.number,
                         decoration: InputDecoration(
+                          labelText: 'Grace Time (in minutes)',
                           border: OutlineInputBorder(),
-                          hintText: "Select End Time",
-                          labelText: "Select End Time",
-                          suffixIcon: IconButton(
-                            icon: Icon(Icons.access_time_filled_outlined, size: 25),
-                            onPressed: () async {
-                              String? selectedEndTime =
-                              await TimePickerClass.selectTime(context, false);
-                              if (selectedEndTime != null) {
-                                setState(() {
-                                  endTime = selectedEndTime;
-                                  endTimeController.text = selectedEndTime;
-                                });
-                              }
-                            },
-                          ),
                         ),
                       ),
-                    ),
-                  ],
+                      SizedBox(height: 20),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: startTimeController,
+                              readOnly: true,
+                              decoration: InputDecoration(
+                                border: OutlineInputBorder(),
+                                hintText: "Select Start Time",
+                                labelText: "Select Start Time",
+                                suffixIcon: IconButton(
+                                  icon: Icon(Icons.access_time_filled_outlined,
+                                      size: 25),
+                                  onPressed: () async {
+                                    String? selectedStartTime =
+                                    await TimePickerClass.selectTime(
+                                        context, true);
+                                    if (selectedStartTime != null) {
+                                      setState(() {
+                                        startTime = selectedStartTime;
+                                        startTimeController.text =
+                                            selectedStartTime;
+                                      });
+                                    }
+                                  },
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: 20),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: endTimeController,
+                              readOnly: true,
+                              decoration: InputDecoration(
+                                border: OutlineInputBorder(),
+                                hintText: "Select End Time",
+                                labelText: "Select End Time",
+                                suffixIcon: IconButton(
+                                  icon: Icon(Icons.access_time_filled_outlined,
+                                      size: 25),
+                                  onPressed: () async {
+                                    String? selectedEndTime =
+                                    await TimePickerClass.selectTime(
+                                        context, false);
+                                    if (selectedEndTime != null) {
+                                      setState(() {
+                                        endTime = selectedEndTime;
+                                        endTimeController.text =
+                                            selectedEndTime;
+                                      });
+                                    }
+                                  },
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: 15),
+                      Padding(
+                        padding: const EdgeInsets.only(left: 80),
+                        child: Wrap(
+                          spacing: 10.0,
+                          runSpacing: 4.0,
+                          children: [
+                            FilterChip(
+                              label: Text(
+                                'Active',
+                                style: TextStyle(
+                                  color: selectedStatus == true
+                                      ? Colors.white
+                                      : Colors
+                                      .black,
+                                ),
+                              ),
+                              selected: selectedStatus == true,
+                              onSelected: (bool selected) {
+                                setState(() {
+                                  selectedStatus = true;
+                                });
+                              },
+                              selectedColor: Colors.green,
+                              backgroundColor: Colors.grey[200],
+                              checkmarkColor: Colors.white,
+                            ),
+                            FilterChip(
+                              label: Text(
+                                'Deactive',
+                                style: TextStyle(
+                                  color: selectedStatus == false
+                                      ? Colors.white
+                                      : Colors
+                                      .black,
+                                ),
+                              ),
+                              selected: selectedStatus == false,
+                              onSelected: (bool selected) {
+                                setState(() {
+                                  selectedStatus = false;
+                                });
+                              },
+                              selectedColor: Colors.red,
+                              backgroundColor: Colors.grey[200],
+                              checkmarkColor: Colors.white,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ],
-            ),
-          ),
-        ),
+              ),
+            );
+          }
       ),
       actions: [
         ElevatedButton(
@@ -376,7 +438,7 @@ class _ShiftsScreenState extends State {
                 showToast(msg: 'Please enter a valid grace time');
               } else {
                 _updateShift(shiftId, _shiftNameController.text, startTime!,
-                    endTime!, graceTime);
+                    endTime!, graceTime, selectedStatus ?? false);
               }
             }
           },
@@ -393,7 +455,7 @@ class _ShiftsScreenState extends State {
 
 
   Future _updateShift(int shiftId, String shiftName, String startTime,
-      String endTime, int graceTime) async {
+      String endTime, int graceTime,bool shiftStatus) async {
     final response = await new ApiService().request(
       method: 'post',
       endpoint: 'shift/update',
@@ -402,7 +464,8 @@ class _ShiftsScreenState extends State {
         'startTime': startTime,
         'endTime': endTime,
         'shiftId': shiftId,
-        'graceTime': graceTime.toString(), // Convert to string for the API
+        'shiftStatus': shiftStatus,
+        'graceTime': graceTime.toString(),
         'updateflag': true,
       },
       tokenRequired: true,
@@ -507,6 +570,7 @@ class _ShiftsScreenState extends State {
                       Map<String, dynamic> roleFields = {
                         'ShiftName': shift['shiftName'],
                         '': shift[''],
+                        'ShiftStatus': shift['shiftStatus'],
                         'GraceTime': shift['graceTime'],
                         'StartTime': shift['startTime'],
                         'EndTime': shift['endTime'],
@@ -517,6 +581,7 @@ class _ShiftsScreenState extends State {
                         userFields: {
                           'ShiftName': shift['shiftName'],
                           '': shift[''],
+                          'ShiftStatus': shift['shiftStatus'],
                           'GraceTime': shift['graceTime'],
                           'StartTime': shift['startTime'],
                           'EndTime': shift['endTime'],
@@ -527,8 +592,9 @@ class _ShiftsScreenState extends State {
                             shift['shiftName'],
                             shift['startTime'],
                             shift['endTime'],
-                            shift['graceTime']),
-                        onDelete: () => _confirmDeleteShift(shift['shiftId']),
+                            shift['graceTime'],
+                          shift['shiftStatus']),
+                      onDelete: () => _confirmDeleteShift(shift['shiftId']),
                         trailingIcon: Row(
                           mainAxisAlignment: MainAxisAlignment.end,
                           children: [
@@ -538,7 +604,9 @@ class _ShiftsScreenState extends State {
                                     shift['shiftName'],
                                     shift['startTime'],
                                     shift['endTime'],
-                                    shift['graceTime']),
+                                    shift['graceTime'],
+                                    shift['shiftStatus']),
+
                                 icon: Icon(
                                   Icons.edit,
                                   color: Colors.green,

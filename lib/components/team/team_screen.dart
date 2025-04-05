@@ -107,7 +107,7 @@ class _TeamScreenState extends State<TeamScreen> {
   Future<void> fetchUsers() async {
     final response = await new ApiService().request(
         method: 'get',
-        endpoint: 'User/',
+        endpoint: 'User/?status=1',
         tokenRequired: true
     );
     if (response['statusCode'] == 200 && response['apiResponse'] != null) {
@@ -156,7 +156,6 @@ class _TeamScreenState extends State<TeamScreen> {
             'teamStatus': role['teamStatus'] ?? false,
           }),
         );
-        // Assign the selected team ID after fetching teams, e.g., first team
         selectedTeamId = teams.isNotEmpty ? teams[0]['teamId'] : null;
       });
     } else {

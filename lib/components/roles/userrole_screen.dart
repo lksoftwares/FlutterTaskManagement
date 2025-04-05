@@ -50,7 +50,7 @@ class _UserroleScreenState extends State<UserroleScreen> {
 
     final response = await new ApiService().request(
       method: 'get',
-      endpoint: 'User/GetAllUsers',tokenRequired: true
+      endpoint: 'User/?status=1',tokenRequired: true
     );
     if (response['statusCode'] == 200 && response['apiResponse'] != null) {
       setState(() {

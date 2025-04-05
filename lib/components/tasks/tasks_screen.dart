@@ -1,6 +1,8 @@
+import 'dart:convert';
+import 'package:http_parser/http_parser.dart';
 import 'package:intl/intl.dart';
 import 'package:lktaskmanagementapp/packages/headerfiles.dart';
-
+import 'package:http/http.dart' as http;
 class TasksScreen extends StatefulWidget {
   const TasksScreen({super.key});
 
@@ -76,7 +78,7 @@ class _TasksScreenState extends State<TasksScreen> {
     print("Recording stopped. File saved at: $audioFilePath");
   }
 
-  Future<void> _playAudio() async {
+  Future<void> _playAudio(audioFilePath) async {
     if (audioFilePath != null && audioFilePath!.isNotEmpty) {
       setState(() {
         isPlaying = true;
@@ -104,7 +106,6 @@ class _TasksScreenState extends State<TasksScreen> {
     setState(() {
       userId = prefs.getInt('user_Id');
       roleName = prefs.getString('role_Name');
-
     });
   }
 
@@ -113,7 +114,7 @@ class _TasksScreenState extends State<TasksScreen> {
 
     final response = await new ApiService().request(
         method: 'get',
-        endpoint: 'teams/GetTeamMembers?projectId=$selectedprojectId',
+        endpoint: 'teams/GetTeamMembers?projectId=$selectedprojectId&status=1',
         tokenRequired: true
     );
 
@@ -133,29 +134,32 @@ class _TasksScreenState extends State<TasksScreen> {
     setState(() {
       isLoading = true;
     });
+
     final response = await new ApiService().request(
         method: 'get',
-        endpoint: 'projects/',
+        endpoint: 'projects/?status=1',
         tokenRequired: true
     );
+
+    print('Response: $response');
+
     if (response['statusCode'] == 200 && response['apiResponse'] != null) {
       setState(() {
         projects = List<Map<String, dynamic>>.from(
-          response['apiResponse'].map((project) =>
-          {
-            'projectId': project['projectId'] ?? 0,
-            'projectName': project['projectName'] ?? 'Unknown project',
+          response['apiResponse']['projectList'].map((role) => {
+            'projectId': role['projectId'] ?? 0,
+            'projectName': role['projectName'] ?? 'Unknown project',
           }),
         );
       });
     } else {
-      showToast(msg: response['message'] ?? 'Failed to load projects');
+      showToast(msg: response['message'] ?? 'Failed to load team');
     }
+
     setState(() {
       isLoading = false;
     });
   }
-
   Future<void> fetchTasks() async {
     setState(() {
       isLoading = true;
@@ -188,18 +192,24 @@ class _TasksScreenState extends State<TasksScreen> {
               'taskPriority': role['taskPriority'] ?? '',
               'taskAssignedTo': role['taskAssignedTo'] ?? '',
               'taskStatus': role['taskStatus'] ?? '',
-              
               'projectName': role['projectName'] ?? '',
               'comments': (role['taskComments'] as List<dynamic>?)
                   ?.map((commentMap) => commentMap['comment'])
                   .toList() ??
                   [],
-              'userName': taskComments?.isNotEmpty == true
-                  ? taskComments![0]['userName']
-                  : '',
-              'createdAt': taskComments?.isNotEmpty == true
-                  ? taskComments![0]['createdAt']
-                  : '',
+              'userName': (role['taskComments'] as List<dynamic>?)
+                  ?.map((commentMap) => commentMap['userName'])
+                  .toList() ??
+                  [],
+              'createdAt': (role['taskComments'] as List<dynamic>?)
+                  ?.map((commentMap) => commentMap['createdAt'])
+                  .toList() ??
+                  [],
+              'audioFilePath': (role['taskComments'] as List<dynamic>?)
+                  ?.map((commentMap) => commentMap['audioFilePath'])
+                  .toList() ??
+                  [],
+
               'taskAssignedToName': role['taskAssignedToName'],
               'taskCreatedByName': role['taskCreatedByName'] ?? '',
               'taskUpdatedByName': role['taskUpdatedByName'] ?? '',
@@ -208,7 +218,7 @@ class _TasksScreenState extends State<TasksScreen> {
           }).toList(),
         );
       });
-      print(tasks);
+      print("shreya$tasks");
     } else {}
 
     setState(() {
@@ -651,8 +661,11 @@ class _TasksScreenState extends State<TasksScreen> {
     );
   }
 
-
   Future<void> _addComments(int taskId, String comment) async {
+    if (comment.isEmpty && audioFilePath == null) {
+      showToast(msg: 'Please fill in either the description or add an audio recording.', backgroundColor: Colors.red);
+      return;
+    }
     SharedPreferences prefs = await SharedPreferences.getInstance();
     int? userId = prefs.getInt('user_Id');
 
@@ -660,31 +673,54 @@ class _TasksScreenState extends State<TasksScreen> {
       showToast(msg: 'User ID is not found');
       return;
     }
+    if (comment.isEmpty) {
+      comment = "Check audio";
+    }
+    final uri = Uri.parse('${Config.apiUrl}tasks/AddComment');
 
-    final response = await new ApiService().request(
-      method: 'post',
-      endpoint: 'tasks/AddComment',
-      tokenRequired: true,
-      body: {
-        'userId': userId,
-        'taskId': taskId,
-        'comment': comment,
-      },
-    );
+    try {
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      String? token = prefs.getString('token');
 
-    if (response.isNotEmpty && response['statusCode'] == 200) {
-      fetchTasks();
-      showToast(
-        msg: response['message'] ?? 'Comment added successfully',
-        backgroundColor: Colors.green,
-      );
-      Navigator.pop(context);
-    } else {
-      showToast(
-        msg: response['message'] ?? 'Failed to add comment',
-      );
+      if (token == null) {
+        showToast(msg: 'No token found.', backgroundColor: Colors.red);
+        return;
+      }
+
+      var request = http.MultipartRequest('POST', uri);
+
+      request.headers['Authorization'] = 'Bearer $token';
+
+      request.fields['comment'] = comment;
+      request.fields['userId'] = userId.toString();
+      request.fields['taskId'] = taskId.toString();
+
+      if (audioFilePath != null) {
+        var file = await http.MultipartFile.fromPath(
+          'audioFile',
+          audioFilePath!,
+          contentType: MediaType('audio', 'aac'),
+        );
+        request.files.add(file);
+      }
+      var response = await request.send();
+      final responseData = await http.Response.fromStream(response);
+      final responseJson = jsonDecode(responseData.body);
+      if (response.statusCode == 200) {
+        if (responseJson != null && responseJson['message'] != null) {
+          showToast(msg: responseJson['message'], backgroundColor: Colors.green);
+        }
+        fetchTasks();
+        Navigator.pop(context);
+      } else {
+        showToast(msg: responseJson['message'], backgroundColor: Colors.green);
+      }
+    } catch (e) {
+      print("Error uploading working desc: $e");
+      showToast(msg: 'An error occurred while uploading');
     }
   }
+
 
   Future<void> _showAddCommentModal(int taskId) async {
     String comment = '';
@@ -696,7 +732,7 @@ class _TasksScreenState extends State<TasksScreen> {
       audioFilePath = null;
       isRecording = false;
       isPlayingMap.clear();
-      isPlaying = false; // Initialize isPlaying to false
+      isPlaying = false;
     });
     showCustomAlertDialog(
       context,
@@ -753,7 +789,7 @@ class _TasksScreenState extends State<TasksScreen> {
                                   isPlaying = false;
                                 });
                               } else {
-                                _playAudio();
+                                _playAudio(audioFilePath);
                                 setState(() {
                                   isPlaying = true;
                                 });
@@ -777,10 +813,10 @@ class _TasksScreenState extends State<TasksScreen> {
           style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
           onPressed: () {
             if (comment.isEmpty && audioFilePath == null) {
-              showToast(msg: 'Please enter a comment or record audio');
+              showToast(msg: 'Please enter either comment or record audio');
               return;
             }
-            _addComments(taskId, comment,); // Assuming _addComments can handle audioFilePath
+            _addComments(taskId, comment,);
           },
           child: Text('Add', style: TextStyle(color: Colors.white)),
         ),
@@ -794,75 +830,120 @@ class _TasksScreenState extends State<TasksScreen> {
   Future<void> _showCommentsModal(int taskId) async {
     final task = tasks.firstWhere((task) => task['taskId'] == taskId);
     List<dynamic> comments = task['comments'] ?? [];
-    String? userName = task['userName'];
-    String? createdAt = task['createdAt'];
+    List<dynamic> userName = task['userName'] ?? [];
+    List<dynamic> createdAt = task['createdAt'] ?? [];
+    List<dynamic> audioFilePath = task['audioFilePath'] ?? [];
+    Map<int, bool> isPlayingMap = {};
 
     showCustomAlertDialog(
       context,
       title: "Comments",
-      content: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(15.0),
-          child: Container(
-            height: 250,
-            child: Column(
-              children: [
-                SizedBox(height: 4),
-                if (comments.isEmpty)
-                  Text(
-                    'No comments yet.',
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: Colors.grey[600],
-                      fontStyle: FontStyle.italic,
-                    ),
-                  )
-                else
-                  Expanded(
-                    child: Container(
-                      child: ListView.builder(
-                        shrinkWrap: true,
-                        itemCount: comments.length,
-                        itemBuilder: (context, index) {
-                          return Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 4.0),
-                            child: Card(
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              elevation: 4,
-                              child: ListTile(
-                                contentPadding: EdgeInsets.symmetric(
-                                    horizontal: 12.0),
-                                leading: Icon(
-                                    Icons.comment_outlined, color: Colors.blue),
-                                title: Row(
-                                  children: [
-                                    Text(
-                                      comments[index].toString(),
-                                      style: TextStyle(fontSize: 16),
+      content: StatefulBuilder(
+        builder: (context, setState) {
+          return SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.all(15.0),
+              child: Container(
+                height: 500,
+                child: Column(
+                  children: [
+                    SizedBox(height: 4),
+                    if (comments.isEmpty)
+                      Text(
+                        'No comments yet.',
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Colors.grey[600],
+                          fontStyle: FontStyle.italic,
+                        ),
+                      )
+                    else
+                      Expanded(
+                        child: Container(
+                          child: ListView.builder(
+                            shrinkWrap: true,
+                            itemCount: comments.length,
+                            itemBuilder: (context, index) {
+                              final comment = comments[index];
+                              final commentUserName = userName[index];
+                              final commentdate = createdAt[index];
+                              final commentAudio = audioFilePath[index];
+
+                              if (!isPlayingMap.containsKey(index)) {
+                                isPlayingMap[index] = false;
+                              }
+
+                              return Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 4.0),
+                                child: Card(
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  elevation: 4,
+                                  child: ListTile(
+                                    contentPadding:
+                                    EdgeInsets.symmetric(horizontal: 12.0),
+                                    leading: Padding(
+                                      padding: const EdgeInsets.only(bottom: 40.0),
+                                      child: Icon(Icons.comment_outlined,
+                                          color: Colors.blue),
                                     ),
-                                  ],
-                                ),
-                                subtitle: Text(
-                                  'Date: ${createdAt ?? "N/A"}',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    color: Colors.grey[600],
+                                    title: Row(
+                                      mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Text(
+                                          comment.toString(),
+                                          style: TextStyle(fontSize: 16),
+                                        ),
+                                        if (commentAudio != null)
+                                          IconButton(
+                                            icon: Icon(
+                                              isPlayingMap[index]!
+                                                  ? Icons.pause
+                                                  : Icons.play_arrow,
+                                                    size: 35,
+                                              color: isPlayingMap[index]!
+                                                  ? Colors.red
+                                                  : Colors.green,
+                                            ),
+                                            onPressed: () {
+                                              if (isPlayingMap[index]!) {
+                                                _player!.stopPlayer();
+                                                setState(() {
+                                                  isPlayingMap[index] = false;
+                                                });
+                                              } else {
+                                                _playAudio(commentAudio);
+                                                setState(() {
+                                                  isPlayingMap[index] = true;
+                                                });
+                                              }
+                                            },
+                                          ),
+                                      ],
+                                    ),
+                                    subtitle: Text(
+                                      'UserName: ${commentUserName ?? "N/A"}\nDate: $commentdate',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: Colors.grey[600],
+                                      ),
+                                    ),
+                                    tileColor: Colors.blue[50],
                                   ),
                                 ),
-                                tileColor: Colors.blue[50],
-                              ),
-                            ),
-                          );
-                        },
+                              );
+                            },
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
-              ],
+                  ],
+                ),
+              ),
             ),
-          ),
-        ),
+          );
+        },
       ),
       actions: [
         TextButton(
@@ -877,25 +958,8 @@ class _TasksScreenState extends State<TasksScreen> {
         ),
       ],
       titleHeight: 90,
-      additionalTitleContent: Column(
-        children: [
-          if (userName != null && userName.isNotEmpty) SizedBox(height: 8),
-          Padding(
-            padding: const EdgeInsets.only(bottom: 0.0),
-            child: Text(
-              'Username: $userName',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
-                color: Colors.white,
-              ),
-            ),
-          ),
-        ],
-      ),
     );
   }
-
 
   List<Map<String, dynamic>> getFilteredData() {
     return tasks.where((project) {
@@ -938,7 +1002,6 @@ class _TasksScreenState extends State<TasksScreen> {
     if (selectedprojectId != null) {
       await fetchTeamMembers();
     }
-    print("SHreyashrma$selectedTeamMemberId");
     showCustomAlertDialog(
         context,
         title: 'Edit Task',

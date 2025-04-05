@@ -319,7 +319,6 @@ class _DailyWorkingStatusState extends State<DailyWorkingStatus> {
     }
 
     await getCurrentLocation();
-
     final uri = Uri.parse('${Config.apiUrl}Working/create');
 
     try {
@@ -350,11 +349,9 @@ class _DailyWorkingStatusState extends State<DailyWorkingStatus> {
         );
         request.files.add(file);
       }
-
       var response = await request.send();
       final responseData = await http.Response.fromStream(response);
       final responseJson = jsonDecode(responseData.body);
-
       if (response.statusCode == 200) {
         if (responseJson != null && responseJson['message'] != null) {
           showToast(msg: responseJson['message'], backgroundColor: Colors.green);

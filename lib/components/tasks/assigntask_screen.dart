@@ -39,7 +39,7 @@ class _AssigntaskScreenState extends State<AssigntaskScreen> {
   Future<void> fetchUsers() async {
     final response = await new ApiService().request(
         method: 'get',
-        endpoint: 'User/',
+        endpoint: 'User/?status=1',
         tokenRequired: true
     );
     print("responsesssss $response");
@@ -57,7 +57,7 @@ class _AssigntaskScreenState extends State<AssigntaskScreen> {
 
     final response = await new ApiService().request(
       method: 'get',
-      endpoint: 'teams/GetTeamMembers?taskId=$selectedTaskId',
+      endpoint: 'teams/GetTeamMembers?taskId=$selectedTaskId&status=1',
         tokenRequired: true
 
     );

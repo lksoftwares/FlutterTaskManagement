@@ -34,7 +34,7 @@ class _TeamMembersScreenState extends State<TeamMembersScreen> {
   Future<void> fetchUsers() async {
     final response = await new ApiService().request(
       method: 'get',
-      endpoint: 'User/',
+      endpoint: 'User/?status=1',
         tokenRequired: true
 
     );
@@ -46,7 +46,6 @@ class _TeamMembersScreenState extends State<TeamMembersScreen> {
       print("Failed to load users");
     }
   }
-
   Future<void> fetchRoles() async {
     final response = await new ApiService().request(
       method: 'get',
@@ -65,7 +64,7 @@ class _TeamMembersScreenState extends State<TeamMembersScreen> {
   Future<void> fetchTeams() async {
     final response = await new ApiService().request(
       method: 'get',
-      endpoint: 'teams/',
+      endpoint: 'teams/?status=1',
         tokenRequired: true
 
     );
@@ -97,6 +96,7 @@ class _TeamMembersScreenState extends State<TeamMembersScreen> {
             'tmemberId': role['tmemberId'] ?? 0,
             'userId': role['userId'] ?? 0,
             'tMRoleId': role['tMRoleId'] ?? 0,
+            'tmStatus': role['tmStatus'] ?? false,
             'teamId': role['teamId'] ?? 0,
             'teamName': role['teamName'] ?? 'Unknown team',
             'createdAt': role['createdAt'] ?? '',
@@ -271,7 +271,7 @@ class _TeamMembersScreenState extends State<TeamMembersScreen> {
   }
 
 
-  Future<void> _updateUserRole(int tmemberId, int userId, int tMRoleId, int teamId) async {
+  Future<void> _updateUserRole(int tmemberId, int userId, int tMRoleId, int teamId,bool tmStatus) async {
     final response = await ApiService().request(
       method: 'post',
       endpoint: 'teams/TeamMember/update',
@@ -280,6 +280,8 @@ class _TeamMembersScreenState extends State<TeamMembersScreen> {
         'tmemberId': tmemberId,
         'userId': userId,
         'tMRoleId': tMRoleId,
+        'tmStatus': tmStatus,
+
         'teamId': teamId,
         'updateFlag': true,
       },
@@ -294,7 +296,7 @@ class _TeamMembersScreenState extends State<TeamMembersScreen> {
     }
   }
 
-  Future<void> _showEditTeammemberModal(int tmemberId) async {
+  Future<void> _showEditTeammemberModal(int tmemberId,bool? tmStatus) async {
     final currentMember = teams.firstWhere((member) => member['tmemberId'] == tmemberId);
 
     selectedUserId = currentMember['userId'];
@@ -304,6 +306,7 @@ class _TeamMembersScreenState extends State<TeamMembersScreen> {
     print("Selected UserId: $selectedUserId");
     print("Selected RoleId: $selectedRoleId");
     print("Selected TeamId: $selectedTeamId");
+    bool? selectedStatus = tmStatus;
 
     showCustomAlertDialog(
       context,
@@ -352,6 +355,53 @@ class _TeamMembersScreenState extends State<TeamMembersScreen> {
                   },
                   labelText: 'Select Member Role',
                 ),
+                SizedBox(height: 15),
+
+                Padding(
+                  padding: const EdgeInsets.only(right: 10.0),
+                  child: Wrap(
+                    spacing: 10.0,
+                    runSpacing: 4.0,
+                    children: [
+                      FilterChip(
+                        label: Text(
+                          'Active',
+                          style: TextStyle(
+                            color: selectedStatus == true ? Colors.white : Colors
+                                .black,
+                          ),
+                        ),
+                        selected: selectedStatus == true,
+                        onSelected: (bool selected) {
+                          setState(() {
+                            selectedStatus = true;
+                          });
+                        },
+                        selectedColor: Colors.green,
+                        backgroundColor: Colors.grey[200],
+                        checkmarkColor: Colors.white,
+                      ),
+                      FilterChip(
+                        label: Text(
+                          'Deactive',
+                          style: TextStyle(
+                            color: selectedStatus == false ? Colors.white : Colors
+                                .black,
+                          ),
+                        ),
+                        selected: selectedStatus == false,
+                        onSelected: (bool selected) {
+                          setState(() {
+                            selectedStatus = false;
+                          });
+                        },
+                        selectedColor: Colors.red,
+                        backgroundColor: Colors.grey[200],
+                        checkmarkColor: Colors.white,
+                      ),
+                    ],
+                  ),
+                ),
               ],
             ),
           );
@@ -365,7 +415,7 @@ class _TeamMembersScreenState extends State<TeamMembersScreen> {
               showToast(msg: 'Please select all fields');
               return;
             }
-            _updateUserRole(tmemberId, selectedUserId!, selectedRoleId!, selectedTeamId!);
+            _updateUserRole(tmemberId, selectedUserId!, selectedRoleId!, selectedTeamId!, selectedStatus ?? false);
           },
           child: Text('Update', style: TextStyle(color: Colors.white)),
         ),
@@ -521,6 +571,26 @@ class _TeamMembersScreenState extends State<TeamMembersScreen> {
                                     ),
                                   ],
                                 ),
+                                SizedBox(height: 7),
+
+                                Row(
+                                  children: [
+                                    Text(
+                                      'Status               : ',
+                                      style: AppTextStyle.boldTextStyle(),
+                                    ),
+                                    Icon(
+                                      role['tmStatus'] ? Icons.check_circle : Icons.cancel,
+                                      color: role['tmStatus'] ? Colors.green : Colors.red,
+                                    ),
+                                    SizedBox(width: 5),
+                                    Text(
+                                      role['tmStatus'] ? '' : '',
+                                      style: AppTextStyle.regularTextStyle(),
+                                    ),
+                                  ],
+                                ),
+
 
                                 SizedBox(height: 7),
                                 Row(
@@ -553,7 +623,7 @@ class _TeamMembersScreenState extends State<TeamMembersScreen> {
                                   children: [
                                     IconButton(
                                       icon: Icon(Icons.edit, color: Colors.green),
-                                      onPressed: () => _showEditTeammemberModal(role['tmemberId']),
+                                      onPressed: () => _showEditTeammemberModal(role['tmemberId'],role['tmStatus']),
                                     ),
                                     IconButton(
                                       onPressed: ()=>_confirmDeleteTeamMember(role['tmemberId']),

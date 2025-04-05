@@ -69,7 +69,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
   Future<void> fetchTeams() async {
     final response = await new ApiService().request(
         method: 'get',
-        endpoint: 'teams/',
+        endpoint: 'teams/?status=1',
         tokenRequired: true
 
     );
@@ -90,13 +90,14 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
         method: 'get',
         endpoint: 'projects/',
         tokenRequired: true
-
     );
+
     print('Response: $response');
+
     if (response['statusCode'] == 200 && response['apiResponse'] != null) {
       setState(() {
         projects = List<Map<String, dynamic>>.from(
-          response['apiResponse'].map((role) => {
+          response['apiResponse']['projectList'].map((role) => {
             'projectId': role['projectId'] ?? 0,
             'teamId': role['teamId'] ?? 0,
             'teamName': role['teamName'] ?? 'Unknown teamName',
@@ -111,18 +112,18 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
             'updatedBy': role['updatedBy'] ?? '',
             'projectStatus': role['projectStatus'] ?? false,
             'projectStage': role['projectStage'] ?? '',
-
-
           }),
         );
       });
     } else {
       showToast(msg: response['message'] ?? 'Failed to load team');
     }
+
     setState(() {
       isLoading = false;
     });
   }
+
 
   void _showAddProjectModal() {
     String projectName = '';

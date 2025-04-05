@@ -15,7 +15,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
   int totalPending = 0;
   int totalViewCount = 0;
   String? roleName;
-
+  Map<String, int> stageCounts = {};
 
   @override
   void initState() {
@@ -23,6 +23,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
     _loadUserData();
     _fetchLeaveData();
     _fetchWorkingData();
+    _fetchProjectData();
 
     _animationController = AnimationController(
       vsync: this,
@@ -100,7 +101,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
   Future<void> _fetchData() async {
     await _fetchWorkingData();
     await _fetchLeaveData();
-
+    await _fetchProjectData();
   }
   Future<void> _fetchWorkingData() async {
     final apiService = ApiService();
@@ -108,21 +109,50 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
       method: 'GET',
       endpoint: 'working/',
         tokenRequired: true
-
     );
     if (response['statusCode'] == 200) {
       setState(() {
         totalViewCount = response['apiResponse']['viewsCount'];
       });
       _startShaking();
-
     } else {
       setState(() {
         totalViewCount = 0;
       });
     }
   }
-  Widget buildCard(String title, IconData icon, Color color, {Widget? destinationScreen}) {
+
+  Future<void> _fetchProjectData() async {
+    setState(() {
+      isLoading = true;
+    });
+    final apiService = ApiService();
+    final response = await apiService.request(
+      method: 'GET',
+      endpoint: 'projects/',
+      tokenRequired: true,
+    );
+    if (response['statusCode'] == 200) {
+      setState(() {
+        stageCounts = Map<String, int>.from(response['apiResponse']['stageCounts']);
+        isLoading = false;
+        print(stageCounts);
+      });
+    } else if (response['errorCode']== 401) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => LoginScreen()),
+      );
+      showToast(msg: response['message'] ?? 'Failed');
+    }else {
+      setState(() {
+        isLoading = false;
+      });
+      showToast(msg: "Failed to fetch project data.");
+    }
+  }
+
+  Widget buildCard(String title, IconData icon, Color color, {Widget? destinationScreen, String? extraText}) {
     return GestureDetector(
       onTap: () {
         if (destinationScreen != null) {
@@ -134,27 +164,39 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
           showToast(msg: "No screen provided.");
         }
       },
-      child: Card(
-        elevation: 5,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        color: color,
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 37, color: Colors.white),
-              SizedBox(height: 20),
-              Text(
-                title,
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
-              ),
-            ],
+      child: Container(
+        child: Card(
+          elevation: 5,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          color: color,
+          child: Padding(
+            padding: const EdgeInsets.all(12.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, size: 37, color: Colors.white),
+                SizedBox(height: 20),
+                Text(
+                  title,
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                ),
+                if (extraText != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4.0),
+                    child: Text(
+                      extraText,
+                      style: TextStyle(fontSize: 16, color: Colors.white,fontWeight: FontWeight.bold),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
+
   Future<void> _fetchTodaysAbsents() async {
     final response = await new ApiService().request(
       method: 'get',
@@ -439,7 +481,8 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
                   crossAxisCount: 2,
                   children: [
                     buildCard("WORKING DAYS", Icons.calendar_month, Colors.blue[300]!, destinationScreen: Workingdayslist()),
-                    buildCard("Card 2", Icons.check_circle, Colors.green[300]!),
+                    buildCard("PROJECT STAGE", Icons.check_circle, Colors.green[300]!, destinationScreen: ProjectsScreen(),extraText:
+                    'In Progress: ${stageCounts['In Progress']}\nPending: ${stageCounts['Pending']}'),
                     buildCard("Card 3", Icons.check_circle, Colors.deepPurple[300]!),
                     buildCard("Card 4", Icons.check_circle, Colors.pink[300]!),
                   ],

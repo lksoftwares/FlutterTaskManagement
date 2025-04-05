@@ -29,7 +29,7 @@ class _AssignShiftsState extends State<AssignShifts> {
   Future<void> fetchUsers() async {
     final response = await new ApiService().request(
         method: 'get',
-        endpoint: 'User/',
+        endpoint: 'User/?status=1',
         tokenRequired: true
     );
     if (response['statusCode'] == 200 && response['apiResponse'] != null) {
@@ -58,7 +58,7 @@ class _AssignShiftsState extends State<AssignShifts> {
 
     final response = await new ApiService().request(
         method: 'get',
-        endpoint: 'shift/',
+        endpoint: 'shift/?status=1',
         tokenRequired: true
     );
     print('Response: $response');

@@ -37,7 +37,7 @@ class _TaskscommentsScreenState extends State<TaskscommentsScreen> {
   Future<void> fetchUsers() async {
     final response = await new ApiService().request(
       method: 'get',
-      endpoint: 'User/',
+      endpoint: 'User/?status=1',
       tokenRequired: true,
 
     );
@@ -217,6 +217,8 @@ class _TaskscommentsScreenState extends State<TaskscommentsScreen> {
           onPressed: () {
             _deleteComment(taskCmmntId);
             Navigator.pop(context);
+            fetchComments();
+
           },
           child: Text('Delete', style: TextStyle(color: Colors.white)),
         ),
@@ -264,6 +266,7 @@ class _TaskscommentsScreenState extends State<TaskscommentsScreen> {
           onPressed: () {
             _deleteAllComments();
             Navigator.pop(context);
+            fetchComments();
           },
           child: Text('Delete All', style: TextStyle(color: Colors.white)),
         ),
