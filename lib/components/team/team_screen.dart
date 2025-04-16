@@ -49,7 +49,7 @@ class _TeamScreenState extends State<TeamScreen> {
             'teamId': member['teamId'] ?? 0,
             'teamName': member['teamName'] ?? 'Unknown team',
             'createdAt': member['createdAt'] ?? '',
-            'roleName': member['roleName'] ?? 'Unknown role',
+            'teamMemberRole': member['teamMemberRole'] ?? 'Unknown role',
             'userName': member['userName'] ?? 'Unknown user',
           }),
         );
@@ -70,36 +70,44 @@ class _TeamScreenState extends State<TeamScreen> {
 
     fetchTeamMembers(teamId).then((_) {
       showCustomAlertDialog(
-          context,
-          title: 'Team Members',
-          content: Padding(
-            padding: const EdgeInsets.all(20.0),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (isLoading)
-                  Center(child: CircularProgressIndicator())
-                else if (teamMembers.isEmpty)
-                  Text('No members found')
-                else
-                  Column(
-                    children: teamMembers.map((member) {
-                      return ListTile(
-                        title: Text(member['userName']),
-                        subtitle: Text('Role: ${member['roleName']}'),
-                      );
-                    }).toList(),
-                  ),
-              ],
-            ),
+        context,
+        title: 'Team Members',
+        content: Padding(
+          padding: const EdgeInsets.all(20.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (isLoading)
+                Center(child: CircularProgressIndicator())
+              else if (teamMembers.isEmpty)
+                Text('No members found')
+              else
+                Column(
+                  children: teamMembers.map((member) {
+                    return Card(
+                      elevation: 5,
+                      margin: const EdgeInsets.only(bottom: 10.0),
+                      child: ListTile(
+                        title: Text(member['userName'], style: TextStyle(fontWeight: FontWeight.bold)),
+                        subtitle: Text('Role: ${member['teamMemberRole']}'),
+                        tileColor: Colors.blue[50],
+
+                      ),
+
+                    );
+                  }).toList(),
+                ),
+
+            ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text('Close'),
-            ),
-          ],
-          titleHeight: 70
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Close'),
+          ),
+        ],
+        titleHeight: 70,
       );
     });
   }
@@ -366,50 +374,29 @@ class _TeamScreenState extends State<TeamScreen> {
                 ),
                 SizedBox(height: 15),
 
-                Padding(
-                  padding: const EdgeInsets.only(right: 10.0),
-                  child: Wrap(
-                    spacing: 10.0,
-                    runSpacing: 4.0,
-                    children: [
-                      FilterChip(
-                        label: Text(
-                          'Active',
-                          style: TextStyle(
-                            color: selectedStatus == true ? Colors.white : Colors
-                                .black,
-                          ),
-                        ),
-                        selected: selectedStatus == true,
-                        onSelected: (bool selected) {
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Status:',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
+                    Transform.scale(
+                      scale: 1.3,
+                      child: Switch(
+                        value: selectedStatus ?? false,
+                        onChanged: (bool value) {
                           setState(() {
-                            selectedStatus = true;
+                            selectedStatus = value;
                           });
                         },
-                        selectedColor: Colors.green,
-                        backgroundColor: Colors.grey[200],
-                        checkmarkColor: Colors.white,
+                        activeColor: Colors.green,
+                        inactiveThumbColor: Colors.red,
+                        inactiveTrackColor: Colors.red[200],
                       ),
-                      FilterChip(
-                        label: Text(
-                          'Deactive',
-                          style: TextStyle(
-                            color: selectedStatus == false ? Colors.white : Colors
-                                .black,
-                          ),
-                        ),
-                        selected: selectedStatus == false,
-                        onSelected: (bool selected) {
-                          setState(() {
-                            selectedStatus = false;
-                          });
-                        },
-                        selectedColor: Colors.red,
-                        backgroundColor: Colors.grey[200],
-                        checkmarkColor: Colors.white,
-                      ),
-                    ],
-                  ),
+                    ),
+
+                  ],
                 ),
               ],
             ),
@@ -440,7 +427,6 @@ class _TeamScreenState extends State<TeamScreen> {
 
     );
   }
-
   Future<void> _addTeamMembers( int userId, int tMRoleId, int teamId) async {
     final response = await new ApiService().request(
       method: 'post',
@@ -581,7 +567,13 @@ class _TeamScreenState extends State<TeamScreen> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.end,
                           children: [
-                            IconButton(onPressed: _showAddTeammember, icon: Icon(Icons.add_circle,color: Colors.blue,)),
+
+                            IconButton(
+                                    icon: Icon(Icons.people_rounded, size: 25, color: Colors.blue),
+                                    onPressed: _showAddTeammember
+                                  ),
+
+
                             IconButton(onPressed: ()=>_showEditTeamModal(role['teamId'], role['teamName'],role['tmDescription'],role['teamStatus']),
                                 icon: Icon(Icons.edit,color: Colors.green,)),
                             IconButton(onPressed: ()=>_confirmDeleteTeam(role['teamId']),

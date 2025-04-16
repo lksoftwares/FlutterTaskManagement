@@ -1,6 +1,5 @@
 import 'package:lktaskmanagementapp/packages/headerfiles.dart';
 
-
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -11,12 +10,10 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   TextEditingController usernameController = TextEditingController();
   TextEditingController passwordController = TextEditingController();
-
   Map<String, dynamic>? selectedRole;
   List<Map<String, dynamic>> roles = [];
   bool isLoading = true;
   bool _obscurePassword = true;
-
 
   @override
   void initState() {

@@ -1,4 +1,3 @@
-
 import 'package:lktaskmanagementapp/packages/headerfiles.dart';
 
 class LeavesScreen extends StatefulWidget {
@@ -11,26 +10,34 @@ class LeavesScreen extends StatefulWidget {
 class _LeavesScreenState extends State<LeavesScreen> {
   List<Map<String, dynamic>> leaves = [];
   List<Map<String, dynamic>> users = [];
-
   String? selectedRoleName;
   bool isLoading = false;
   String? selectedLeaveStatus;
   String? roleName;
   String? selectedUserName;
 
-
   @override
   void initState() {
     super.initState();
-    fetchLeaves();
+     fetchLeaves();
     _getRoleName();
-    fetchUsers();
+     fetchUsers();
   }
+
+  final _formKey = GlobalKey<FormState>();
+  final controller = MultiSelectController<String>();
+  List<String> leaveStages = ['approved', 'Reject', 'Pending'];
+
+  Map<String, bool> selectedStages = {
+    'approved': false,
+    'Reject': false,
+    'Pending': true,
+  };
 
   List<Map<String, String>> leaveStatuses = [
     {"status": "approved"},
     {"status": "Reject"},
-    {"status": "pending"}
+    {"status": "Pending"}
   ];
   Future<void> fetchUsers() async {
     final response = await new ApiService().request(
@@ -38,7 +45,6 @@ class _LeavesScreenState extends State<LeavesScreen> {
         endpoint: 'User/',
         tokenRequired: true
     );
-    print("responsesssss $response");
     if (response['statusCode'] == 200 && response['apiResponse'] != null) {
       setState(() {
         users = List<Map<String, dynamic>>.from(response['apiResponse']);
@@ -239,20 +245,22 @@ class _LeavesScreenState extends State<LeavesScreen> {
     }
   }
 
-
-
   List<Map<String, dynamic>> getFilteredData() {
-    return leaves.where((user) {
-      bool matchesUserName = true;
-      if (selectedUserName != null && selectedUserName!.isNotEmpty) {
-        matchesUserName = user['userName'] == selectedUserName;
-      }
-      return matchesUserName;
+    if (selectedStages.values.every((value) => !value)) {
+      return leaves.where((leave) => leave['leaveStatus'] == 'Pending').toList();
+    }
+
+    return leaves.where((leave) {
+      bool matchesStage = selectedStages[leave['leaveStatus']] ?? false;
+      return matchesStage;
     }).toList();
   }
 
   @override
   Widget build(BuildContext context) {
+    List<DropdownItem<String>> stageItems = leaveStages
+        .map((stage) => DropdownItem(label: stage, value: stage))
+        .toList();
     return Scaffold(
       appBar: CustomAppBar(
         title: 'Leaves',
@@ -263,142 +271,118 @@ class _LeavesScreenState extends State<LeavesScreen> {
         child: SingleChildScrollView(
           child: Padding(
             padding: const EdgeInsets.all(8.0),
-            child: Column(
-              children: [
-                SizedBox(height: 15,),
-
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    Autocomplete<String>(
-                      optionsBuilder: (TextEditingValue textEditingValue) {
-                        return users
-                            .where((user) => user['userName']!
-                            .toLowerCase()
-                            .contains(textEditingValue.text.toLowerCase()))
-                            .map((user) => user['userName'] as String)
-                            .toList();
-                      },
-                      onSelected: (String userName) {
-                        setState(() {
-                          selectedUserName = userName;
-                        });
-                        fetchLeaves();
-                      },
-                      fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
-                        return Container(
-                          width: 290,
-                          child: TextField(
-                            controller: controller,
-                            focusNode: focusNode,
-                            decoration: InputDecoration(
-                              labelText: 'Select User',
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              prefixIcon: Icon(Icons.person),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                children: [
+                  SizedBox(height: 15,),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      MultiSelectDropdown(
+                        width: 290,
+                        items: stageItems,
+                        controller: controller,
+                        hintText: 'Select Leave Status',
+                        onSelectionChange: (selectedItems) {
+                          setState(() {
+                            selectedStages = {
+                              for (var stage in leaveStages)
+                                stage: selectedItems.contains(stage),
+                            };
+                          });
+                          fetchLeaves();
+                        },
+                      ),
+                      IconButton(
+                        icon: Icon(
+                            Icons.add_circle, color: Colors.blue, size: 30),
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => LeaveForm(),
                             ),
-                            onChanged: (value) {
-                              if (value.isEmpty) {
-                                setState(() {
-                                  selectedUserName = null;
-                                });
-                                fetchLeaves();
-                              }
-                            },
-                          ),
-                        );
-                      },
-                    ),
-
-                    IconButton(
-                      icon: Icon(
-                          Icons.add_circle, color: Colors.blue, size: 30),
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => LeaveForm(),
-                          ),
-                        );
-                      },
-                    ),
-                  ],
-                ),
-                SizedBox(height: 10),
-                if (isLoading)
-                  Center(child: CircularProgressIndicator())
-                else
-                  if (leaves.isEmpty)
-                    NoDataFoundScreen()
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 10),
+                  if (isLoading)
+                    Center(child: CircularProgressIndicator())
                   else
-                    if (getFilteredData().isEmpty)
+                    if (leaves.isEmpty)
                       NoDataFoundScreen()
-                  else
-                    Column(
-                      children: getFilteredData().map((leave) {
-                        bool isAdmin = roleName == 'Admin';
-                        Widget leaveStatusWidget = Text(
-                          leave['leaveStatus'] ?? 'Pending',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: leave['leaveStatus'] == 'approved'
-                                ? Colors.green
-                                : leave['leaveStatus'] == 'Reject'
-                                ? Colors.red
-                                : Colors.black,
-                            fontSize: leave['leaveStatus'] == 'approved'
-                                ? 18.0
-                                : leave['leaveStatus'] == 'Reject'
-                                ? 18.0
-                                : 14.0,
-                          ),
-                        );
-                        return buildUserCard(
-                          userFields: {
-                            'UserName': leave['userName'],
-                            '': leave[''],
+                    else
+                      if (getFilteredData().isEmpty)
+                        NoDataFoundScreen()
+                    else
+                      Column(
+                        children: getFilteredData().map((leave) {
+                          bool isAdmin = roleName == 'Admin';
+                          Widget leaveStatusWidget = Text(
+                            leave['leaveStatus'] ?? 'Pending',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: leave['leaveStatus'] == 'approved'
+                                  ? Colors.green
+                                  : leave['leaveStatus'] == 'Reject'
+                                  ? Colors.red
+                                  : Colors.black,
+                              fontSize: leave['leaveStatus'] == 'approved'
+                                  ? 18.0
+                                  : leave['leaveStatus'] == 'Reject'
+                                  ? 18.0
+                                  : 14.0,
+                            ),
+                          );
+                          return buildUserCard(
+                            userFields: {
+                              'UserName': leave['userName'],
+                              '': leave[''],
 
-                            'LeaveStatus': leaveStatusWidget,
-                            'ApplyDate': leave['leaveApplyDate'],
-                            'LeaveFrom': Text(
-                              leave['leaveFrom'] ?? 'N/A',
-                              style: TextStyle(fontWeight: FontWeight.w900),
+                              'LeaveStatus': leaveStatusWidget,
+                              'ApplyDate': leave['leaveApplyDate'],
+                              'LeaveFrom': Text(
+                                leave['leaveFrom'] ?? 'N/A',
+                                style: TextStyle(fontWeight: FontWeight.w900),
+                              ),
+                              'LeaveTo': Text(
+                                leave['leaveTo'] ?? 'N/A',
+                                style: TextStyle(fontWeight: FontWeight.w900),
+                              ),
+                              'Reason': leave['reason'],
+                              'Days': leave['days'],
+                              'Remarks': leave['remarks'],
+                              'CreatedAt': leave['createdAt'],
+                            },
+                            onDelete: () => _confirmDeleteLeave(leave['leaveId']),
+                            trailingIcon: IconButton(
+                              onPressed: () =>
+                                  _confirmDeleteLeave(leave['leaveId']),
+                              icon: Icon(Icons.delete, color: Colors.red),
                             ),
-                            'LeaveTo': Text(
-                              leave['leaveTo'] ?? 'N/A',
-                              style: TextStyle(fontWeight: FontWeight.w900),
+                            leadingIcon: Row(
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              children: [
+                                if (isAdmin)
+                                  IconButton(
+                                    onPressed: () =>
+                                        _editLeaveStatus(
+                                            leave['leaveId'],
+                                            leave['leaveStatus'],
+                                            leave['remarks']),
+                                    icon: Icon(Icons.pending_actions,
+                                        color: Colors.green, size: 30),
+                                  ),
+                              ],
                             ),
-                            'Reason': leave['reason'],
-                            'Days': leave['days'],
-                            'Remarks': leave['remarks'],
-                            'CreatedAt': leave['createdAt'],
-                          },
-                          onDelete: () => _confirmDeleteLeave(leave['leaveId']),
-                          trailingIcon: IconButton(
-                            onPressed: () =>
-                                _confirmDeleteLeave(leave['leaveId']),
-                            icon: Icon(Icons.delete, color: Colors.red),
-                          ),
-                          leadingIcon: Row(
-                            mainAxisAlignment: MainAxisAlignment.end,
-                            children: [
-                              if (isAdmin)
-                                IconButton(
-                                  onPressed: () =>
-                                      _editLeaveStatus(
-                                          leave['leaveId'],
-                                          leave['leaveStatus'],
-                                          leave['remarks']),
-                                  icon: Icon(Icons.pending_actions,
-                                      color: Colors.green, size: 30),
-                                ),
-                            ],
-                          ),
-                        );
-                      }).toList(),
-                    )
-              ],
+                          );
+                        }).toList(),
+                      )
+                ],
+              ),
             ),
           ),
         ),

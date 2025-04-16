@@ -1,5 +1,3 @@
-
-
 import 'package:lktaskmanagementapp/packages/headerfiles.dart';
 
 class ProjectsScreen extends StatefulWidget {
@@ -28,13 +26,15 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
     _getData();
   }
 
-  List<String> projectStages = ['Completed', 'On Hold', 'Pending', 'Cancelled','In Progress'];
+  final _formKey = GlobalKey<FormState>();
+  final controller = MultiSelectController<String>();
+  List<String> projectStages = ['Completed', 'On Hold', 'Pending', 'Cancelled', 'In Progress'];
   Map<String, bool> selectedStages = {
     'Completed': false,
     'On Hold': false,
     'Pending': false,
     'Cancelled': false,
-    'In Progress':false
+    'In Progress': false,
   };
 
   Future<void> _getUserId() async {
@@ -67,20 +67,26 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
     }
   }
   Future<void> fetchTeams() async {
-    final response = await new ApiService().request(
-        method: 'get',
-        endpoint: 'teams/?status=1',
-        tokenRequired: true
+    try {
+      final response = await new ApiService().request(
+          method: 'get',
+          endpoint: 'teams/?status=1',
+          tokenRequired: true
+      );
 
-    );
-    if (response['statusCode'] == 200 && response['apiResponse'] != null) {
-      setState(() {
-        teamsList = List<Map<String, dynamic>>.from(response['apiResponse']);
-      });
-    } else {
-      print("Failed to load teams");
+      if (response['statusCode'] == 200 && response['apiResponse'] != null) {
+        setState(() {
+          teamsList = List<Map<String, dynamic>>.from(response['apiResponse']);
+          print("Teams List Updated: $teamsList"); // Log the teams list
+        });
+      } else {
+        print("Failed to load teams. Response: ${response['statusCode']}");
+      }
+    } catch (e) {
+      print("Error while fetching teams: $e");
     }
   }
+
   Future<void> fetchProjects() async {
     setState(() {
       isLoading = true;
@@ -124,8 +130,95 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
     });
   }
 
+  Future<void> _addTeam(String teamName, String tmDescription) async {
+    final response = await new ApiService().request(
+      method: 'post',
+      endpoint: 'teams/create',
+      tokenRequired: true,
+      body: {
+        'teamName': teamName,
+        'tmDescription': tmDescription,
+      },
+    );
+    if (response.isNotEmpty && response['statusCode'] == 200) {
+       fetchTeams();
+      showToast(
+        msg: response['message'] ?? 'Team added successfully',
+        backgroundColor: Colors.green,
+      );
+      Navigator.pop(context);
+    } else {
+      showToast(
+        msg: response['message'] ?? 'Failed to add Team',
+      );
+    }
+  }
+
+  void _showAddTeamModal() {
+    String teamName = '';
+    String tmDescription = '';
+    InputDecoration inputDecoration = InputDecoration(
+      labelText: 'Team Name',
+      border: OutlineInputBorder(),
+    );
+
+    InputDecoration descriptionDecoration = InputDecoration(
+      labelText: 'Description',
+      border: OutlineInputBorder(),
+    );
+
+    showCustomAlertDialog(
+      context,
+      title: 'Add Team',
+      content: Padding(
+        padding: const EdgeInsets.all(15.0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(height: 15),
+            TextField(
+              onChanged: (value) => teamName = value,
+              decoration: inputDecoration,
+            ),
+            SizedBox(height: 15),
+            TextField(
+              onChanged: (value) => tmDescription = value,
+              decoration: descriptionDecoration,
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.green,
+          ),
+          onPressed: () {
+            if (teamName.isEmpty ) {
+              showToast(msg: 'Please fill in both fields');
+            } else {
+              _addTeam(teamName, tmDescription);
+              fetchTeams();
+            }
+          },
+          child: Text(
+            'Add',
+            style: TextStyle(color: Colors.white),
+          ),
+        ),
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text('Cancel'),
+        ),
+      ],
+      titleHeight: 65,
+    );
+  }
 
   void _showAddProjectModal() {
+    setState(() {
+      selectedTeamId == null;
+    });
     String projectName = '';
     String projectDescription = '';
     DateTime startDate = DateTime.now();
@@ -133,6 +226,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
     TextEditingController startDateController = TextEditingController(text: DateformatddMMyyyy.formatDateddMMyyyy(startDate));
     TextEditingController endDateController = TextEditingController(text: DateformatddMMyyyy.formatDateddMMyyyy(endDate));
     String? selectedStage = 'Pending';
+    fetchTeams();
     showCustomAlertDialog(
       context,
       title: 'Add Project',
@@ -161,19 +255,26 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                         ),
                       ),
                       SizedBox(height: 15),
-                      CustomDropdown<int>(
-                        options: teamsList.map<int>((
-                            team) => team['teamId'] as int).toList(),
-                        selectedOption: selectedTeamId,
-                        displayValue: (teamId) =>
-                        teamsList.firstWhere((team) =>
-                        team['teamId'] == teamId)['teamName'],
-                        onChanged: (value) {
-                          setState(() {
-                            selectedTeamId = value;
-                          });
-                        },
-                        labelText: 'Select Team',
+                      Row(
+                        children: [
+                          CustomDropdown<int>(
+                            options: teamsList.map<int>((
+                                team) => team['teamId'] as int).toList(),
+                            selectedOption: selectedTeamId,
+                            displayValue: (teamId) =>
+                            teamsList.firstWhere((team) =>
+                            team['teamId'] == teamId)['teamName'],
+                            onChanged: (value) {
+                              setState(() {
+                                selectedTeamId = value;
+                              });
+                            },
+                            labelText: 'Select Team',
+                            width: 280,
+                          ),
+                          IconButton(onPressed: _showAddTeamModal, icon: Icon(Icons.add_circle,size: 30,
+                            color: Colors.blue,))
+                        ],
                       ),
                       SizedBox(height: 15),
                       CustomDropdown<String>(
@@ -207,8 +308,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                             setState(() {
                               startDate = picked;
                               startDateController.text =
-                                  DateformatddMMyyyy.formatDateddMMyyyy(
-                                      startDate);
+                                  DateformatddMMyyyy.formatDateddMMyyyy(startDate);
                             });
                           }
                         },
@@ -218,6 +318,8 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                             decoration: InputDecoration(
                               labelText: 'Start Date',
                               border: OutlineInputBorder(),
+                                suffixIcon: Icon(Icons.calendar_month)
+
                             ),
                           ),
                         ),
@@ -245,6 +347,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                             decoration: InputDecoration(
                               labelText: 'End Date',
                               border: OutlineInputBorder(),
+                                suffixIcon: Icon(Icons.calendar_month)
                             ),
                           ),
                         ),
@@ -477,48 +580,29 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                     ),
                     SizedBox(height: 10),
 
-                    Padding(
-                      padding: const EdgeInsets.only(right: 10.0),
-                      child: Wrap(
-                        spacing: 10.0,
-                        runSpacing: 4.0,
-                        children: [
-                          FilterChip(
-                            label: Text(
-                              'Active',
-                              style: TextStyle(
-                                color: selectedStatus == true ? Colors.white : Colors.black,
-                              ),
-                            ),
-                            selected: selectedStatus == true,
-                            onSelected: (bool selected) {
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Status:',
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                        ),
+                        Transform.scale(
+                          scale: 1.3,
+                          child: Switch(
+                            value: selectedStatus ?? false,
+                            onChanged: (bool value) {
                               setState(() {
-                                selectedStatus = true;
+                                selectedStatus = value;
                               });
                             },
-                            selectedColor: Colors.green,
-                            backgroundColor: Colors.grey[200],
-                            checkmarkColor: Colors.white,
+                            activeColor: Colors.green,
+                            inactiveThumbColor: Colors.red,
+                            inactiveTrackColor: Colors.red[200],
                           ),
-                          FilterChip(
-                            label: Text(
-                              'Deactive',
-                              style: TextStyle(
-                                color: selectedStatus == false ? Colors.white : Colors.black,
-                              ),
-                            ),
-                            selected: selectedStatus == false,
-                            onSelected: (bool selected) {
-                              setState(() {
-                                selectedStatus = false;
-                              });
-                            },
-                            selectedColor: Colors.red,
-                            backgroundColor: Colors.grey[200],
-                            checkmarkColor: Colors.white,
-                          ),
-                        ],
-                      ),
+                        ),
+
+                      ],
                     ),
                   ],
                 ),
@@ -575,7 +659,6 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
         'updateFlag': true,
       },
     );
-    print("teamIdddd$teamId");
 
     if (response['statusCode'] == 200) {
       showToast(msg: 'Project updated successfully', backgroundColor: Colors.green);
@@ -586,19 +669,24 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
     }
   }
   List<Map<String, dynamic>> getFilteredData() {
+    if (selectedStages.values.every((value) => !value)) {
+      return projects;
+    }
     return projects.where((project) {
-      bool matchesTeamName = true;
-      if (selectedTeamName != null && selectedTeamName!.isNotEmpty) {
-        matchesTeamName = project['teamName'] == selectedTeamName;
+      bool matchesStage = false;
+      if (selectedStages.isNotEmpty) {
+        matchesStage = selectedStages[project['projectStage']] ?? false;
       }
-      bool matchesStage = selectedStage2 == null || project['projectStage'] == selectedStage2;
-      return matchesTeamName && matchesStage;
+      return matchesStage;
     }).toList();
   }
 
 
   @override
   Widget build(BuildContext context) {
+    List<DropdownItem<String>> stageItems = projectStages
+        .map((stage) => DropdownItem(label: stage, value: stage))
+        .toList();
     return Scaffold(
       appBar: CustomAppBar(
         title: 'Projects',
@@ -609,104 +697,83 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
         child: SingleChildScrollView(
           child: Padding(
             padding: const EdgeInsets.all(8.0),
-            child: Column(
-              children: [
-                SizedBox(height: 15),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    Autocomplete<String>(
-                      optionsBuilder: (TextEditingValue textEditingValue) {
-                        return projectStages
-                            .where((stage) => stage.toLowerCase().contains(textEditingValue.text.toLowerCase()))
-                            .toList();
-                      },
-                      onSelected: (String stage) {
-                        setState(() {
-                          selectedStage2 = stage;
-                        });
-                        fetchProjects();
-                      },
-                      fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
-                        return Container(
-                          width: 290,
-                          child: TextField(
-                            controller: controller,
-                            focusNode: focusNode,
-                            decoration: InputDecoration(
-                              labelText: 'Select Project Stage',
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              prefixIcon: Icon(Icons.running_with_errors),
-                            ),
-                            onChanged: (value) {
-                              if (value.isEmpty) {
-                                setState(() {
-                                  selectedStage = null;
-                                });
-                                fetchProjects();
-                              }
-                            },
-                          ),
-                        );
-                      },
-                    ),
-                    IconButton(
-                      icon: Icon(Icons.add_circle, color: Colors.blue, size: 30),
-                      onPressed: _showAddProjectModal,
-                    ),
-                  ],
-                ),
-
-                SizedBox(height: 10),
-                if (isLoading)
-                  Center(child: CircularProgressIndicator())
-                else if (projects.isEmpty)
-                  NoDataFoundScreen()
-                else if (getFilteredData().isEmpty)
+            child: Form(
+              key: _formKey,
+              child: Column(
+                children: [
+                  SizedBox(height: 15),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      MultiSelectDropdown(
+                        width: 290,
+                        items: stageItems,
+                        controller: controller,
+                        hintText: 'Select Project Stage(s)',
+                        onSelectionChange: (selectedItems) {
+                          setState(() {
+                            selectedStages = {
+                              for (var stage in projectStages)
+                                stage: selectedItems.contains(stage),
+                            };
+                          });
+                          fetchProjects();
+                        },
+                      ),
+                      IconButton(
+                        icon: Icon(Icons.add_circle, color: Colors.blue, size: 30),
+                        onPressed: _showAddProjectModal,
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 10),
+                  if (isLoading)
+                    Center(child: CircularProgressIndicator())
+                  else if (projects.isEmpty)
                     NoDataFoundScreen()
-                  else
-                    Column(
-                      children: getFilteredData().map((role) {
-                        return buildUserCard(
-                          userFields: {
-                            'ProjectName': role['projectName'],
-                            '': role[''],
-                            'Projectdesc': role['projectDescription'],
-                            'TeamName': role['teamName'],
-                            'ProjectStatus': role['projectStatus'],
-                            'ProjectStage': role['projectStage'] ,
-                            'CreatedBy': role['createdByUserName'],
-                            'UpdatedBy': role['updateByUserName'],
-                            'StartDate': role['startDate'] != null
-                                ? DateformatddMMyyyy.formatDateddMMyyyy(DateTime.parse(role['startDate']))
-                                : 'Not Set',
-                            'EndDate': role['endDate'] != null
-                                ? DateformatddMMyyyy.formatDateddMMyyyy(DateTime.parse(role['endDate']))
-                                : 'Not Set',
-                            'CreatedAt': role['createdAt'],
-                          },
-                          onEdit: () => _showEditProjectModal(role),
-                          onDelete: () => _confirmDeleteProject(role['projectId']),
-                          trailingIcon: Row(
-                            mainAxisAlignment: MainAxisAlignment.end,
-                            children: [
-                              IconButton(
-                                onPressed: () => _showEditProjectModal(role),
-                                icon: Icon(Icons.edit, color: Colors.green),
-                              ),
-                              IconButton(
-                                onPressed: () => _confirmDeleteProject(role['projectId']),
-                                icon: Icon(Icons.delete, color: Colors.red),
-                              ),
-                            ],
-                          ),
-                        );
-                      }).toList(),
-                    ),
-
-              ],
+                  else if (getFilteredData().isEmpty)
+                      NoDataFoundScreen()
+                    else
+                      Column(
+                        children: getFilteredData().map((role) {
+                          return buildUserCard(
+                            userFields: {
+                              'ProjectName': role['projectName'],
+                              '': role[''],
+                              'Projectdesc': role['projectDescription'],
+                              'TeamName': role['teamName'],
+                              'ProjectStatus': role['projectStatus'],
+                              'ProjectStage': role['projectStage'] ,
+                              'CreatedBy': role['createdByUserName'],
+                              'UpdatedBy': role['updateByUserName'],
+                              'StartDate': role['startDate'] != null
+                                  ? DateformatddMMyyyy.formatDateddMMyyyy(DateTime.parse(role['startDate']))
+                                  : 'Not Set',
+                              'EndDate': role['endDate'] != null
+                                  ? DateformatddMMyyyy.formatDateddMMyyyy(DateTime.parse(role['endDate']))
+                                  : 'Not Set',
+                              'CreatedAt': role['createdAt'],
+                            },
+                            onEdit: () => _showEditProjectModal(role),
+                            onDelete: () => _confirmDeleteProject(role['projectId']),
+                            trailingIcon: Row(
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              children: [
+                                IconButton(
+                                  onPressed: () => _showEditProjectModal(role),
+                                  icon: Icon(Icons.edit, color: Colors.green),
+                                ),
+                                IconButton(
+                                  onPressed: () => _confirmDeleteProject(role['projectId']),
+                                  icon: Icon(Icons.delete, color: Colors.red),
+                                ),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                ],
+              ),
             ),
           ),
         ),

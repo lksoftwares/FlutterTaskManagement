@@ -3,12 +3,13 @@ import 'package:http_parser/http_parser.dart';
 import 'package:intl/intl.dart';
 import 'package:lktaskmanagementapp/packages/headerfiles.dart';
 import 'package:http/http.dart' as http;
+
 class TasksScreen extends StatefulWidget {
   const TasksScreen({super.key});
-
   @override
   State<TasksScreen> createState() => _TasksScreenState();
 }
+
 class _TasksScreenState extends State<TasksScreen> {
   List<Map<String, dynamic>> projects = [];
   List<Map<String, dynamic>> team = [];
@@ -16,13 +17,15 @@ class _TasksScreenState extends State<TasksScreen> {
   bool isAllFieldsVisible = false;
   bool isLoading = false;
   String? selectedStatus = 'open';
-  String? selectedPriority = 'medium';
+  String? selectedPriority = 'low';
   List<Map<String, dynamic>> tasks = [];
   String? selectedRoleName;
   String taskTitle = '';
   String taskDescription = '';
   DateTime? dueDate;
   int? userId;
+  DateTime? fromDate;
+  DateTime? toDate;
   Map<String, bool> taskExpansionStates = {};
   int? selectedTeamMemberId;
   int? selectedprojectId;
@@ -33,7 +36,9 @@ class _TasksScreenState extends State<TasksScreen> {
   String? audioFilePath;
   bool isPlaying = false;
   Map<String, bool> isPlayingMap = {};
-
+  File? _selectedImage;
+  File? _commentImageFile;
+  Timer? positionTimer;
 
   @override
   void initState() {
@@ -45,6 +50,15 @@ class _TasksScreenState extends State<TasksScreen> {
     _getUserId();
   }
 
+  final _formKey = GlobalKey<FormState>();
+  final controller = MultiSelectController<String>();
+  List<String> taskStages = ['open', 'in-progress', 'completed', 'blocked'];
+  Map<String, bool> selectedStages = {
+    'open': true,
+    'in-progress': false,
+    'completed': false,
+    'blocked': false,
+  };
   Future<void> _initializeRecorder() async {
     _recorder = FlutterSoundRecorder();
     await _recorder!.openRecorder();
@@ -78,22 +92,25 @@ class _TasksScreenState extends State<TasksScreen> {
     print("Recording stopped. File saved at: $audioFilePath");
   }
 
-  Future<void> _playAudio(audioFilePath) async {
-    if (audioFilePath != null && audioFilePath!.isNotEmpty) {
+  Future<void> _playAudio(String? audioFilePath) async {
+    if (audioFilePath != null && audioFilePath.isNotEmpty) {
       setState(() {
-        isPlaying = true;
+        isPlayingMap.updateAll((key, value) => false);
+        isPlayingMap[audioFilePath] = true;
       });
+
       await _player!.startPlayer(
-        fromURI: audioFilePath!,
+        fromURI: audioFilePath,
         whenFinished: () {
           setState(() {
-            isPlaying = false;
+            isPlayingMap[audioFilePath] = false;
           });
         },
       );
       print("Audio playing from path: $audioFilePath");
     }
   }
+
 
   Future<String> _getFilePath() async {
     Directory appDirectory = await getApplicationDocumentsDirectory();
@@ -117,7 +134,6 @@ class _TasksScreenState extends State<TasksScreen> {
         endpoint: 'teams/GetTeamMembers?projectId=$selectedprojectId&status=1',
         tokenRequired: true
     );
-
     print('Fetching team members for project ID: $selectedprojectId');
 
     if (response['statusCode'] == 200 && response['apiResponse'] != null) {
@@ -178,21 +194,30 @@ class _TasksScreenState extends State<TasksScreen> {
         endpoint: endpoint,
         tokenRequired: true
     );
-
     if (response['statusCode'] == 200 && response['apiResponse'] != null) {
       setState(() {
         tasks = List<Map<String, dynamic>>.from(
-          response['apiResponse'].map((role) {
+          response['apiResponse']["taskList"].map((role) {
             final taskComments = role['taskComments'] as List<dynamic>?;
             return {
               'taskId': role['taskId'] ?? 0,
               'projectId': role['projectId'] ?? 0,
               'taskTitle': role['taskTitle'] ?? 'Unknown title',
-              'taskDescription': role['taskDescription'] ?? 'Unknown description',
+              'taskDescription': role['taskDescription'] ?? '',
               'taskPriority': role['taskPriority'] ?? '',
+              'viewCount': role['viewCount'] ?? 0,
               'taskAssignedTo': role['taskAssignedTo'] ?? '',
+              'createdAt': role['createdAt'] ?? '',
+              'taskCompletedAt': role['taskCompletedAt'] ?? "--/--/----",
+              'taskHour': role['taskHour'] ?? '00:00',
               'taskStatus': role['taskStatus'] ?? '',
+              'imageFilePath': role['imageFilePath'] ?? null,
+              'audioFilePath': role['audioFilePath'] ?? null,
               'projectName': role['projectName'] ?? '',
+              'cmmntImageFilePath': (role['taskComments'] as List<dynamic>?)
+                  ?.map((commentMap) => commentMap['cmmntImageFilePath'])
+                  .toList() ??
+                  [],
               'comments': (role['taskComments'] as List<dynamic>?)
                   ?.map((commentMap) => commentMap['comment'])
                   .toList() ??
@@ -201,15 +226,22 @@ class _TasksScreenState extends State<TasksScreen> {
                   ?.map((commentMap) => commentMap['userName'])
                   .toList() ??
                   [],
-              'createdAt': (role['taskComments'] as List<dynamic>?)
-                  ?.map((commentMap) => commentMap['createdAt'])
+              'commentCreatedAt': (role['taskComments'] as List<dynamic>?)
+                  ?.map((commentMap) => commentMap['commentCreatedAt'])
                   .toList() ??
                   [],
-              'audioFilePath': (role['taskComments'] as List<dynamic>?)
-                  ?.map((commentMap) => commentMap['audioFilePath'])
+              'cmmntAudioFilePath': (role['taskComments'] as List<dynamic>?)
+                  ?.map((commentMap) => commentMap['cmmntAudioFilePath'])
                   .toList() ??
                   [],
-
+              'taskCmmntId': (role['taskComments'] as List<dynamic>?)
+                  ?.map((commentMap) => commentMap['taskCmmntId'])
+                  .toList() ??
+                  [],
+              'viewStatus': (role['taskComments'] as List<dynamic>?)
+                  ?.map((commentMap) => commentMap['viewStatus'])
+                  .toList() ??
+                  [],
               'taskAssignedToName': role['taskAssignedToName'],
               'taskCreatedByName': role['taskCreatedByName'] ?? '',
               'taskUpdatedByName': role['taskUpdatedByName'] ?? '',
@@ -226,12 +258,22 @@ class _TasksScreenState extends State<TasksScreen> {
     });
   }
 
-  Future<void> _addTask() async {
+  Future<void> _addTask(File? imageFile) async {
     final dueDateToSend = dueDate?.toIso8601String() ?? DateTime.now().toIso8601String();
-    final response = await new ApiService().request(
+    Map<String, File> files = {};
+    if (imageFile != null) {
+      files['imageFile'] = imageFile;
+    }
+
+    if (audioFilePath != null) {
+      files['audioFile'] = File(audioFilePath!);
+    }
+
+    final response = await ApiService().request(
       method: 'post',
       endpoint: 'tasks/create',
       tokenRequired: true,
+      files: files,
       body: {
         'projectId': selectedprojectId,
         'taskTitle': taskTitle,
@@ -244,11 +286,14 @@ class _TasksScreenState extends State<TasksScreen> {
         'taskUpdatedBy': userId,
         'taskVersion': 1,
       },
+      isMultipart: true,
     );
 
     if (response['statusCode'] == 200) {
-      showToast(msg: response['message'] ?? 'Task created successfully',
-          backgroundColor: Colors.green);
+      showToast(
+        msg: response['message'] ?? 'Task created successfully',
+        backgroundColor: Colors.green,
+      );
       Navigator.pop(context);
       fetchTasks();
     } else {
@@ -260,11 +305,16 @@ class _TasksScreenState extends State<TasksScreen> {
     setState(() {
       selectedprojectId = null;
       selectedTeamMemberId = null;
+      audioFilePath = null;
       dueDate = null;
       team.clear();
-
+      audioFilePath = null;
+      isRecording = false;
+      isPlayingMap.clear();
+      isPlaying = false;
     });
-
+    String? selectedStatus1 = 'open';
+    String? selectedPriority1= 'low';
     showCustomAlertDialog(
         context,
         title: 'Add Task',
@@ -291,8 +341,6 @@ class _TasksScreenState extends State<TasksScreen> {
                           value != null ? int.tryParse(value) : null;
                           team.clear();
                         });
-
-                        print("Selected project ID: $selectedprojectId");
 
                         if (selectedprojectId != null) {
                           await fetchTeamMembers();
@@ -322,7 +370,6 @@ class _TasksScreenState extends State<TasksScreen> {
                         });
                       },
                     ),
-
                     SizedBox(height: 10),
                     TextField(
                       onChanged: (value) => taskTitle = value,
@@ -344,6 +391,7 @@ class _TasksScreenState extends State<TasksScreen> {
 
                     CustomDropdown<String>(
                       options: ['low', 'medium', 'high'],
+                      selectedOption: selectedPriority1,
                       displayValue: (priority) => priority,
                       onChanged: (value) {
                         setState(() {
@@ -355,6 +403,7 @@ class _TasksScreenState extends State<TasksScreen> {
                     SizedBox(height: 10),
                     CustomDropdown<String>(
                       options: ['open', 'in-progress', 'completed', 'blocked'],
+                      selectedOption: selectedStatus1,
                       displayValue: (status) => status,
                       onChanged: (value) {
                         setState(() {
@@ -391,8 +440,74 @@ class _TasksScreenState extends State<TasksScreen> {
                         suffixIcon: Icon(Icons.calendar_month),
 
                       ),
-                    )
+                    ),
+                    SizedBox(height:10 ,),
 
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        GestureDetector(
+                            onTap: () {
+                              if (isRecording) {
+                                _stopRecording();
+                                setState(() {
+                                  isRecording = false;
+                                });
+                              } else {
+                                setState(() {
+                                  isRecording = true;
+                                });
+                                _startRecording();
+                              }
+                            },
+                            child: isRecording
+                                ? Avatar()
+                                : Icon(Icons.mic, color: Color(0xFF005296), size: 40)
+                        ),
+                        if (audioFilePath != null)
+                          IconButton(
+                            icon: Icon(
+                              isPlaying ? Icons.pause : Icons.play_arrow,
+                              size: 35,
+                              color: isPlaying ? Colors.red : Colors.green,
+                            ),
+                            onPressed: () {
+                              if (isPlaying) {
+                                setState(() {
+                                  isPlaying = false;
+                                });
+                              } else {
+                                _playAudio(audioFilePath);
+                                setState(() {
+                                  isPlaying = true;
+                                });
+                              }
+                            },
+                            tooltip: isPlaying ? "Pause Recording" : "Play Recording",
+                          ),
+                        PopupMenuButton<ImageSource>(
+                          icon: Icon(Icons.upload, size: 30, color: Colors.blue,),
+                          onSelected: (source) async {
+                            final picker = ImagePicker();
+                            final pickedFile = await picker.pickImage(source: source);
+                            if (pickedFile != null) {
+                              setState(() {
+                                _commentImageFile = File(pickedFile.path);
+                              });
+                            }
+                          },
+                          itemBuilder: (BuildContext context) => <PopupMenuEntry<ImageSource>>[
+                            const PopupMenuItem<ImageSource>(
+                              value: ImageSource.gallery,
+                              child: Text('Choose from Gallery'),
+                            ),
+                            const PopupMenuItem<ImageSource>(
+                              value: ImageSource.camera,
+                              child: Text('Take a Picture'),
+                            ),
+                          ],
+                        ),                      ],
+                    ),
                   ],
                 ),
               ),
@@ -401,7 +516,9 @@ class _TasksScreenState extends State<TasksScreen> {
         ),
         actions: [
           ElevatedButton(
-            onPressed: _addTask,
+            onPressed: () async {
+              await _addTask(_selectedImage);
+            },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
             child: Text('Add Task', style: TextStyle(color: Colors.white)),
           ),
@@ -414,7 +531,6 @@ class _TasksScreenState extends State<TasksScreen> {
         isFullScreen: true
     );
   }
-
   void _confirmDeleteTask(int taskId) {
     showCustomAlertDialog(
         context,
@@ -439,7 +555,6 @@ class _TasksScreenState extends State<TasksScreen> {
         ],
         titleHeight: 65,
         isFullScreen: false
-
     );
   }
 
@@ -459,11 +574,16 @@ class _TasksScreenState extends State<TasksScreen> {
     }
   }
 
-  Future<void> _updateTask(int taskId) async {
+  Future<void> _updateTask(int taskId,File? imageFile) async {
+    Map<String, File> files = {};
+    if (imageFile != null) {
+      files['imageFile'] = imageFile;
+    }
     final response = await new ApiService().request(
       method: 'post',
       endpoint: 'tasks/Update',
       tokenRequired: true,
+      files: files,
       body: {
         'taskId': taskId,
         'projectId': selectedprojectId,
@@ -478,6 +598,8 @@ class _TasksScreenState extends State<TasksScreen> {
         'taskVersion': 1,
         'updateFlag': true,
       },
+        isMultipart: true
+
     );
     if (response['statusCode'] == 200) {
       showToast(msg: response['message'] ?? 'Task updated successfully',
@@ -488,7 +610,6 @@ class _TasksScreenState extends State<TasksScreen> {
       showToast(msg: response['message'] ?? 'Failed to update task');
     }
   }
-
 
   Future<void> _showEditTaskModal(int taskId) async {
     Map<String, dynamic> taskToEdit = tasks.firstWhere((
@@ -625,6 +746,7 @@ class _TasksScreenState extends State<TasksScreen> {
                           firstDate: DateTime(2000),
                           lastDate: DateTime(2101),
                         );
+
                         if (pickedDate != null) {
                           setState(() {
                             dueDate = pickedDate;
@@ -637,6 +759,35 @@ class _TasksScreenState extends State<TasksScreen> {
                         suffixIcon: Icon(Icons.calendar_month),
                       ),
                     ),
+                    SizedBox(height: 10,),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        Text("Upload Image"),
+                        PopupMenuButton<ImageSource>(
+                          icon: Icon(Icons.upload, size: 30, color: Colors.blue,),
+                          tooltip: 'Upload Image',
+                          onSelected: (source) async {
+                            final picker = ImagePicker();
+                            final pickedFile = await picker.pickImage(source: source);
+                            if (pickedFile != null) {
+                              setState(() {
+                                _commentImageFile = File(pickedFile.path);
+                              });
+                            }
+                          },
+                          itemBuilder: (BuildContext context) => <PopupMenuEntry<ImageSource>>[
+                            const PopupMenuItem<ImageSource>(
+                              value: ImageSource.gallery,
+                              child: Text('Choose from Gallery'),
+                            ),
+                            const PopupMenuItem<ImageSource>(
+                              value: ImageSource.camera,
+                              child: Text('Take a Picture'),
+                            ),
+                          ],
+                        ),                      ],
+                    ),
                   ],
                 ),
               ),
@@ -646,7 +797,7 @@ class _TasksScreenState extends State<TasksScreen> {
         actions: [
           ElevatedButton(
             onPressed: () {
-              _updateTask(taskId);
+              _updateTask(taskId,_selectedImage);
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
             child: Text('Update Task', style: TextStyle(color: Colors.white)),
@@ -662,66 +813,73 @@ class _TasksScreenState extends State<TasksScreen> {
   }
 
   Future<void> _addComments(int taskId, String comment) async {
-    if (comment.isEmpty && audioFilePath == null) {
-      showToast(msg: 'Please fill in either the description or add an audio recording.', backgroundColor: Colors.red);
+    if (comment.isEmpty && audioFilePath == null && _commentImageFile == null) {
+      showToast(
+        msg: 'Please fill in a comment, audio, or upload an image.',
+        backgroundColor: Colors.red,
+      );
       return;
     }
+
     SharedPreferences prefs = await SharedPreferences.getInstance();
     int? userId = prefs.getInt('user_Id');
 
     if (userId == null) {
-      showToast(msg: 'User ID is not found');
+      showToast(msg: 'User ID not found');
       return;
     }
+
     if (comment.isEmpty) {
       comment = "Check audio";
     }
-    final uri = Uri.parse('${Config.apiUrl}tasks/AddComment');
 
+    final uri = Uri.parse('${Config.apiUrl}tasks/AddComment');
     try {
-      SharedPreferences prefs = await SharedPreferences.getInstance();
       String? token = prefs.getString('token');
 
       if (token == null) {
         showToast(msg: 'No token found.', backgroundColor: Colors.red);
         return;
       }
-
       var request = http.MultipartRequest('POST', uri);
-
       request.headers['Authorization'] = 'Bearer $token';
-
       request.fields['comment'] = comment;
       request.fields['userId'] = userId.toString();
       request.fields['taskId'] = taskId.toString();
 
       if (audioFilePath != null) {
-        var file = await http.MultipartFile.fromPath(
+        var audio = await http.MultipartFile.fromPath(
           'audioFile',
           audioFilePath!,
           contentType: MediaType('audio', 'aac'),
         );
-        request.files.add(file);
+        request.files.add(audio);
+      }
+
+      if (_commentImageFile != null) {
+        var image = await http.MultipartFile.fromPath(
+          'imageFile',
+          _commentImageFile!.path,
+          contentType: MediaType('image', 'jpeg'),
+        );
+        request.files.add(image);
       }
       var response = await request.send();
       final responseData = await http.Response.fromStream(response);
       final responseJson = jsonDecode(responseData.body);
+
       if (response.statusCode == 200) {
-        if (responseJson != null && responseJson['message'] != null) {
-          showToast(msg: responseJson['message'], backgroundColor: Colors.green);
-        }
+        showToast(msg: responseJson['message'] ?? 'Comment added', backgroundColor: Colors.green);
         fetchTasks();
         Navigator.pop(context);
       } else {
-        showToast(msg: responseJson['message'], backgroundColor: Colors.green);
+        showToast(msg: responseJson['message'], backgroundColor: Colors.red);
       }
     } catch (e) {
-      print("Error uploading working desc: $e");
+      print("Error uploading comment: $e");
       showToast(msg: 'An error occurred while uploading');
     }
   }
-
-
   Future<void> _showAddCommentModal(int taskId) async {
     String comment = '';
     InputDecoration inputDecoration = InputDecoration(
@@ -730,6 +888,7 @@ class _TasksScreenState extends State<TasksScreen> {
     );
     setState(() {
       audioFilePath = null;
+      _commentImageFile = null;
       isRecording = false;
       isPlayingMap.clear();
       isPlaying = false;
@@ -751,7 +910,37 @@ class _TasksScreenState extends State<TasksScreen> {
                     decoration: inputDecoration,
                     maxLines: 4,
                   ),
-                  SizedBox(height: 30,),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      Text("Upload Image"),
+                      PopupMenuButton<ImageSource>(
+                        icon: Icon(Icons.upload, size: 30, color: Colors.blue,),
+                        tooltip: 'Upload Image',
+                        onSelected: (source) async {
+                          final picker = ImagePicker();
+                          final pickedFile = await picker.pickImage(source: source);
+                          if (pickedFile != null) {
+                            setState(() {
+                              _commentImageFile = File(pickedFile.path);
+                            });
+                          }
+                        },
+                        itemBuilder: (BuildContext context) => <PopupMenuEntry<ImageSource>>[
+                          const PopupMenuItem<ImageSource>(
+                            value: ImageSource.gallery,
+                            child: Text('Choose from Gallery'),
+                          ),
+                          const PopupMenuItem<ImageSource>(
+                            value: ImageSource.camera,
+                            child: Text('Take a Picture'),
+                          ),
+                        ],
+                      ),
+
+                    ],
+                  ),
+                  SizedBox(height: 20,),
                   Text("Add Audio Comment", style: TextStyle(fontWeight: FontWeight.w900,fontSize: 20)),
                   SizedBox(height: 20,),
                   Padding(
@@ -776,12 +965,13 @@ class _TasksScreenState extends State<TasksScreen> {
                                 ? Avatar()
                                 : Icon(Icons.mic, color: Color(0xFF005296), size: 40)
                         ),
+                        SizedBox(width: 30,),
                         if (audioFilePath != null)
                           IconButton(
                             icon: Icon(
                               isPlaying ? Icons.pause : Icons.play_arrow,
                               size: 35,
-                            color: isPlaying ? Colors.red : Colors.green,
+                              color: isPlaying ? Colors.red : Colors.green,
                             ),
                             onPressed: () {
                               if (isPlaying) {
@@ -797,8 +987,7 @@ class _TasksScreenState extends State<TasksScreen> {
                             },
                             tooltip: isPlaying ? "Pause Recording" : "Play Recording",
                           ),
-
-                      ],
+                       ],
                     ),
                   ),
 
@@ -826,14 +1015,16 @@ class _TasksScreenState extends State<TasksScreen> {
       titleHeight: 70,
     );
   }
-
   Future<void> _showCommentsModal(int taskId) async {
     final task = tasks.firstWhere((task) => task['taskId'] == taskId);
     List<dynamic> comments = task['comments'] ?? [];
     List<dynamic> userName = task['userName'] ?? [];
-    List<dynamic> createdAt = task['createdAt'] ?? [];
-    List<dynamic> audioFilePath = task['audioFilePath'] ?? [];
+    List<dynamic> commentCreatedAt = task['commentCreatedAt'] ?? [];
+    List<dynamic> audioFilePath = task['cmmntAudioFilePath'] ?? [];
+    List<dynamic> viewStatusList = task['viewStatus'] ?? [];
+    List<dynamic> cmmntImageFilePath = task['cmmntImageFilePath'] ?? [];
     Map<int, bool> isPlayingMap = {};
+    String? taskTitle = task['taskTitle'];
 
     showCustomAlertDialog(
       context,
@@ -859,86 +1050,114 @@ class _TasksScreenState extends State<TasksScreen> {
                       )
                     else
                       Expanded(
-                        child: Container(
-                          child: ListView.builder(
-                            shrinkWrap: true,
-                            itemCount: comments.length,
-                            itemBuilder: (context, index) {
-                              final comment = comments[index];
-                              final commentUserName = userName[index];
-                              final commentdate = createdAt[index];
-                              final commentAudio = audioFilePath[index];
+                        child: ListView.builder(
+                          shrinkWrap: true,
+                          itemCount: comments.length,
+                          itemBuilder: (context, index) {
+                            final comment = comments[index];
+                            final commentUserName = userName[index];
+                            final commentdate = commentCreatedAt[index];
+                            final isViewed = index < viewStatusList.length && viewStatusList[index] == true;
+                            final commentAudio = audioFilePath[index];
+                            final commentImage = index < cmmntImageFilePath.length ? cmmntImageFilePath[index] : null;
+                            if (!isPlayingMap.containsKey(index)) {
+                              isPlayingMap[index] = false;
+                            }
 
-                              if (!isPlayingMap.containsKey(index)) {
-                                isPlayingMap[index] = false;
-                              }
-
-                              return Padding(
-                                padding: const EdgeInsets.symmetric(vertical: 4.0),
-                                child: Card(
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(10),
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 4.0),
+                              child: Card(
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                elevation: 4,
+                                child: ListTile(
+                                  contentPadding: EdgeInsets.symmetric(horizontal: 12.0),
+                                  leading: Padding(
+                                    padding: const EdgeInsets.only(bottom: 40.0),
+                                    child: Icon(Icons.comment_outlined, color: Colors.blue),
                                   ),
-                                  elevation: 4,
-                                  child: ListTile(
-                                    contentPadding:
-                                    EdgeInsets.symmetric(horizontal: 12.0),
-                                    leading: Padding(
-                                      padding: const EdgeInsets.only(bottom: 40.0),
-                                      child: Icon(Icons.comment_outlined,
-                                          color: Colors.blue),
-                                    ),
-                                    title: Row(
-                                      mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        Text(
+                                  title: Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Expanded(
+                                        child: Text(
                                           comment.toString(),
                                           style: TextStyle(fontSize: 16),
+                                          overflow: TextOverflow.ellipsis,
                                         ),
-                                        if (commentAudio != null)
-                                          IconButton(
-                                            icon: Icon(
-                                              isPlayingMap[index]!
-                                                  ? Icons.pause
-                                                  : Icons.play_arrow,
-                                                    size: 35,
-                                              color: isPlayingMap[index]!
-                                                  ? Colors.red
-                                                  : Colors.green,
-                                            ),
-                                            onPressed: () {
-                                              if (isPlayingMap[index]!) {
-                                                _player!.stopPlayer();
-                                                setState(() {
-                                                  isPlayingMap[index] = false;
-                                                });
-                                              } else {
-                                                _playAudio(commentAudio);
-                                                setState(() {
-                                                  isPlayingMap[index] = true;
-                                                });
-                                              }
-                                            },
-                                          ),
-                                      ],
-                                    ),
-                                    subtitle: Text(
-                                      'UserName: ${commentUserName ?? "N/A"}\nDate: $commentdate',
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        color: Colors.grey[600],
                                       ),
-                                    ),
-                                    tileColor: Colors.blue[50],
+
+                                      if (commentImage != null && commentImage.toString().isNotEmpty)
+                                        IconButton(
+                                          icon: Icon(Icons.image, color: Colors.orange, size: 30),
+                                          tooltip: "View Image",
+                                          onPressed: () {
+                                            _showImageDialog(commentImage);
+                                          },
+                                        ),
+                                      IconButton(
+                                        icon: Icon(Icons.visibility, size: 30, color: Colors.blue),
+                                        onPressed: () {
+                                          if (roleName == 'Admin') {
+                                            if (index < task['taskCmmntId'].length) {
+                                              final commentId = task['taskCmmntId'][index];
+                                              _viewTask(commentId);
+                                              _showFullComment(context, comment.toString());
+                                            } else {
+                                              print('Error: Index out of bounds for taskCmmntId');
+                                            }
+                                          } else {
+                                            _showFullComment(context, comment.toString());
+                                          }
+                                        },
+                                      ),
+                                      if (commentAudio != null)
+                                        IconButton(
+                                          icon: Icon(
+                                            isPlayingMap[index]!
+                                                ? Icons.pause_circle
+                                                : Icons.play_circle,
+                                            size: 30,
+                                            color: isPlayingMap[index]!
+                                                ? Colors.red
+                                                : Colors.green,
+                                          ),
+                                          onPressed: () {
+                                            if (isPlayingMap[index]!) {
+                                              _player!.stopPlayer();
+                                              setState(() {
+                                                isPlayingMap[index] = false;
+                                              });
+                                            } else {
+                                              _playAudio(commentAudio);
+                                              setState(() {
+                                                isPlayingMap[index] = true;
+                                              });
+                                            }
+                                          },
+                                        ),
+                                      if (isViewed)
+                                        Icon(Icons.check_circle_outline, color: Colors.green, size: 30)
+                                      else
+                                        Icon(Icons.check_circle_outline, color: Colors.grey, size: 30),
+                                    ],
                                   ),
+                                  subtitle: Text(
+                                    'UserName: ${commentUserName ?? "N/A"}\nDate: $commentdate',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.grey[600],
+                                    ),
+                                  ),
+                                  tileColor: Colors.blue[50],
                                 ),
-                              );
-                            },
-                          ),
+                              ),
+                            );
+                          },
                         ),
                       ),
-                  ],
+                   ],
                 ),
               ),
             ),
@@ -957,20 +1176,92 @@ class _TasksScreenState extends State<TasksScreen> {
           ),
         ),
       ],
-      titleHeight: 90,
+      titleHeight: 85,
+      additionalTitleContent: Column(
+        children: [
+          Text("TaskTitle: $taskTitle", style: TextStyle(fontSize: 18, color: Colors.white)),
+        ],
+      ),
+    );
+  }
+  Future<void> _stopAudio(String url) async {
+    await _player!.stopPlayer();
+    setState(() {
+      isPlayingMap[url] = false;
+    });
+    positionTimer?.cancel();
+  }
+  void _showFullComment(BuildContext context, String comment) {
+    showCustomAlertDialog(
+      context,
+      title: 'Full Comment',
+      content: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(15.0),
+          child: Text(comment),
+        ),
+      ),
+      actions: <Widget>[
+        TextButton(
+          child: Text('Close'),
+          onPressed: () async {
+            Navigator.of(context).pop();
+          },
+        ),
+      ],
     );
   }
 
+  Future<void> _viewTask(int taskCmmntId) async {
+    print(taskCmmntId);
+    final response = await new ApiService().request(
+        method: 'post',
+        endpoint: 'tasks/ViewComment',
+        tokenRequired: true,
+        body: {
+          'updateFlag': 'true',
+          'taskCmmntId': taskCmmntId.toString(),
+        },
+        isMultipart: true
+    );
+
+    if (response['statusCode'] == 200) {
+      // String message = response['message'] ?? 'View Status updated successfully';
+      // showToast(msg: message, backgroundColor: Colors.green);
+      fetchTasks();
+    } else {
+      String message = response['message'] ?? 'Failed to update status';
+      showToast(msg: message);
+    }
+  }
+
   List<Map<String, dynamic>> getFilteredData() {
-    return tasks.where((project) {
-      bool matchesprojectName = true;
-      if (selectedProjectName != null && selectedProjectName!.isNotEmpty) {
-        matchesprojectName = project['projectName'] == selectedProjectName;
+    if (selectedStages.values.every((value) => !value)) {
+      return tasks.where((task) => task['taskStatus'] == 'open').toList();
+    }
+    return tasks.where((task) {
+      bool matchesStage = selectedStages[task['taskStatus']] ?? false;
+      bool matchesDate = true;
+
+      if (fromDate != null && toDate != null) {
+        DateTime workingDate = _parseDate(task['taskDueDate']);
+        matchesDate = (workingDate.isAtSameMomentAs(fromDate!) ||
+            workingDate.isAfter(fromDate!)) &&
+            (workingDate.isAtSameMomentAs(toDate!) ||
+                workingDate.isBefore(toDate!));
       }
-      return matchesprojectName;
+      return matchesStage && matchesDate;
     }).toList();
   }
 
+  DateTime _parseDate(String dateStr) {
+    try {
+      return DateFormat('dd-MM-yyyy').parse(dateStr);
+    } catch (e) {
+      print("Error parsing date: $e");
+      return DateTime(2000);
+    }
+  }
 
   Future<void> _updateTaskUser(int taskId) async {
     final response = await new ApiService().request(
@@ -981,7 +1272,9 @@ class _TasksScreenState extends State<TasksScreen> {
         'taskId': taskId,
         'taskStatus': selectedStatus,
         'updateFlag': true,
+        'taskUpdatedBy': userId,
       },
+        isMultipart: true
     );
     if (response['statusCode'] == 200) {
       showToast(msg: response['message'] ?? 'Task updated successfully',
@@ -992,7 +1285,6 @@ class _TasksScreenState extends State<TasksScreen> {
       showToast(msg: response['message'] ?? 'Failed to update task');
     }
   }
-
 
   Future<void> _showEditTaskUser(int taskId) async {
     Map<String, dynamic> taskToEdit = tasks.firstWhere((
@@ -1022,7 +1314,6 @@ class _TasksScreenState extends State<TasksScreen> {
                       });
                     },
                     labelText: 'Select Status',
-
                   ),
                 ],
               ),
@@ -1043,13 +1334,101 @@ class _TasksScreenState extends State<TasksScreen> {
           ),
         ],
         titleHeight: 65,
-        isFullScreen: false
+        isFullScreen: false,
     );
   }
 
+  void _showFullDescription(String taskDescription,  BuildContext context) {
+    showCustomAlertDialog(
+      context,
+      title: 'Working Description',
+      content: Padding(
+        padding: const EdgeInsets.only(left:20,right: 20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(height: 20,),
+            Container(
+              child: SingleChildScrollView(
+                child: Text(
+                  "$taskDescription",
+                  style: TextStyle(fontSize: 18),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () {
+            Navigator.pop(context);
+          },
+          child: Text('Close'),
+        ),
+      ],
+      titleFontSize: 27.0,
+      isFullScreen: true,
+    );
+  }
+
+  void _showDatePicker() {
+    showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2025,DateTime.february),
+      lastDate: DateTime(2025,DateTime.december),
+      initialDateRange: fromDate != null && toDate != null
+          ? DateTimeRange(start: fromDate!, end: toDate!)
+          : null,
+    ).then((pickedDateRange) {
+      if (pickedDateRange != null) {
+        setState(() {
+          fromDate = pickedDateRange.start;
+          toDate = pickedDateRange.end;
+        });
+      }
+    });
+  }
+
+
+  void _showImageDialog(String? imageUrl) {
+    if (imageUrl == null || imageUrl.isEmpty) {
+      showToast(msg: "No image available", backgroundColor: Colors.red);
+      return;
+    }
+    showCustomAlertDialog(
+      context,
+      title: 'Task Image',
+      content: Padding(
+        padding: const EdgeInsets.only(top: 30.0),
+        child: InteractiveViewer(
+          panEnabled: true,
+          minScale: 0.5,
+          maxScale: 6.0,
+          child: Image.network(
+            imageUrl,
+            fit: BoxFit.contain,
+            errorBuilder: (context, error, stackTrace) =>
+                Text("Failed to load image."),
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text("Close"),
+        )
+      ],
+      titleHeight: 60,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
+    List<DropdownItem<String>> stageItems = taskStages
+        .map((stage) => DropdownItem(label: stage, value: stage))
+        .toList();
     return Scaffold(
       appBar: CustomAppBar(
         title: 'Tasks',
@@ -1060,201 +1439,252 @@ class _TasksScreenState extends State<TasksScreen> {
         child: SingleChildScrollView(
           child: Padding(
             padding: const EdgeInsets.all(8.0),
-            child: Column(
-              children: [
-                SizedBox(height: 20),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    Autocomplete<String>(
-                      optionsBuilder: (TextEditingValue textEditingValue) {
-                        return projects
-                            .where((user) => user['projectName']!
-                            .toLowerCase()
-                            .contains(textEditingValue.text.toLowerCase()))
-                            .map((user) => user['projectName'] as String)
-                            .toList();
-                      },
-                      onSelected: (String projectName) {
-                        setState(() {
-                          selectedProjectName = projectName;
-                        });
-                        fetchTasks();
-                      },
-                      fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
-                        return Container(
-                          width: 290,
-                          child: TextField(
-                            controller: controller,
-                            focusNode: focusNode,
-                            decoration: InputDecoration(
-                              labelText: 'Select Project',
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              prefixIcon: Icon(Icons.note_alt_rounded),
-                            ),
-                            onChanged: (value) {
-                              if (value.isEmpty) {
-                                setState(() {
-                                  selectedProjectName = null;
-                                });
-                                fetchTasks();
-                              }
-                            },
-                          ),
-                        );
-                      },
-                    ),
-                    IconButton(
-                      icon: Icon(
-                          Icons.add_circle, color: Colors.blue, size: 30),
-                      onPressed: _showAddTaskModal,
-                    ),
-                  ],
-                ),
-                SizedBox(height: 20),
-                if (isLoading)
-                  Center(child: CircularProgressIndicator())
-                else
-                  if (tasks.isEmpty)
-                    NoDataFoundScreen()
+            child: Form(
+              key: _formKey,
+              child: Column(
+                children: [
+                  SizedBox(height: 20),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      MultiSelectDropdown(
+                        width: 240,
+                        items: stageItems,
+                        controller: controller,
+                        hintText: 'Select Task Stage',
+                        onSelectionChange: (selectedItems) {
+                          setState(() {
+                            selectedStages = {
+                              for (var stage in taskStages)
+                                stage: selectedItems.contains(stage),
+                            };
+                          });
+                          fetchTasks();
+                        },
+                      ),
+                      IconButton(
+                        icon: Icon(
+                            Icons.filter_alt_outlined, color: Colors.blue, size: 30),
+                        onPressed: _showDatePicker,
+                      ),
+                      IconButton(
+                        icon: Icon(
+                            Icons.add_circle, color: Colors.blue, size: 30),
+                        onPressed: _showAddTaskModal,
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 20),
+                  if (isLoading)
+                    Center(child: CircularProgressIndicator())
                   else
-                    if (getFilteredData().isEmpty)
+                    if (tasks.isEmpty)
                       NoDataFoundScreen()
                     else
-                      Column(
-                        children: getFilteredData().map((task) {
-                          String allComments = (task['comments'] as List<
-                              dynamic>?) == null ||
-                              (task['comments'] as List<dynamic>).isEmpty
-                              ? 'No comments'
-                              : "Click Icon ";
+                      if (getFilteredData().isEmpty)
+                        NoDataFoundScreen()
+                      else
+                        Column(
+                          children: getFilteredData().map((task) {
+                            String allComments = (task['comments'] as List<
+                                dynamic>?) == null ||
+                                (task['comments'] as List<dynamic>).isEmpty
+                                ? 'No comments'
+                                : "Click Icon ";
 
-                          Map<String, dynamic> taskFields = {
-                            'ProjectName': task['projectName'],
-                            'Title': task['taskTitle'],
-                            'Description': task['taskDescription'],
-                            'AssignedTo': task['taskAssignedToName'],
-                            'Comment': allComments,
-                            'Priority': task['taskPriority'],
-                            'Status': task['taskStatus'],
-                            'DueDate': task['taskDueDate'],
-                            'CreatedBy': task['taskCreatedByName'],
-                            'UpdatedBy': task['taskUpdatedByName'],
-                          };
-                          bool canComment = task['taskStatus'] == 'open' ||
-                              task['taskStatus'] == 'in-progress';
-                          DateTime? dueDate;
-                          if (task['taskDueDate'] != null) {
-                            try {
-                              dueDate = DateFormat('dd-MM-yyyy').parse(task['taskDueDate']);
-                            } catch (e) {
-                              print('Error parsing due date: ${task['taskDueDate']} - $e');
-                            }
-                          }
-                          bool isOverdue = dueDate != null && dueDate.isBefore(DateTime.now());
-                          return buildUserCard(
-                            userFields: {
-                              'ProjectName': task['projectName'],
-                              '': task[''],
+                            Map<String, dynamic> taskFields = {
+                              'Project': task['projectName'],
                               'Title': task['taskTitle'],
                               'Description': task['taskDescription'],
                               'AssignedTo': task['taskAssignedToName'],
-                              'DueDate': task['taskDueDate'],
+                              'createdAt': task['createdAt'],
                               'Comment': allComments,
-                            },
-                            onEdit: () => _showEditTaskModal(task['taskId']),
-                            onDelete: () => _confirmDeleteTask(task['taskId']),
-                            leadingIcon3: Row(
-                              children: [
-                                if (task['comments'] == null ||
-                                    task['comments'].isEmpty)
-                                  Container()
-                                else
-                                  IconButton(
-                                    icon: Icon(
-                                        Icons.comment, color: Colors.orange,
-                                        size: 25),
-                                    onPressed: () =>
-                                        _showCommentsModal(task['taskId']),
-                                  ),
-                              ],
-                            ),
-                            trailingIcon: Row(
-                              mainAxisAlignment: MainAxisAlignment.end,
-                              children: [
-                                if(roleName == "User")
-                                IconButton(onPressed: () => _showEditTaskUser(task['taskId']), icon: Icon(Icons.edit,color: Colors.green,)),
-                                if (!(taskExpansionStates[task['taskId']
-                                    .toString()] ?? false))
-                                  IconButton(
-                                    onPressed: () {
-                                      setState(() {
-                                        taskExpansionStates[task['taskId']
-                                            .toString()] = true;
-                                      });
-                                    },
-                                    icon: Icon(Icons.arrow_downward),
-                                  ),
-                                if ((taskExpansionStates[task['taskId']
-                                    .toString()] ?? false))
-                                  IconButton(
-                                    onPressed: () {
-                                      setState(() {
-                                        taskExpansionStates[task['taskId']
-                                            .toString()] = false;
-                                      });
-                                    },
-                                    icon: Icon(Icons.arrow_upward),
+                              'Priority': task['taskPriority'],
+                              'Status': task['taskStatus'],
+                              'CreatedAt': task['createdAt'],
+                              'CompletedAt': task['taskCompletedAt']  ,
+                              'DueDate': task['taskDueDate'],
+                              'CreatedBy': task['taskCreatedByName'],
+                              'UpdatedBy': task['taskUpdatedByName'],
+                            };
+                            bool canComment = task['taskStatus'] == 'open' ||
+                                task['taskStatus'] == 'in-progress';
+                            DateTime? dueDate;
+                            if (task['taskDueDate'] != null) {
+                              try {
+                                dueDate = DateFormat('dd-MM-yyyy').parse(task['taskDueDate']);
+                              } catch (e) {
+                                print('Error parsing due date: ${task['taskDueDate']} - $e');
+                              }
+                            }
+                            String shortenedTaskDesc = task['taskDescription']
+                                .length > 10
+                                ? task['taskDescription'].substring(0, 10) + '...'
+                                : task['taskDescription'];
+                            bool isOverdue = dueDate != null && dueDate.isBefore(DateTime.now());
+                            bool hasAudioFile = task['audioFilePath'] != null && task['audioFilePath'] != '';
 
-                                  ),
-                                if (canComment)
-                                  IconButton(
-                                    onPressed: () =>
-                                        _showAddCommentModal(task['taskId']),
-                                    icon: Icon(
-                                        Icons.comment, color: Colors.orange),
-                                  ),
-                                if(roleName == "Admin")
-                                  IconButton(
-                                    onPressed: () =>
-                                        _showEditTaskModal(task['taskId']),
-                                    icon: Icon(Icons.edit, color: Colors.green),
-                                  ),
-                                if(roleName == "Admin")
+                            return buildUserCard(
+                              userFields: {
+                                'ProjectName': task['projectName'],
+                                '': task[''],
+                                'Title': task['taskTitle'],
+                                'Description': shortenedTaskDesc,
+                                'DueDate': task['taskDueDate'],
+                                'TaskAssign': 'To:${task['taskAssignedToName']}\nBy:${task['taskCreatedByName']}',
+                                'CreatedAt': task['createdAt'],
+                                'CompletionAt': '${task['taskCompletedAt']}\nHours:${task['taskHour']}',
+                                'Comment': allComments,
+                                },
+                              onEdit: () => _showEditTaskModal(task['taskId']),
+                              showView: task['taskDescription'].toString().trim().isNotEmpty,                              onView: () {
+                                _showFullDescription(task['taskDescription'], context);
+                              },
+                              onDelete: () => _confirmDeleteTask(task['taskId']),
+                              leadingIcon3: Row(
+                                children: [
+                                  if (task['comments'] == null ||
+                                      task['comments'].isEmpty)
+                                    Container()
+                                  else
+                                    Positioned(
+                                      right: 50,
+                                      child: Stack(
+                                        children: [
+                                          IconButton(
+                                            icon: Icon(Icons.comment, size: 25, color: Colors.orange),
+                                            onPressed: () => _showCommentsModal(task['taskId']),
+                                          ),
+                                          Positioned(
+                                            top: 0,
+                                            right: 0,
+                                            child: Container(
+                                              padding: EdgeInsets.all(6),
+                                              decoration: BoxDecoration(
+                                                color: Colors.white,
+                                                shape: BoxShape.circle,
+                                              ),
+                                              constraints: BoxConstraints(
+                                                minWidth: 19,
+                                                minHeight: 19,
+                                              ),
+                                              child: Center(
+                                                child: Text(
+                                                  '${task['viewCount']}',
+                                                  style: TextStyle(
+                                                    color: Colors.black,
+                                                    fontSize: 12,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                  textAlign: TextAlign.center,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    )
+                                ],
+                              ),
+                              trailingIcon: Row(
+                                mainAxisAlignment: MainAxisAlignment.end,
+                                children: [
+                                  if (hasAudioFile)
+                                    IconButton(
+                                      icon: Icon(
+                                        size: 25,
+                                        isPlayingMap[task['audioFilePath']] == true
+                                            ? Icons.pause_circle
+                                            : Icons.play_circle,
+                                        color: isPlayingMap[task['audioFilePath']] == true
+                                            ? Colors.red
+                                            : Colors.green,
+                                      ),
+                                      onPressed: () {
+                                        if (isPlayingMap[task['audioFilePath']] == true) {
+                                          _stopAudio(task['audioFilePath']);
+                                        } else {
+                                          _playAudio(task['audioFilePath']);
+                                        }
+                                      },
+                                    ),
 
-                                  IconButton(
-                                  onPressed: () =>
-                                      _confirmDeleteTask(task['taskId']),
-                                  icon: Icon(Icons.delete, color: Colors.red),
-                                ),
-                              ],
-                            ),
-                            additionalContent: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                if (taskExpansionStates[task['taskId']
-                                    .toString()] ?? false)
-                                  buildUserCard(
-                                    userFields: {
-                                      'Priority': task['taskPriority'],
-                                      '': task[''],
-                                      'Status': task['taskStatus'],
-                                      'CreatedBy': task['taskCreatedByName'],
-                                      'UpdatedBy': task['taskUpdatedByName'],
-                                    },
-                                    backgroundColor: isOverdue ? Colors.red.shade400 : null,
+                                  if (task['imageFilePath'] != null && task['imageFilePath'].toString().isNotEmpty)
+                                    IconButton(
+                                      icon: Icon(Icons.image, color: Colors.blue),
+                                      onPressed: () => _showImageDialog(task['imageFilePath']),
+                                      tooltip: 'View Task Image',
+                                    ),
 
-                                  ),
-                              ],
-                            ),
-                            backgroundColor: isOverdue ? Colors.red.shade400 : null,
-
-                          );
-                        }).toList(),
-                      )
-              ],
+                                  if(roleName == "User")
+                                    IconButton(onPressed: () => _showEditTaskUser(task['taskId']),
+                                        icon: Icon(Icons.edit,color: Colors.green,)),
+                                  if (!(taskExpansionStates[task['taskId']
+                                      .toString()] ?? false))
+                                    IconButton(
+                                      onPressed: () {
+                                        setState(() {
+                                          taskExpansionStates[task['taskId']
+                                              .toString()] = true;
+                                        });
+                                      },
+                                      icon: Icon(Icons.arrow_downward),
+                                    ),
+                                  if ((taskExpansionStates[task['taskId']
+                                      .toString()] ?? false))
+                                    IconButton(
+                                      onPressed: () {
+                                        setState(() {
+                                          taskExpansionStates[task['taskId']
+                                              .toString()] = false;
+                                        });
+                                      },
+                                      icon: Icon(Icons.arrow_upward),
+                                    ),
+                                  if (canComment)
+                                    IconButton(
+                                      onPressed: () =>
+                                          _showAddCommentModal(task['taskId']),
+                                      icon: Icon(
+                                          Icons.comment, color: Colors.orange),
+                                    ),
+                                  if(roleName == "Admin")
+                                    IconButton(
+                                      onPressed: () =>
+                                          _showEditTaskModal(task['taskId']),
+                                      icon: Icon(Icons.edit, color: Colors.green),
+                                    ),
+                                  if(roleName == "Admin")
+                                    IconButton(
+                                      onPressed: () =>
+                                          _confirmDeleteTask(task['taskId']),
+                                      icon: Icon(Icons.delete, color: Colors.red),
+                                    ),
+                                ],
+                              ),
+                              additionalContent: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  if (taskExpansionStates[task['taskId']
+                                      .toString()] ?? false)
+                                    buildUserCard(
+                                      userFields: {
+                                        'Priority': task['taskPriority'],
+                                        '': task[''],
+                                        'Status': task['taskStatus'],
+                                        'CreatedBy': task['taskCreatedByName'],
+                                        'UpdatedBy': task['taskUpdatedByName'],
+                                      },
+                                      backgroundColor: isOverdue ? Colors.red.shade400 : null,
+                                    ),
+                                 ],
+                              ),
+                              backgroundColor: isOverdue ? Colors.red.shade400 : null,
+                            );
+                          }).toList(),
+                        )
+                   ],
+              ),
             ),
           ),
         ),

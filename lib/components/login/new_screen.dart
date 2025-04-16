@@ -7,8 +7,6 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProviderStateMixin {
-  late AnimationController _animationController;
-  late Animation<Offset> _animation;
   List<Map<String, dynamic>> users = [];
   bool isLoading = false;
   String userName = "";
@@ -16,6 +14,9 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
   int totalViewCount = 0;
   String? roleName;
   Map<String, int> stageCounts = {};
+  Map<String, int> taskStatusCounts = {};
+  int totalTasks = 0;
+  List<Map<String, dynamic>> totalWorkingDaysList = [];
 
   @override
   void initState() {
@@ -23,22 +24,10 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
     _loadUserData();
     _fetchLeaveData();
     _fetchWorkingData();
+    fetchWorkingDays();
     _fetchProjectData();
+_fetchTask();
 
-    _animationController = AnimationController(
-      vsync: this,
-      duration: Duration(milliseconds: 500),
-    );
-
-    _animation = Tween<Offset>(
-      begin: Offset.zero,
-      end: Offset(0.1, 0),
-    ).animate(
-      CurvedAnimation(
-        parent: _animationController,
-        curve: Curves.elasticOut,
-      ),
-    );
   }
   Future<void> _loadUserData() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -51,17 +40,9 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
 
   @override
   void dispose() {
-    _animationController.dispose();
     super.dispose();
   }
 
-  void _startShaking() {
-    if (totalPending > 0 && totalViewCount>0) {
-      _animationController.repeat(reverse: true);
-    } else {
-      _animationController.stop();
-    }
-  }
   void _navigateAndRefreshWorking() async {
     await Navigator.push(
       context,
@@ -75,6 +56,14 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
       MaterialPageRoute(builder: (context) => LeavesScreen()),
     );
     await _fetchLeaveData();
+  }
+
+  void _navigateAndRefreshTask() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => TasksScreen()),
+    );
+    await _fetchTask();
   }
   Future<void> _fetchLeaveData() async {
     setState(() {
@@ -91,18 +80,81 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
         totalPending = response['apiResponse']['totalPending'];
         isLoading = false;
       });
-      _startShaking();
     } else {
       setState(() {
         isLoading = false;
       });
     }
   }
+
   Future<void> _fetchData() async {
     await _fetchWorkingData();
     await _fetchLeaveData();
     await _fetchProjectData();
+    await fetchWorkingDays;
+    if (taskStatusCounts['open'] != null && taskStatusCounts['open']! >= 0) {
+      showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('Total Task Pending',style: TextStyle(fontWeight: FontWeight.w900),),
+                Icon(Icons.pending_actions,size: 25,color: Colors.orange,)
+              ],
+            ),
+            content: Text('There are ${taskStatusCounts['open']} open tasks that need attention.'),
+            actions: <Widget>[
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                },
+                child: Text('Close'),
+              ),
+            ],
+          );
+        },
+      );
+    }
   }
+
+  Future<void> fetchWorkingDays() async {
+    setState(() {
+      isLoading = true;
+    });
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    int? userId = prefs.getInt('user_Id');
+
+    if (userId != null) {
+      final response = await new ApiService().request(
+          method: 'get',
+          endpoint: 'Working/?userId=$userId',
+          tokenRequired: true
+      );
+      if (response['statusCode'] == 200 && response['apiResponse'] != null) {
+        setState(() {
+          totalWorkingDaysList = List<Map<String, dynamic>>.from(
+            response['apiResponse']['totalWorkingDaysList'].map((data) => {
+              'txnId': data['txnId']?? 0,
+              'totalDaysInMonth': data['totalDaysInMonth'],
+              'totalWorkingDays': data['totalWorkingDays'],
+            }),
+          );
+        });
+      } else {
+        showToast(msg: response['message'] ?? 'Failed to load working days');
+      }
+    } else {
+      showToast(msg: 'User ID not found in SharedPreferences');
+    }
+
+    setState(() {
+      isLoading = false;
+    });
+  }
+
+
   Future<void> _fetchWorkingData() async {
     final apiService = ApiService();
     final response = await apiService.request(
@@ -114,7 +166,6 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
       setState(() {
         totalViewCount = response['apiResponse']['viewsCount'];
       });
-      _startShaking();
     } else {
       setState(() {
         totalViewCount = 0;
@@ -148,11 +199,50 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
       setState(() {
         isLoading = false;
       });
-      showToast(msg: "Failed to fetch project data.");
+      showToast(msg: response['message'] ?? 'Failed');
     }
   }
 
-  Widget buildCard(String title, IconData icon, Color color, {Widget? destinationScreen, String? extraText}) {
+  Future<void> _fetchTask() async {
+    setState(() {
+      isLoading = true;
+    });
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    int? userId = prefs.getInt('user_Id');
+    roleName = prefs.getString('role_Name');
+    String endpoint = 'tasks/';
+    if (roleName == 'Admin') {
+      endpoint = 'tasks/';
+    } else if (userId != null) {
+      endpoint = 'tasks/?userId=$userId';
+    }
+    final response = await new ApiService().request(
+      method: 'GET',
+      endpoint: endpoint,
+      tokenRequired: true,
+    );
+    if (response['statusCode'] == 200) {
+      setState(() {
+        taskStatusCounts = Map<String, int>.from(response['apiResponse']['taskStatusCounts']);
+        totalTasks = response['apiResponse']['totalTasks'];
+        isLoading = false;
+        print(taskStatusCounts);
+      });
+    } else {
+      setState(() {
+        isLoading = false;
+      });
+      showToast(msg: response['message'] ?? 'Failed');
+    }
+  }
+  Widget buildCard(
+      String title,
+      IconData icon,
+      Color color,
+      {Widget? destinationScreen,
+        String? extraText,
+        Widget? content,
+        double fontSize = 16}) {
     return GestureDetector(
       onTap: () {
         if (destinationScreen != null) {
@@ -164,36 +254,38 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
           showToast(msg: "No screen provided.");
         }
       },
-      child: Container(
-        child: Card(
-          elevation: 5,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          color: color,
-          child: Padding(
-            padding: const EdgeInsets.all(12.0),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(icon, size: 37, color: Colors.white),
-                SizedBox(height: 20),
-                Text(
-                  title,
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
-                ),
-                if (extraText != null)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 4.0),
-                    child: Text(
-                      extraText,
-                      style: TextStyle(fontSize: 16, color: Colors.white,fontWeight: FontWeight.bold),
-                      textAlign: TextAlign.center,
-                    ),
+        child: Container(
+          width: 200,
+          height: 107,
+          child: Card(
+            elevation: 5,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            color: color,
+            child: Padding(
+              padding: const EdgeInsets.all(12.0),
+              child: Column(
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle( fontSize: fontSize, fontWeight: FontWeight.bold, color: Colors.white),
                   ),
-              ],
+                  SizedBox(height: 5),
+                  if (extraText != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4.0),
+                      child: Text(
+                        extraText,
+                        style: TextStyle(fontSize: 16, color: Colors.white,fontWeight: FontWeight.bold),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  if (content != null) content,
+                ],
+              ),
             ),
           ),
         ),
-      ),
+
     );
   }
 
@@ -315,9 +407,6 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
       showToast(msg: 'Failed to fetch absentees');
     }
   }
-
-
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -333,9 +422,8 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
             Stack(
               children: [
                 ClipPath(
-                  clipper: BackgroundClipper(),
                   child: Container(
-                    height: 80,
+                    height: 35,
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         colors: [primaryColor, primaryColor.withOpacity(0.8)],
@@ -346,86 +434,54 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
                   ),
                 ),
                 Positioned(
-                  left: 0,
-                  right: 0,
-                  child: Column(
+                  right: 15,
+                  child: Stack(
                     children: [
-                      Image.asset(
-                        'images/Logo.png',
-                        width: 90,
-                        height: 90,
+                      IconButton(
+                        icon: Icon(Icons.pending_actions, size: 25, color: Colors.white),
+                        onPressed: () {
+                          if (taskStatusCounts['open'] != null) {
+                            _navigateAndRefreshTask();
+                          } else {
+                            showToast(msg: "No 'Open' tasks available.");
+                          }
+                        },
                       ),
+                      if (taskStatusCounts['open'] != null)
+                        Positioned(
+                          top: 0,
+                          right: 0,
+                          child: Container(
+                            padding: EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: Colors.red,
+                              shape: BoxShape.circle,
+                            ),
+                            constraints: BoxConstraints(minWidth: 21, minHeight: 21),
+                            child: Center(
+                              child: Text(
+                                '${taskStatusCounts['open']}',
+                                style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                          ),
+                        ),
                     ],
                   ),
                 ),
                 if (roleName == "Admin")
                   Positioned(
-                    right: 10,
+                    right: 55,
                     child: Stack(
                       children: [
-                        SlideTransition(
-                          position: _animation,
-                          child: IconButton(
-                            icon: Icon(Icons.notifications_rounded, size: 25, color: Colors.white),
-                            onPressed: () {
-                              if (totalPending > 0) {
-                                _navigateAndRefreshLeaves();
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(builder: (context) => LeavesScreen()),
-                                );
-                              } else {
-                                showToast(msg: "No Pending Leaves found");
-                              }
-                            },
-                          ),
-                        ),
-                        if (totalPending > -1)
-                          Positioned(
-                            top: 0,
-                            right: 0,
-                            child: Container(
-                              padding: EdgeInsets.all(6),
-                              decoration: BoxDecoration(
-                                color: Colors.red,
-                                shape: BoxShape.circle,
-                              ),
-                              constraints: BoxConstraints(
-                                minWidth: 21,
-                                minHeight: 21,
-                              ),
-                              child: Center(
-                                child: Text(
-                                  '$totalPending',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                  textAlign: TextAlign.center,
-                                ),
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                if (roleName == "Admin")
-                  Positioned(
-                    right: 50,
-                    child: Stack(
-                      children: [
-                        SlideTransition(
-                          position: _animation,
-                          child: IconButton(
-                            icon: Icon(Icons.task, size: 25, color: Colors.white),
-                            onPressed: () {
-                              if(totalViewCount>0) {
-                                print(totalViewCount);
-                                _navigateAndRefreshWorking();
-                              }
-                            },
-                          ),
+                        IconButton(
+                          icon: Icon(Icons.task, size: 25, color: Colors.white),
+                          onPressed: () {
+                            if (totalViewCount > 0) {
+                              _navigateAndRefreshWorking();
+                            }
+                          },
                         ),
                         if (totalViewCount > -1)
                           Positioned(
@@ -437,56 +493,266 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
                                 color: Colors.blue,
                                 shape: BoxShape.circle,
                               ),
-                              constraints: BoxConstraints(
-                                minWidth: 19,
-                                minHeight: 19,
-                              ),
+                              constraints: BoxConstraints(minWidth: 19, minHeight: 19),
                               child: Center(
                                 child: Text(
                                   '$totalViewCount',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
-                                  ),
+                                  style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
                                   textAlign: TextAlign.center,
                                 ),
                               ),
                             ),
                           ),
-
                       ],
                     ),
                   ),
                 if (roleName == "Admin")
                   Positioned(
                     right: 85,
+                    child: IconButton(
+                      icon: Icon(Icons.person, size: 25, color: Colors.white),
+                      onPressed: () async {
+                        await _fetchTodaysAbsents();
+                      },
+                    ),
+                  ),
+                if (roleName == "Admin")
+                  Positioned(
+                    right: 125,
                     child: Stack(
                       children: [
                         IconButton(
-                          icon: Icon(Icons.person, size: 25, color: Colors.white),
-                          onPressed: () async {
-                            await _fetchTodaysAbsents();
+                          icon: Icon(Icons.notifications_rounded, size: 25, color: Colors.white),
+                          onPressed: () {
+                            if (totalPending > 0) {
+                              _navigateAndRefreshLeaves();
+                            } else {
+                              showToast(msg: "No Pending Leaves found");
+                            }
                           },
                         ),
+                        if (totalPending > -1)
+                          Positioned(
+                            top: 0,
+                            right: 0,
+                            child: Container(
+                              padding: EdgeInsets.all(6),
+                              decoration: BoxDecoration(
+                                color: Colors.red,
+                                shape: BoxShape.circle,
+                              ),
+                              constraints: BoxConstraints(minWidth: 21, minHeight: 21),
+                              child: Center(
+                                child: Text(
+                                  '$totalPending',
+                                  style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                            ),
+                          ),
                       ],
                     ),
                   ),
               ],
             ),
             Expanded(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: GridView.count(
-                  crossAxisCount: 2,
-                  children: [
-                    buildCard("WORKING DAYS", Icons.calendar_month, Colors.blue[300]!, destinationScreen: Workingdayslist()),
-                    buildCard("PROJECT STAGE", Icons.check_circle, Colors.green[300]!, destinationScreen: ProjectsScreen(),extraText:
-                    'In Progress: ${stageCounts['In Progress']}\nPending: ${stageCounts['Pending']}'),
-                    buildCard("Card 3", Icons.check_circle, Colors.deepPurple[300]!),
-                    buildCard("Card 4", Icons.check_circle, Colors.pink[300]!),
-                  ],
-                ),
+              child: Stack(
+                children: [
+                  Container(
+                    decoration: BoxDecoration(
+                      image: DecorationImage(
+                        image: AssetImage("images/dashboard.jpg"),
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 585.5),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        image: DecorationImage(
+                          image: AssetImage("images/bg.jpg"),
+                        ),
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(child: buildCard(
+                              "WORKING DAYS",
+                              fontSize: 17,
+                              Icons.calendar_month,
+                              Colors.green[300]!,
+                              destinationScreen: Workingdayslist(),
+                              content: Padding(
+                                padding: const EdgeInsets.only(top: 0.0),
+                                child: Column(
+                                  children: [
+                                    if (totalWorkingDaysList.isNotEmpty)
+                                      for (var workingData in totalWorkingDaysList)
+                                        Padding(
+                                          padding: const EdgeInsets.symmetric(vertical: 5.0),
+                                          child: Row(
+                                            mainAxisAlignment: MainAxisAlignment.center,
+                                            children: [
+                                              Text(
+                                                '${workingData['totalWorkingDays']} / ${workingData['totalDaysInMonth']}',
+                                                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                  ],
+                                ),
+                              ),
+                            )),
+                            Expanded(child: buildCard(
+                              "PROJECT STAGE",
+                              Icons.check_circle,
+                              Colors.grey[400]!,
+                              destinationScreen: ProjectsScreen(),
+                              extraText: null,
+                              content: Padding(
+                                padding: const EdgeInsets.only(top: 0.0),
+                                child: Column(
+                                  children: [
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            Icon(Icons.hourglass_bottom_outlined, color: Colors.yellow, size: 20),
+                                            SizedBox(height: 8),
+                                            Text(
+                                              '${stageCounts['Pending'] ?? 0}',
+                                              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
+                                            ),
+                                          ],
+                                        ),
+                                        Row(
+                                          children: [
+                                            Icon(Icons.change_circle_rounded, color: Colors.blue, size: 20),
+                                            SizedBox(height: 8),
+                                            Text(
+                                              ' ${stageCounts['In Progress'] ?? 0}',
+                                              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                    SizedBox(height: 5,),
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            Icon(Icons.pause_circle, color: Colors.deepOrangeAccent, size: 20),
+                                            SizedBox(height: 8),
+                                            Text(
+                                              ' ${stageCounts['On Hold'] ?? 0}',
+                                              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
+                                            ),
+                                          ],
+                                        ),
+                                        Row(
+                                          children: [
+                                            Icon(Icons.cancel, color: Colors.red, size: 20),
+                                            SizedBox(height: 8),
+                                            Text(
+                                              '${stageCounts['Cancelled'] ?? 0}',
+                                              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            )),
+                          ],
+                        ),
+                        Row(
+                          children: [
+                            Expanded(child: buildCard(
+                              "TOTAL TASKS",
+                              Icons.task,
+                              Colors.blue[200]!,
+                              destinationScreen: TasksScreen(),
+                              content: Padding(
+                                padding: const EdgeInsets.only(top: 0.0),
+                                child: Column(
+                                  children: [
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            Icon(Icons.hourglass_bottom_outlined, color: Colors.yellow, size: 20),
+                                            SizedBox(height: 8),
+                                            Text(
+                                              '${taskStatusCounts['open'] ?? 0}',
+                                              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
+                                            ),
+                                          ],
+                                        ),
+                                        Row(
+                                          children: [
+                                            Icon(Icons.change_circle_rounded, color: Colors.blue, size: 20),
+                                            SizedBox(height: 8),
+                                            Text(
+                                              ' ${taskStatusCounts['in-Progress'] ?? 0}',
+                                              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                    SizedBox(height: 7),
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            Icon(Icons.check_circle, color: Colors.green, size: 20),
+                                            SizedBox(height: 8),
+                                            Text(
+                                              ' ${taskStatusCounts['completed'] ?? 0}',
+                                              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
+                                            ),
+                                          ],
+                                        ),
+                                        Row(
+                                          children: [
+                                            Icon(Icons.cancel, color: Colors.red, size: 20),
+                                            SizedBox(height: 8),
+                                            Text(
+                                              '${taskStatusCounts['Cancelled'] ?? 0}',
+                                              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            )),
+                            Expanded(child: buildCard("Card 4", Icons.check_circle, Colors.pink[300]!)),
+
+                          ],
+                        ),
+                      ],
+                    )
+
+                  ),
+                ],
               ),
             ),
           ],
@@ -494,20 +760,4 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
       ),
     );
   }
-}
-
-class BackgroundClipper extends CustomClipper<Path> {
-  @override
-  Path getClip(Size size) {
-    Path path = Path();
-    path.lineTo(0, size.height - 50);
-    path.quadraticBezierTo(
-        size.width / 2, size.height, size.width, size.height - 50);
-    path.lineTo(size.width, 0);
-    path.close();
-    return path;
-  }
-
-  @override
-  bool shouldReclip(CustomClipper<Path> oldClipper) => false;
 }

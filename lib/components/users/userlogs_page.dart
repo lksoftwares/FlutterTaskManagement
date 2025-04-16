@@ -141,7 +141,7 @@ class _UserlogsPageState extends State<UserlogsPage> {
     showDateRangePicker(
       context: context,
       firstDate: DateTime(2025, DateTime.february),
-      lastDate: DateTime(2025, DateTime.april),
+      lastDate: DateTime(2025, DateTime.december),
       initialDateRange: fromDate != null && toDate != null
           ? DateTimeRange(start: fromDate!, end: toDate!)
           : null,

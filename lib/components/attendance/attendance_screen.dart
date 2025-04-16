@@ -26,6 +26,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   bool hasCheckedOut = false;
   bool attendanceOnHoliday = false;
   bool isAttendanceSectionVisible = false;
+  List<Map<String, dynamic>> attendanceCountPerUser = [];
 
   @override
   void initState() {
@@ -37,6 +38,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     fetchAttendance();
     fetchHoliday();
   }
+
   Future<void> saveAttendanceState() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     await prefs.setBool('hasCheckedIn', hasCheckedIn);
@@ -54,7 +56,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
 
     final response = await new ApiService().request(
         method: 'get',
-        endpoint: 'holidays',
+        endpoint: 'holidays/',
         tokenRequired: true
     );
     print('Response: $response');
@@ -111,8 +113,6 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     });
   }
 
-
-
   Map<dynamic, List<Map<String, dynamic>>> getFilteredData() {
     List<Map<String, dynamic>> filteredAttendance = attendance.where((role) {
       bool matchesDate = true;
@@ -134,11 +134,10 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     return DateformatddMMyyyy.parseDateddMMyyyy(dateStr);
   }
 
-
   void _showDatePicker() {
     showDateRangePicker(
       context: context,
-      firstDate: DateTime(2025, DateTime.february),
+      firstDate: DateTime(2025, DateTime.january),
       lastDate: DateTime(2025, DateTime.december),
       initialDateRange: fromDate != null && toDate != null
           ? DateTimeRange(start: fromDate!, end: toDate!)
@@ -177,7 +176,6 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       print('Location permission not granted');
     }
   }
-
   Future<void> markAttendanceCheckin(String inOutFlag,
       String inLocation) async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -187,7 +185,6 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       setState(() {
         isLoading = true;
       });
-
       final response = await new ApiService().request(
         method: 'post',
         endpoint: 'attendance/MarkAttendnace',
@@ -209,7 +206,6 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
           });
           return;
         }
-
         showToast(
             msg: response['message'] ?? 'Added', backgroundColor: Colors.green);
                 setState(() {
@@ -276,57 +272,116 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     setState(() {
       isLoading = true;
     });
-
     SharedPreferences prefs = await SharedPreferences.getInstance();
     int? userId = prefs.getInt('user_Id');
     String roleName = prefs.getString('role_Name') ?? "";
     String endpoint = 'attendance/';
 
-    if (roleName == 'Admin') {
-      endpoint = 'attendance/';
-    } else if (userId != null) {
-      endpoint = 'attendance/?userId=$userId';
+    if (isFiltering && fromDate != null && toDate != null) {
+      final DateFormat formatter = DateFormat('yyyy-MM-dd');
+      String startDateStr = formatter.format(fromDate!);
+      String endDateStr = formatter.format(toDate!);
+      if (roleName == 'Admin') {
+        endpoint = 'attendance/?startDate=$startDateStr&endDate=$endDateStr';
+      } else if (userId != null) {
+        endpoint = 'attendance/?userId=$userId&startDate=$startDateStr&endDate=$endDateStr';
+      }
+    } else {
+      if (roleName == 'Admin') {
+        endpoint = 'attendance/';
+      } else if (userId != null) {
+        endpoint = 'attendance/?userId=$userId';
+      }
     }
-
     final response = await new ApiService().request(
       method: 'get',
       endpoint: endpoint,
       tokenRequired: true,
     );
 
-    if (response['statusCode'] == 200 && response['apiResponse'] != null) {
-      setState(() {
-        attendance = List<Map<String, dynamic>>.from(
-          response['apiResponse'].map((member) =>
-          {
-            'atTxnId': member['atTxnId'] ?? 0,
-            'inDateTime': member['inDateTime'] ?? "----/----/-------- --:--",
-            'userId': member['userId'] ?? 0,
-            'outDateTime': member['outDateTime'] ?? "----/----/-------- --:--",
-            'userName': member['userName'] ?? 'Unknown user',
-            'inLocation': member['inLocation'] ?? null,
-            'outLocation': member['outLocation'] ?? null,
-            'dailyWorkingHour': member['dailyWorkingHour'] ?? '',
-          }),
-        );
-      });
-    }
-
     setState(() {
       isLoading = false;
     });
+    if (response['statusCode'] == 200) {
+      if (response['apiResponse'] != null) {
+        setState(() {
+          attendance = List<Map<String, dynamic>>.from(
+            response['apiResponse']['attendanceData'].map((member) => {
+              'atTxnId': member['atTxnId'] ?? 0,
+              'inDateTime': member['inDateTime'] ?? "----/----/-------- --:--",
+              'userId': member['userId'] ?? 0,
+              'outDateTime': member['outDateTime'] ?? "----/----/-------- --:--",
+              'userName': member['userName'] ?? 'Unknown user',
+              'inLocation': member['inLocation'] ?? '',
+              'outLocation': member['outLocation'] ?? '',
+              'dailyWorkingHour': member['dailyWorkingHour'] ?? '',
+            }),
+          );
+          attendanceCountPerUser = List<Map<String, dynamic>>.from(
+            response['apiResponse']['attendanceCountPerUser'] ?? [],
+          );
+        });
+      } else {
+        setState(() {
+          attendance = [];
+          attendanceCountPerUser = [];
+        });
+      }
+    } else {
+      showToast(msg: response['message'] ?? 'Failed to fetch attendance');
+    }
   }
-
+  void _showAttendanceCountDialog() {
+    print(attendanceCountPerUser);
+    showCustomAlertDialog(
+      context,
+      title: "Attendance Count",
+      content: SizedBox(
+        width: double.maxFinite,
+        child: attendance.isEmpty
+            ? Padding(
+              padding: const EdgeInsets.only(top: 80.0),
+              child: Center(
+                child: Text(
+              "No data found",
+              style: TextStyle(
+                fontSize: 25,
+                color: Colors.grey,
+              ),
+                        ),
+                      ),
+            )
+            : ListView.builder(
+          shrinkWrap: true,
+          itemCount: attendanceCountPerUser.length,
+          itemBuilder: (context, index) {
+            final user = attendanceCountPerUser[index];
+            return ListTile(
+              title: Text(user['userName']),
+              trailing: Text("${user['attendanceDaysCount']} Days"),
+            );
+          },
+        ),
+      ),
+      actions: [
+        TextButton(
+          child: Text("Close"),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+      ],
+      isFullScreen: true,
+      titleHeight: 60,
+    );
+  }
 
   Widget buildAttendanceCard(String date, String? inTime, String? outTime,
       String inLocation, String outLocation, String dailyWorkingHour,
       String userName) {
     String formattedDate = Dateformat.formatWorkingDate(date);
-    return
-      Container(
-        margin: isFiltering
-            ? const EdgeInsets.symmetric(vertical: 0)
-            : const EdgeInsets.symmetric(vertical: 12),
+    return Container(
+      margin: isFiltering
+          ? const EdgeInsets.symmetric(vertical: 0)
+          : const EdgeInsets.symmetric(vertical: 12),
       decoration: BoxDecoration(
         color: cardColor,
         borderRadius: BorderRadius.circular(12),
@@ -335,60 +390,65 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (!isFiltering)
-
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: primaryColor,
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(12),
-                topRight: Radius.circular(12),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: primaryColor,
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(12),
+                  topRight: Radius.circular(12),
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  if (!isFiltering)
+                    Text(
+                      "$formattedDate ${dailyWorkingHour != '00:00' ? '($dailyWorkingHour)' : ''}",
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 17,
+                      ),
+                    ),
+                  if (!isFiltering)
+                    Text(
+                      userName,
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 17),
+                    ),
+                ],
               ),
             ),
-            child:
-
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                if (!isFiltering)
-                Text(
-                  "$formattedDate ${dailyWorkingHour != '00:00'
-                      ? '($dailyWorkingHour)'
-                      : ''}",
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 17,
-                  ),
-                ),
-                if (!isFiltering)
-                Text(
-                  userName,
-                  style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 17),
-                ),
-              ],
-            ),
-          ),
           const SizedBox(height: 8),
-          if(isFiltering)
-          Divider(
-            color: Colors.grey,
-          ),
+          if (isFiltering)
+            Center(
+              child: Text(
+                "Working Hours: $dailyWorkingHour",
+                style: const TextStyle(
+                  color: textColor,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
+              ),
+            ),
           const SizedBox(height: 0),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Padding(
-                    padding: const EdgeInsets.only(left: 37.0),
-                    child: Icon(Icons.login, color: Colors.green),
+                  Row(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.only(left: 37.0),
+                        child: Icon(Icons.login, color: Colors.green),
+                      ),
+                    ],
                   ),
                   Padding(
                     padding: const EdgeInsets.only(left: 23.0),
@@ -441,6 +501,12 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
               ),
             ],
           ),
+          if(isFiltering)
+          const Divider(
+            color: Colors.grey,
+            thickness: 0.7,
+
+          ),
         ],
       ),
     );
@@ -477,6 +543,11 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                       Icons.filter_alt_outlined, color: Colors.blue, size: 30),
                   onPressed: _showDatePicker,
                 ),
+                if (isFiltering)
+                  IconButton(
+                    icon: Icon(Icons.info_outline, color: Colors.orange, size: 28),
+                    onPressed: _showAttendanceCountDialog,
+                  ),
               ],
             ),
             if (isAttendanceSectionVisible)
@@ -558,6 +629,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                   ],
                 ),
                 if (showHolidayCheckbox)
+
                   Row(
                   children: [
                     Checkbox(
@@ -568,6 +640,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                         });
                       },
                     ),
+
                   ],
                 )
               ],
@@ -576,10 +649,11 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
             if (showHolidayCheckbox)
               Row(
                 children: [
-                  Text("Today is $holidayName holiday. Want to Work Today?",
+                  Text("Today is $holidayName holiday. Want to Work?",
                       style: TextStyle(fontSize: 15)),
                 ],
               ),
+
             if (isAttendanceSectionVisible)
               Divider(color: Colors.black),
             Expanded(
@@ -615,11 +689,13 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                                   style: const TextStyle(
                                       color: Colors.white,
                                       fontWeight: FontWeight.bold,
-                                      fontSize: 17),
+                                      fontSize: 17
+                                  ),
                                 ),
                             ],
                           ),
                         ),
+
                       ListView.builder(
                         shrinkWrap: true,
                         physics: NeverScrollableScrollPhysics(),
@@ -644,7 +720,6 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                 },
               ),
             )
-
           ],
         ),
       ),

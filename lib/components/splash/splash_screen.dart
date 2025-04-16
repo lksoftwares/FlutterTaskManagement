@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:lktaskmanagementapp/packages/headerfiles.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -92,8 +91,8 @@ class SplashScreenState extends State<SplashScreen> {
           ),
         ),
       );
-  }
-}
+    }
+ }
 
 
 // import 'dart:io';

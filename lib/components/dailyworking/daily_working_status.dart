@@ -186,10 +186,15 @@ class _DailyWorkingStatusState extends State<DailyWorkingStatus> {
   Future<void> _showAddWorkingModal() async {
     print("isRecording$isRecording");
     String workingDesc = '';
+    String workingNote = '';
     InputDecoration inputDecoration = InputDecoration(
       labelText: 'Working Desc',
-      border: OutlineInputBorder(
-      ),
+      border: OutlineInputBorder(),
+    );
+
+    InputDecoration noteInputDecoration = InputDecoration(
+      labelText: 'Working Note',
+      border: OutlineInputBorder(),
     );
 
     int? userId = await getUserIdFromPrefs();
@@ -197,6 +202,7 @@ class _DailyWorkingStatusState extends State<DailyWorkingStatus> {
       showToast(msg: 'User ID not found in preferences.');
       return;
     }
+
     setState(() {
       audioFilePath = null;
       isRecording = false;
@@ -215,7 +221,7 @@ class _DailyWorkingStatusState extends State<DailyWorkingStatus> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  SizedBox(height: 30,),
+                  SizedBox(height: 30),
                   Padding(
                     padding: const EdgeInsets.only(left: 20.0),
                     child: Container(
@@ -224,7 +230,17 @@ class _DailyWorkingStatusState extends State<DailyWorkingStatus> {
                         onChanged: (value) => workingDesc = value,
                         decoration: inputDecoration,
                         maxLines: 12,
-
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.only(left: 20.0, top: 20.0),
+                    child: Container(
+                      width: 320,
+                      child: TextField(
+                        onChanged: (value) => workingNote = value,
+                        decoration: noteInputDecoration,
+                        maxLines: 4,
                       ),
                     ),
                   ),
@@ -232,29 +248,28 @@ class _DailyWorkingStatusState extends State<DailyWorkingStatus> {
                     padding: const EdgeInsets.only(top: 10.0),
                     child: Column(
                       children: [
-                        SizedBox(height: 20,),
-
-                        Text("Add Audio Working", style: TextStyle(fontWeight: FontWeight.w900,fontSize: 20)),
-                        SizedBox(height: 20,),
+                        SizedBox(height: 20),
+                        Text("Add Audio Working", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 20)),
+                        SizedBox(height: 20),
                         Center(
-                            child: GestureDetector(
-                                onTap: () {
-                                  if (isRecording) {
-                                    _stopRecording();
-                                    setState(() {
-                                      isRecording = false;
-                                    });
-                                  } else {
-                                    setState(() {
-                                      isRecording = true;
-                                    });
-                                    _startRecording();
-                                  }
-                                },
-                                child: isRecording
-                                    ? Avatar()
-                                    : Icon(Icons.mic, color: Color(0xFF005296), size: 40)
-                            )
+                          child: GestureDetector(
+                            onTap: () {
+                              if (isRecording) {
+                                _stopRecording();
+                                setState(() {
+                                  isRecording = false;
+                                });
+                              } else {
+                                setState(() {
+                                  isRecording = true;
+                                });
+                                _startRecording();
+                              }
+                            },
+                            child: isRecording
+                                ? Avatar()
+                                : Icon(Icons.mic, color: Color(0xFF005296), size: 40),
+                          ),
                         ),
                       ],
                     ),
@@ -274,7 +289,7 @@ class _DailyWorkingStatusState extends State<DailyWorkingStatus> {
             if (isRecording) {
               showToast(msg: 'Please stop the recording first.', backgroundColor: Colors.red);
             } else {
-              _addWorking(workingDesc, userId!);
+              _addWorking(workingDesc, workingNote, userId!);
             }
           },
           child: Text(
@@ -306,13 +321,12 @@ class _DailyWorkingStatusState extends State<DailyWorkingStatus> {
       ),
     );
   }
-
-
-  Future<void> _addWorking(String workingDesc, int userId) async {
-    if (workingDesc.isEmpty && audioFilePath == null) {
-      showToast(msg: 'Please fill in either the description or add an audio recording.', backgroundColor: Colors.red);
+  Future<void> _addWorking(String workingDesc, String workingNote, int userId) async {
+    if (workingDesc.isEmpty && audioFilePath == null && workingNote.isEmpty) {
+      showToast(msg: 'Please fill in either the description, note, or add an audio recording.', backgroundColor: Colors.red);
       return;
     }
+
 
     if (workingDesc.isEmpty) {
       workingDesc = "Check audio";
@@ -331,10 +345,9 @@ class _DailyWorkingStatusState extends State<DailyWorkingStatus> {
       }
 
       var request = http.MultipartRequest('POST', uri);
-
       request.headers['Authorization'] = 'Bearer $token';
-
       request.fields['workingDesc'] = workingDesc;
+      request.fields['workingNote'] = workingNote;
       request.fields['userId'] = userId.toString();
 
       if (currentLocation != null && currentLocation!.isNotEmpty) {
@@ -349,9 +362,11 @@ class _DailyWorkingStatusState extends State<DailyWorkingStatus> {
         );
         request.files.add(file);
       }
+
       var response = await request.send();
       final responseData = await http.Response.fromStream(response);
       final responseJson = jsonDecode(responseData.body);
+
       if (response.statusCode == 200) {
         if (responseJson != null && responseJson['message'] != null) {
           showToast(msg: responseJson['message'], backgroundColor: Colors.green);
@@ -362,7 +377,7 @@ class _DailyWorkingStatusState extends State<DailyWorkingStatus> {
           selectedUserId = null;
         });
       } else {
-        showToast(msg: responseJson['message'], backgroundColor: Colors.green);
+        showToast(msg: responseJson['message'], backgroundColor: Colors.red);
       }
     } catch (e) {
       print("Error uploading working desc: $e");
@@ -376,7 +391,7 @@ class _DailyWorkingStatusState extends State<DailyWorkingStatus> {
     showDateRangePicker(
       context: context,
       firstDate: DateTime(2025,DateTime.february),
-      lastDate: DateTime(2025,DateTime.april),
+      lastDate: DateTime(2025,DateTime.december),
       initialDateRange: fromDate != null && toDate != null
           ? DateTimeRange(start: fromDate!, end: toDate!)
           : null,
@@ -510,15 +525,17 @@ class _DailyWorkingStatusState extends State<DailyWorkingStatus> {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
-            height: 250,
-            constraints: BoxConstraints(
-              maxHeight: 400,
-            ),
-            child: SingleChildScrollView(
-              child: Text(
-                "Note: $workingNote",
-                style: TextStyle(fontSize: 18),
+          Padding(
+            padding: const EdgeInsets.all(15.0),
+            child: Container(
+              constraints: BoxConstraints(
+                maxHeight: 550,
+              ),
+              child: SingleChildScrollView(
+                child: Text(
+                  "$workingNote",
+                  style: TextStyle(fontSize: 18),
+                ),
               ),
             ),
           ),
@@ -741,11 +758,10 @@ class _DailyWorkingStatusState extends State<DailyWorkingStatus> {
                             'updatedAt': role['updatedAt'],
                             'WorkingNote': role['workingNote'],
                             'location': role['location'],
-
                           };
 
                           String shortenedWorkingDesc = role['workingDesc']
-                              .length > 50
+                              .length > 10
                               ? role['workingDesc'].substring(0, 10) + '...'
                               : role['workingDesc'];
 

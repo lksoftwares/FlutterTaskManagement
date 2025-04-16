@@ -269,7 +269,6 @@ class _ShiftsScreenState extends State {
     String? endTime = currentEndTime;
     TextEditingController startTimeController = TextEditingController(text: startTime);
     TextEditingController endTimeController = TextEditingController(text: endTime);
-
     showCustomAlertDialog(
       context,
       title: 'Edit Shift',
@@ -366,54 +365,29 @@ class _ShiftsScreenState extends State {
                         ],
                       ),
                       SizedBox(height: 15),
-                      Padding(
-                        padding: const EdgeInsets.only(left: 80),
-                        child: Wrap(
-                          spacing: 10.0,
-                          runSpacing: 4.0,
-                          children: [
-                            FilterChip(
-                              label: Text(
-                                'Active',
-                                style: TextStyle(
-                                  color: selectedStatus == true
-                                      ? Colors.white
-                                      : Colors
-                                      .black,
-                                ),
-                              ),
-                              selected: selectedStatus == true,
-                              onSelected: (bool selected) {
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Status:',
+                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                          ),
+                          Transform.scale(
+                            scale: 1.3,
+                            child: Switch(
+                              value: selectedStatus ?? false,
+                              onChanged: (bool value) {
                                 setState(() {
-                                  selectedStatus = true;
+                                  selectedStatus = value;
                                 });
                               },
-                              selectedColor: Colors.green,
-                              backgroundColor: Colors.grey[200],
-                              checkmarkColor: Colors.white,
+                              activeColor: Colors.green,
+                              inactiveThumbColor: Colors.red,
+                              inactiveTrackColor: Colors.red[200],
                             ),
-                            FilterChip(
-                              label: Text(
-                                'Deactive',
-                                style: TextStyle(
-                                  color: selectedStatus == false
-                                      ? Colors.white
-                                      : Colors
-                                      .black,
-                                ),
-                              ),
-                              selected: selectedStatus == false,
-                              onSelected: (bool selected) {
-                                setState(() {
-                                  selectedStatus = false;
-                                });
-                              },
-                              selectedColor: Colors.red,
-                              backgroundColor: Colors.grey[200],
-                              checkmarkColor: Colors.white,
-                            ),
-                          ],
-                        ),
+                          ),
+
+                        ],
                       ),
                     ],
                   ),

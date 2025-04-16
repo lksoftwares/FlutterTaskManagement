@@ -216,81 +216,55 @@ class _RolesPageState extends State<RolesPage> {
   void _showEditRoleModal(int roleId, String currentRoleName, bool? roleStatus) {
     TextEditingController _roleController =
     TextEditingController(text: currentRoleName);
-    bool? selectedStatus =roleStatus;
+    bool? selectedStatus = roleStatus;
 
     showCustomAlertDialog(
       context,
       title: 'Edit Role',
       content: StatefulBuilder(
         builder: (context, setState) {
-return Container(
-          height: 150,
-          child: Column(
-            children: [
-              TextField(
-                controller: _roleController,
-                decoration: InputDecoration(
-                  labelText: 'Role Name',
-                  border: OutlineInputBorder(),
+          return Container(
+            height: 150,
+            child: Column(
+              children: [
+                TextField(
+                  controller: _roleController,
+                  decoration: InputDecoration(
+                    labelText: 'Role Name',
+                    border: OutlineInputBorder(),
+                  ),
                 ),
-              ),
-              SizedBox(height: 15,),
-              Padding(
-                padding: const EdgeInsets.only(right: 10.0),
-                child: Wrap(
-                  spacing: 10.0,
-                  runSpacing: 4.0,
+                SizedBox(height: 15),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    FilterChip(
-                      label: Text(
-                        'Active',
-                        style: TextStyle(
-                          color: selectedStatus == true
-                              ? Colors.white
-                              : Colors
-                              .black,
-                        ),
-                      ),
-                      selected: selectedStatus == true,
-                      onSelected: (bool selected) {
-                        setState(() {
-                          selectedStatus = true;
-                        });
-                      },
-                      selectedColor: Colors.green,
-                      backgroundColor: Colors.grey[200],
-                      checkmarkColor: Colors.white,
+                    Text(
+                      'Status:',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                     ),
-                    FilterChip(
-                      label: Text(
-                        'Deactive',
-                        style: TextStyle(
-                          color: selectedStatus == false
-                              ? Colors.white
-                              : Colors
-                              .black,
-                        ),
+                    Transform.scale(
+                      scale: 1.3,
+                      child: Switch(
+                        value: selectedStatus ?? false,
+                        onChanged: (bool value) {
+                          setState(() {
+                            selectedStatus = value;
+                          });
+                        },
+                        activeColor: Colors.green,
+                        inactiveThumbColor: Colors.red,
+                        inactiveTrackColor: Colors.red[200],
                       ),
-                      selected: selectedStatus == false,
-                      onSelected: (bool selected) {
-                        setState(() {
-                          selectedStatus = false;
-                        });
-                      },
-                      selectedColor: Colors.red,
-                      backgroundColor: Colors.grey[200],
-                      checkmarkColor: Colors.white,
                     ),
+
                   ],
                 ),
-              ),
-            ],
-          ),
-        );}
+              ],
+            ),
+          );
+        },
       ),
-
       actions: [
-
         ElevatedButton(
           style: ElevatedButton.styleFrom(
             backgroundColor: Colors.green,
@@ -302,7 +276,10 @@ return Container(
               _updateRole(roleId, _roleController.text, selectedStatus ?? false);
             }
           },
-          child: Text('Update',style: TextStyle(color: Colors.white),),
+          child: Text(
+            'Update',
+            style: TextStyle(color: Colors.white),
+          ),
         ),
         TextButton(
           onPressed: () => Navigator.pop(context),
@@ -310,8 +287,7 @@ return Container(
         ),
       ],
       titleHeight: 65,
-        isFullScreen: false
-
+      isFullScreen: false,
     );
   }
 

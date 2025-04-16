@@ -390,6 +390,7 @@ class _NavBarState extends State<NavBar> {
     'ShiftsScreen': (context) => ShiftsScreen(),
     'AssignShifts': (context) => AssignShifts(),
     'TeammemberroleScreen': (context) => TeammemberroleScreen(),
+    'AttendanceCount': (context) => AttendanceCount(),
 
   };
 

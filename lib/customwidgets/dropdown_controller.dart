@@ -88,6 +88,8 @@ class CustomDropdown<T extends Object> extends StatefulWidget {
   final void Function(T?) onChanged;
   final String labelText;
   final Icon? prefixIcon;
+  final Icon? suffixIcon;
+
   final double? width;
   final double? minHeight;
   final double? maxHeight;
@@ -101,6 +103,8 @@ class CustomDropdown<T extends Object> extends StatefulWidget {
     required this.onChanged,
     required this.labelText,
     this.prefixIcon,
+    this.suffixIcon,
+
     this.width,
     this.minHeight = 50,
     this.maxHeight = 200,
@@ -236,6 +240,8 @@ class _CustomDropdownState<T extends Object> extends State<CustomDropdown<T>> {
                 borderRadius: BorderRadius.circular(10),
               ),
               prefixIcon: widget.prefixIcon,
+              suffixIcon: widget.suffixIcon,
+
             ),
             onChanged: (value) {
               setState(() {
@@ -248,7 +254,7 @@ class _CustomDropdownState<T extends Object> extends State<CustomDropdown<T>> {
 
                 if (value.isEmpty) {
                   widget.onChanged(null);
-                  _controller.text = ''; // Reset the text when input is empty
+                  _controller.text = '';
                   _filteredOptions = widget.options;
                   if (_overlayEntry != null) {
                     _overlayEntry?.remove();
