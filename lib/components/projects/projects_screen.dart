@@ -358,7 +358,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
               ),
             );
           }
-      ),
+       ),
       actions: [
         ElevatedButton(
           style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
