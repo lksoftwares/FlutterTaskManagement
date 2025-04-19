@@ -15,6 +15,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   bool isLoading = false;
   String? holidayName;
   String? currentLocation = '';
+  List<Map<String, dynamic>> combinedData = [];
   String? username = '';
   String? userRole = '';
   bool showHolidayCheckbox = false;
@@ -26,7 +27,13 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   bool hasCheckedOut = false;
   bool attendanceOnHoliday = false;
   bool isAttendanceSectionVisible = false;
+  List<Map<String, dynamic>> usersList = [];
   List<Map<String, dynamic>> attendanceCountPerUser = [];
+  DateTime? countStartDate;
+  DateTime? countEndDate;
+  int? selectedUserId;
+  String? selectedUserName;
+
 
   @override
   void initState() {
@@ -36,9 +43,24 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     toDate = fromDate;
     fetchUserData();
     fetchAttendance();
+    fetchUsers();
     fetchHoliday();
   }
+  Future<void> fetchUsers() async {
+    final response = await new ApiService().request(
+        method: 'get',
+        endpoint: 'User/?status=1',
+        tokenRequired: true
 
+    );
+    if (response['statusCode'] == 200 && response['apiResponse'] != null) {
+      setState(() {
+        usersList = List<Map<String, dynamic>>.from(response['apiResponse']);
+      });
+    } else {
+      print("Failed to load users");
+    }
+  }
   Future<void> saveAttendanceState() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     await prefs.setBool('hasCheckedIn', hasCheckedIn);
@@ -64,12 +86,13 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       setState(() {
         holidays = List<Map<String, dynamic>>.from(
           response['apiResponse'].map((holiday) =>
+
           {
             'holidayId': holiday['holidayId'] ?? 0,
             'holidayName': holiday['holidayName'] ?? 'Unknown name',
-
             'holidayDate': holiday['holidayDate'] ?? 'Unknown date',
           }),
+
         );
       });
       checkIfTodayIsHoliday();
@@ -208,7 +231,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         }
         showToast(
             msg: response['message'] ?? 'Added', backgroundColor: Colors.green);
-                setState(() {
+        setState(() {
           hasCheckedIn = true;
           hasCheckedOut = false;
         });
@@ -251,7 +274,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       if (response['statusCode'] >= 200 && response['statusCode'] < 400) {
         showToast(
             msg: response['message'] ?? 'Added', backgroundColor: Colors.green);
-                setState(() {
+        setState(() {
           hasCheckedIn = false;
           hasCheckedOut = true;
         });
@@ -275,24 +298,15 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     int? userId = prefs.getInt('user_Id');
     String roleName = prefs.getString('role_Name') ?? "";
+
     String endpoint = 'attendance/';
 
-    if (isFiltering && fromDate != null && toDate != null) {
-      final DateFormat formatter = DateFormat('yyyy-MM-dd');
-      String startDateStr = formatter.format(fromDate!);
-      String endDateStr = formatter.format(toDate!);
-      if (roleName == 'Admin') {
-        endpoint = 'attendance/?startDate=$startDateStr&endDate=$endDateStr';
-      } else if (userId != null) {
-        endpoint = 'attendance/?userId=$userId&startDate=$startDateStr&endDate=$endDateStr';
-      }
-    } else {
-      if (roleName == 'Admin') {
-        endpoint = 'attendance/';
-      } else if (userId != null) {
-        endpoint = 'attendance/?userId=$userId';
-      }
+    if (roleName == 'Admin') {
+      endpoint = 'attendance/';
+    } else if (userId != null) {
+      endpoint = 'attendance/?userId=$userId';
     }
+
     final response = await new ApiService().request(
       method: 'get',
       endpoint: endpoint,
@@ -302,6 +316,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     setState(() {
       isLoading = false;
     });
+
     if (response['statusCode'] == 200) {
       if (response['apiResponse'] != null) {
         setState(() {
@@ -313,7 +328,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
               'outDateTime': member['outDateTime'] ?? "----/----/-------- --:--",
               'userName': member['userName'] ?? 'Unknown user',
               'inLocation': member['inLocation'] ?? '',
-              'outLocation': member['outLocation'] ?? '',
+              'outLocation': member['outLocation'] ?? null,
               'dailyWorkingHour': member['dailyWorkingHour'] ?? '',
             }),
           );
@@ -331,37 +346,127 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       showToast(msg: response['message'] ?? 'Failed to fetch attendance');
     }
   }
-  void _showAttendanceCountDialog() {
-    print(attendanceCountPerUser);
+
+  List<Map<String, dynamic>> getFilteredAttendanceData() {
+    if (selectedUserName == null || selectedUserName!.isEmpty) return attendanceCountPerUser;
+
+    return attendanceCountPerUser.where((record) =>
+    record['userName'] == selectedUserName).toList();
+  }
+
+  void _showAttendanceCountDialog() async {
+    selectedUserName = null;
+    countStartDate = null;
+    countEndDate = null;
+
+    await fetchAttendanceCountData(reset: true);
+
+    TextEditingController _userController = TextEditingController();
+
     showCustomAlertDialog(
       context,
       title: "Attendance Count",
-      content: SizedBox(
-        width: double.maxFinite,
-        child: attendance.isEmpty
-            ? Padding(
-              padding: const EdgeInsets.only(top: 80.0),
-              child: Center(
-                child: Text(
-              "No data found",
-              style: TextStyle(
-                fontSize: 25,
-                color: Colors.grey,
-              ),
+      content: StatefulBuilder(
+        builder: (BuildContext context, StateSetter setStateDialog) {
+          return SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(height: 20),
+                Row(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.only(left: 15.0),
+                      child: SizedBox(
+                        width: 280,
+                        child: Autocomplete<String>(
+                          optionsBuilder: (TextEditingValue textEditingValue) {
+                            return usersList
+                                .where((user) => user['userName']!
+                                .toLowerCase()
+                                .contains(textEditingValue.text.toLowerCase()))
+                                .map((user) => user['userName'] as String)
+                                .toList();
+                          },
+                          onSelected: (String userName) async {
+                            setStateDialog(() {
+                              selectedUserName = userName;
+                              _userController.text = userName;
+                            });
+                            await fetchAttendanceCountData();
+                            setStateDialog(() {});
+                          },
+                          fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+                            // Sync the controller only once when selectedUserName is null
+                            if (selectedUserName == null && controller.text.isNotEmpty) {
+                              WidgetsBinding.instance.addPostFrameCallback((_) {
+                                controller.clear();
+                              });
+                            }
+
+                            return TextField(
+                              controller: controller,
+                              focusNode: focusNode,
+                              decoration: InputDecoration(
+                                labelText: 'Select User',
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                prefixIcon: Icon(Icons.person),
+                              ),
+                              onChanged: (value) async {
+                                if (value.isEmpty) {
+                                  setStateDialog(() {
+                                    selectedUserName = null;
+                                  });
+                                  await fetchAttendanceCountData();
+                                  setStateDialog(() {});
+                                }
+                              },
+                            );
+                          },
                         ),
                       ),
-            )
-            : ListView.builder(
-          shrinkWrap: true,
-          itemCount: attendanceCountPerUser.length,
-          itemBuilder: (context, index) {
-            final user = attendanceCountPerUser[index];
-            return ListTile(
-              title: Text(user['userName']),
-              trailing: Text("${user['attendanceDaysCount']} Days"),
-            );
-          },
-        ),
+                    ),
+                    IconButton(
+                      icon: Icon(Icons.filter_alt_outlined, color: Colors.blue, size: 30),
+                      onPressed: () async {
+                        DateTimeRange? pickedRange = await showDateRangePicker(
+                          context: context,
+                          firstDate: DateTime(2023),
+                          lastDate: DateTime(2025, 12),
+                        );
+                        if (pickedRange != null) {
+                          setStateDialog(() {
+                            countStartDate = pickedRange.start;
+                            countEndDate = pickedRange.end;
+                          });
+                          await fetchAttendanceCountData();
+                          setStateDialog(() {});
+                        }
+                      },
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                SizedBox(
+                  width: double.maxFinite,
+                  child: attendanceCountPerUser.isEmpty
+                      ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.only(top: 80.0),
+                      child: Text(
+                        "No data found",
+                        style: TextStyle(fontSize: 25, color: Colors.grey),
+                      ),
+                    ),
+                  )
+                      : buildAttendanceCountList(),
+                ),
+              ],
+            ),
+          );
+        },
       ),
       actions: [
         TextButton(
@@ -373,6 +478,293 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       titleHeight: 60,
     );
   }
+
+
+
+  Future<void> fetchAttendanceCountData({bool reset = false}) async {
+    setState(() => isLoading = true);
+
+    String endpoint = 'attendance/';
+    if (!reset && countStartDate != null && countEndDate != null) {
+      String formattedStart = DateFormat('yyyy-MM-dd').format(countStartDate!);
+      String formattedEnd = DateFormat('yyyy-MM-dd').format(countEndDate!);
+      endpoint = 'attendance/?startDate=$formattedStart&endDate=$formattedEnd';
+    }
+
+    final response = await ApiService().request(
+      method: 'get',
+      endpoint: endpoint,
+      tokenRequired: true,
+    );
+
+    setState(() => isLoading = false);
+
+    if (response['statusCode'] == 200 && response['apiResponse'] != null) {
+      setState(() {
+        attendanceCountPerUser = List<Map<String, dynamic>>.from(
+          response['apiResponse']['attendanceCountPerUser'] ?? [],
+        );
+        combinedData = List<Map<String, dynamic>>.from(
+          response['apiResponse']['combinedData'] ?? [],
+        );
+      });
+    }
+    else {
+      showToast(msg: response['message'] ?? 'Failed to fetch data');
+    }
+  }
+
+  Map<String, List<Map<String, dynamic>>> groupAttendanceByUser(List<Map<String, dynamic>> data) {
+    Map<String, List<Map<String, dynamic>>> groupedData = {};
+    for (var item in data) {
+      String userName = item['userName'] ?? 'Unknown';
+      if (!groupedData.containsKey(userName)) {
+        groupedData[userName] = [];
+      }
+      groupedData[userName]!.add(item);
+    }
+    return groupedData;
+  }
+  bool isCountFilteringActive() {
+    return countStartDate != null && countEndDate != null;
+  }
+  String formatDateRange(String? range) {
+    if (range == null || !range.contains(' to ')) return '';
+    try {
+      final parts = range.split(' to ');
+      final start = DateFormat('yyyy-MM-dd').parse(parts[0]);
+      final end = DateFormat('yyyy-MM-dd').parse(parts[1]);
+
+      final formattedStart = DateFormat('dd-MM-yyyy').format(start);
+      final formattedEnd = DateFormat('dd-MM-yyyy').format(end);
+
+      return '$formattedStart to $formattedEnd';
+    } catch (e) {
+      return range;
+    }
+  }
+
+  Widget buildAttendanceCountList() {
+    final filteredData = getFilteredAttendanceData();
+    final groupedData = groupAttendanceByUser(filteredData);
+
+    if (isCountFilteringActive()) {
+      final filteredCombined = selectedUserName == null
+          ? combinedData
+          : combinedData
+          .where((user) => user['userName'] == selectedUserName)
+          .toList();
+      return ListView.builder(
+        shrinkWrap: true,
+        physics: NeverScrollableScrollPhysics(),
+        itemCount: groupedData.length,
+        itemBuilder: (context, index) {
+          String userName = groupedData.keys.elementAt(index);
+          List<Map<String, dynamic>> userRecords = groupedData[userName]!;
+          final user = filteredCombined[index];
+          return Card(
+            elevation: 4,
+            margin: EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            color: Colors.blue.shade50,
+
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Center(
+                        child: Text(
+                          userName,
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 22,
+                            color: Colors.indigo.shade800,
+                          ),
+
+                        ),
+                      ),
+
+                      Text(
+                        "${user['totalPresent'] ?? 0} / ${user['totalDaysInRange'] ?? 0}",
+                        style: TextStyle(
+                            color: Colors.black87,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16),
+                      ),
+                    ],
+                  ),
+
+
+                  ListView.builder(
+                    shrinkWrap: true,
+                    physics: NeverScrollableScrollPhysics(),
+                    itemCount: userRecords.length,
+                    itemBuilder: (context, idx) {
+                      final record = userRecords[idx];
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(record['monthName'] ?? '',
+                                  style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                      color: Colors.indigo.shade900)),
+                              Text("📅 ${formatDateRange(record['range'])}",
+                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+
+                            ],
+                          ),
+                          SizedBox(height: 14),
+
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text("✅ P",
+                                  style: TextStyle(
+                                      fontWeight: FontWeight.bold, fontSize: 16)),
+                              Text("❌ AB ",
+                                  style: TextStyle(
+                                      fontWeight: FontWeight.bold, fontSize: 16)),
+                              Text("📝 L",
+                                  style: TextStyle(
+                                      fontWeight: FontWeight.bold, fontSize: 16)),
+                              Text("📆 H",
+                                  style: TextStyle(
+                                      fontWeight: FontWeight.bold, fontSize: 16)),
+                            ],
+                          ),
+                          SizedBox(height: 4),
+
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text("${record['totalPresent'] ?? 0}/${record['totalDaysInRange'] ?? 0}",
+                                  style: TextStyle(color: Colors.green, fontSize: 16)),
+                              Text("${record['absentDays'] ?? 0}",
+                                  style: TextStyle(color: Colors.redAccent, fontSize: 16)),
+                              Text("${record['totalLeaves'] ?? 0}",
+                                  style: TextStyle(color: Colors.blueGrey, fontSize: 16)),
+                              Text("${record['totalHolidays'] ?? 0}",
+                                  style: TextStyle(color: Colors.teal, fontSize: 16)),
+                            ],
+                          ),
+                          SizedBox(height: 8),
+                          Divider(color: Colors.black,),
+                          SizedBox(height: 8),
+
+                        ],
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      );
+    }
+
+    List<Map<String, dynamic>> allRecords = [];
+
+    for (var entry in groupedData.entries) {
+      String userName = entry.key;
+      for (var record in entry.value) {
+        record['userName'] = userName;
+        allRecords.add(record);
+      }
+    }
+
+    return ListView.builder(
+      shrinkWrap: true,
+      physics: NeverScrollableScrollPhysics(),
+      itemCount: allRecords.length,
+      itemBuilder: (context, index) {
+        final record = allRecords[index];
+
+        return Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.blue.shade50,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Text(
+                    record['userName'] ?? '',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 22,
+                      color: Colors.indigo.shade800,
+                    ),
+                  ),
+                ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(record['monthName'] ?? '',
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                            color: Colors.indigo.shade900)),
+                    Text("📅 ${formatDateRange(record['range'])}",
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+
+                  ],
+                ),
+                SizedBox(height: 14),
+
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text("✅ P",
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 16)),
+                    Text("❌ AB ",
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 16)),
+                    Text("📝 L",
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 16)),
+                    Text("📆 H",
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 16)),
+                  ],
+                ),
+                SizedBox(height: 4),
+
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text("${record['totalPresent'] ?? 0}/${record['totalDaysInRange'] ?? 0}",
+                        style: TextStyle(color: Colors.green, fontSize: 16)),
+                    Text("${record['absentDays'] ?? 0}",
+                        style: TextStyle(color: Colors.redAccent, fontSize: 16)),
+                    Text("${record['totalLeaves'] ?? 0}",
+                        style: TextStyle(color: Colors.blueGrey, fontSize: 16)),
+                    Text("${record['totalHolidays'] ?? 0}",
+                        style: TextStyle(color: Colors.teal, fontSize: 16)),
+                  ],
+                ),
+                SizedBox(height: 8),
+              ],
+            )
+          ),
+        );
+      },
+    );
+  }
+
 
   Widget buildAttendanceCard(String date, String? inTime, String? outTime,
       String inLocation, String outLocation, String dailyWorkingHour,
@@ -403,15 +795,14 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  if (!isFiltering)
-                    Text(
-                      "$formattedDate ${dailyWorkingHour != '00:00' ? '($dailyWorkingHour)' : ''}",
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 17,
-                      ),
+                  Text(
+                    "$formattedDate ${dailyWorkingHour != '00:00' ? '($dailyWorkingHour)' : ''}",
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 17,
                     ),
+                  ),
                   if (!isFiltering)
                     Text(
                       userName,
@@ -502,11 +893,11 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
             ],
           ),
           if(isFiltering)
-          const Divider(
-            color: Colors.grey,
-            thickness: 0.7,
+            const Divider(
+              color: Colors.grey,
+              thickness: 0.7,
 
-          ),
+            ),
         ],
       ),
     );
@@ -543,108 +934,108 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                       Icons.filter_alt_outlined, color: Colors.blue, size: 30),
                   onPressed: _showDatePicker,
                 ),
-                if (isFiltering)
-                  IconButton(
-                    icon: Icon(Icons.info_outline, color: Colors.orange, size: 28),
-                    onPressed: _showAttendanceCountDialog,
-                  ),
+                IconButton(
+                  icon: Icon(Icons.info_outline, color: Colors.orange, size: 28),
+                  onPressed: _showAttendanceCountDialog,
+                ),
               ],
             ),
             if (isAttendanceSectionVisible)
 
               Row(
-              children: [
-                Row(
-                  children: [
-                    const SizedBox(width: 16),
-                    Padding(
-                      padding: const EdgeInsets.only(right: 12.0),
-                      child: Text(
-                        "Mark Attendance",
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                Row(
-                  children: [
-                    if (!attendance.any((record) =>
-                    record['outLocation'] == null))
-                      SliderButton(
-                        action: () async {
-                          await getCurrentLocation();
-                          if (currentLocation != null) {
-                            await markAttendanceCheckin("intime",
-                                currentLocation!);
-                            await fetchAttendance();
-                          }
-                          return false;
-                        },
-                        label: Text(
-                          "Check In",
-                          style: TextStyle(
-                            color: textColor2,
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        icon: Icon(Icons.login, color: Colors.green),
-                        width: 125,
-                        height: 40,
-                        shimmer: false,
-                        buttonSize: 40,
-                        backgroundColor: Colors.green,
-                      ),
-                    if (attendance.any((record) =>
-                    record['outLocation'] == null))
-                      SliderButton(
-                        action: () async {
-                          await getCurrentLocation();
-                          if (currentLocation != null) {
-                            await markAttendanceCheckout("outtime",
-                                currentLocation!);
-                            await fetchAttendance();
-                          }
-                          return false;
-                        },
-                        label: Text(
-                          "Check Out",
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: textColor2,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        icon: Icon(Icons.logout_outlined, color: Colors.red),
-                        width: 125,
-                        height: 40,
-                        shimmer: false,
-                        buttonSize: 40,
-                        backgroundColor: Colors.red,
-                      ),
-                  ],
-                ),
-                if (showHolidayCheckbox)
-
+                children: [
                   Row(
-                  children: [
-                    Checkbox(
-                      value: attendanceOnHoliday,
-                      onChanged: (value) {
-                        setState(() {
-                          attendanceOnHoliday = value!;
-                        });
-                      },
-                    ),
+                    children: [
+                      const SizedBox(width: 16),
+                      Padding(
+                        padding: const EdgeInsets.only(right: 12.0),
+                        child: Text(
+                          "Mark Attendance",
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  Row(
+                    children: [
+                      if (!attendance.any((record) =>
+                      record['outLocation'] == null))
+                        SliderButton(
+                          action: () async {
+                            await getCurrentLocation();
+                            if (currentLocation != null) {
+                              await markAttendanceCheckin("intime",
+                                  currentLocation!);
+                              await fetchAttendance();
+                            }
+                            return false;
+                          },
+                          label: Text(
+                            "Check In",
+                            style: TextStyle(
+                              color: textColor2,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          icon: Icon(Icons.login, color: Colors.green),
+                          width: 125,
+                          height: 40,
+                          shimmer: false,
+                          buttonSize: 40,
+                          backgroundColor: Colors.green,
+                        ),
+                      if (attendance.any((record) =>
+                      record['outLocation'] == null))
+                        SliderButton(
+                          action: () async {
+                            await getCurrentLocation();
+                            if (currentLocation != null) {
+                              await markAttendanceCheckout("outtime",
+                                  currentLocation!);
+                              await fetchAttendance();
+                            }
+                            return false;
+                          },
+                          label: Text(
+                            "Check Out",
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: textColor2,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
 
-                  ],
-                )
-              ],
-            ),
+                          icon: Icon(Icons.logout_outlined, color: Colors.red),
+                          width: 125,
+                          height: 40,
+                          shimmer: false,
+                          buttonSize: 40,
+                          backgroundColor: Colors.red,
+                        ),
+                    ],
+                  ),
+                  if (showHolidayCheckbox)
+
+                    Row(
+                      children: [
+                        Checkbox(
+                          value: attendanceOnHoliday,
+                          onChanged: (value) {
+                            setState(() {
+                              attendanceOnHoliday = value!;
+                            });
+                          },
+                        ),
+
+                      ],
+                    )
+                ],
+              ),
             SizedBox(height: 10,),
             if (showHolidayCheckbox)
               Row(
@@ -670,7 +1061,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                         SizedBox(height: 15,),
                       if(isFiltering)
                         Container(
-                        height: 45,
+                          height: 45,
                           width: double.infinity,
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
@@ -684,14 +1075,14 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                                Text(
-                                  userName,
-                                  style: const TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 17
-                                  ),
+                              Text(
+                                userName,
+                                style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 17
                                 ),
+                              ),
                             ],
                           ),
                         ),
@@ -726,4 +1117,3 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     );
   }
 }
-

@@ -38,6 +38,7 @@ Widget buildUserCard({
   Widget? leadingIcon,
   Widget? leadingIcon2,
   Widget? leadingIcon3,
+  Widget? leadingIcon4,
   Widget? additionalContent,
 }) {
   List<Widget> fieldRows = [];
@@ -138,6 +139,11 @@ Widget buildUserCard({
                         child: leadingIcon3,
                       ),
                     ],
+                    if ( i == 3 && leadingIcon4 != null)
+                      Padding(
+                        padding: const EdgeInsets.only(right: 00.0),
+                        child: leadingIcon4,
+                      ),
                     SizedBox(
                       width: 55,
                       child: Row(
@@ -154,9 +160,14 @@ Widget buildUserCard({
                               child: leadingIcon,
                             ),
                           if (showView && i == 3)
-                            IconButton(
-                              icon: const Icon(Icons.zoom_in, color: Colors.blue), // View icon
-                              onPressed: onView as void Function()?,
+                            Row(
+                              children: [
+                                IconButton(
+                                  icon: const Icon(Icons.zoom_in, color: Colors.blue), // View icon
+                                  onPressed: onView as void Function()?,
+                                ),
+
+                              ],
                             ),
                           if (showPlay && i == 4)
                             IconButton(

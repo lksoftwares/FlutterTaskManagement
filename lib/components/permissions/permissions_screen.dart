@@ -211,7 +211,7 @@ isFullScreen: false
           TextField(
             controller: _permissionController,
             decoration: InputDecoration(
-              labelText: 'Team Name',
+              labelText: 'Permission Name',
               border: OutlineInputBorder(),
             ),
           ),

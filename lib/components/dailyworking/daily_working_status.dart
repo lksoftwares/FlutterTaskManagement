@@ -18,6 +18,8 @@ class _DailyWorkingStatusState extends State<DailyWorkingStatus> {
   bool isRecording = false;
   String? audioFilePath;
   bool isPlaying = false;
+  bool isSubmitting = false;
+
   String? selectedUserId;
   Map<String, bool> isPlayingMap = {};
   bool isLoading = false;
@@ -32,6 +34,7 @@ class _DailyWorkingStatusState extends State<DailyWorkingStatus> {
   Timer? positionTimer;
   bool isListening = false;
   String? roleName;
+  File? _WorkingImageFile;
 
   @override
   void initState() {
@@ -162,6 +165,8 @@ class _DailyWorkingStatusState extends State<DailyWorkingStatus> {
               'workingDescFilePath': role['workingDescFilePath'] ?? '',
               'location': role['location'] ?? '',
               'viewStatus': role['viewStatus'] ?? '',
+              'imageFilePath': role['imageFilePath'] ?? null,
+
             };
           }),
         );
@@ -187,6 +192,7 @@ class _DailyWorkingStatusState extends State<DailyWorkingStatus> {
     print("isRecording$isRecording");
     String workingDesc = '';
     String workingNote = '';
+
     InputDecoration inputDecoration = InputDecoration(
       labelText: 'Working Desc',
       border: OutlineInputBorder(),
@@ -205,6 +211,7 @@ class _DailyWorkingStatusState extends State<DailyWorkingStatus> {
 
     setState(() {
       audioFilePath = null;
+      _WorkingImageFile = null;
       isRecording = false;
       isPlayingMap.clear();
     });
@@ -214,95 +221,153 @@ class _DailyWorkingStatusState extends State<DailyWorkingStatus> {
     showCustomAlertDialog(
       context,
       title: 'Add Working Desc',
+      isFullScreen: true,
       content: StatefulBuilder(
         builder: (context, setState) {
-          return SingleChildScrollView(
-            child: Container(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  SizedBox(height: 30),
-                  Padding(
-                    padding: const EdgeInsets.only(left: 20.0),
-                    child: Container(
-                      width: 320,
-                      child: TextField(
-                        onChanged: (value) => workingDesc = value,
-                        decoration: inputDecoration,
-                        maxLines: 12,
-                      ),
-                    ),
+          return Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(height: 20),
+                Container(
+                  width: double.infinity,
+                  child: TextField(
+                    onChanged: (value) => workingDesc = value,
+                    decoration: inputDecoration,
+                    maxLines: 7,
                   ),
-                  Padding(
-                    padding: const EdgeInsets.only(left: 20.0, top: 20.0),
-                    child: Container(
-                      width: 320,
-                      child: TextField(
-                        onChanged: (value) => workingNote = value,
-                        decoration: noteInputDecoration,
-                        maxLines: 4,
-                      ),
-                    ),
+                ),
+                SizedBox(height: 20),
+                Container(
+                  width: double.infinity,
+                  child: TextField(
+                    onChanged: (value) => workingNote = value,
+                    decoration: noteInputDecoration,
+                    maxLines: 4,
                   ),
-                  Padding(
-                    padding: const EdgeInsets.only(top: 10.0),
-                    child: Column(
-                      children: [
-                        SizedBox(height: 20),
-                        Text("Add Audio Working", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 20)),
-                        SizedBox(height: 20),
-                        Center(
-                          child: GestureDetector(
-                            onTap: () {
-                              if (isRecording) {
-                                _stopRecording();
-                                setState(() {
-                                  isRecording = false;
-                                });
-                              } else {
-                                setState(() {
-                                  isRecording = true;
-                                });
-                                _startRecording();
-                              }
-                            },
-                            child: isRecording
-                                ? Avatar()
-                                : Icon(Icons.mic, color: Color(0xFF005296), size: 40),
-                          ),
+                ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    PopupMenuButton<ImageSource>(
+                      icon: Icon(Icons.upload, size: 30, color: Colors.blue,),
+                      onSelected: (source) async {
+                        final picker = ImagePicker();
+                        final pickedFile = await picker.pickImage(source: source);
+                        if (pickedFile != null) {
+                          setState(() {
+                            _WorkingImageFile = File(pickedFile.path);
+                          });
+                        }
+                      },
+                      itemBuilder: (BuildContext context) => <PopupMenuEntry<ImageSource>>[
+                        const PopupMenuItem<ImageSource>(
+                          value: ImageSource.gallery,
+                          child: Text('Choose from Gallery'),
+                        ),
+                        const PopupMenuItem<ImageSource>(
+                          value: ImageSource.camera,
+                          child: Text('Take a Picture'),
                         ),
                       ],
                     ),
+                    if (_WorkingImageFile != null)
+                      Positioned(
+                        left: 0,
+                        child: InkWell(
+                          onTap: () {
+                            showCustomAlertDialog(
+                                context,
+                                title: "Review Image",
+                                content: Padding(
+                                  padding: const EdgeInsets.only(top: 60.0),
+                                  child: Image.file(_WorkingImageFile!),
+                                ),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () {
+                                      Navigator.of(context).pop();
+                                    },
+                                    child: Text('Close'),
+                                  ),
+                                ],
+                                titleHeight: 65
+                            );
+                          },
+                          child: Icon(Icons.image, color: Colors.green, size: 30),
+                        ),
+                      ),
+                  ],
+                ),
+                SizedBox(height: 20),
+                Center(child: Text("Add Audio Working", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18))),
+                SizedBox(height: 10),
+                Center(
+                  child: GestureDetector(
+                    onTap: () {
+                      if (isRecording) {
+                        _stopRecording();
+                        setState(() => isRecording = false);
+                      } else {
+                        setState(() => isRecording = true);
+                        _startRecording();
+                      }
+                    },
+                    child: isRecording
+                        ? Avatar()
+                        : Icon(Icons.mic, color: Color(0xFF005296), size: 40),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           );
         },
       ),
       actions: [
-        ElevatedButton(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.green,
-          ),
-          onPressed: () {
-            if (isRecording) {
-              showToast(msg: 'Please stop the recording first.', backgroundColor: Colors.red);
-            } else {
-              _addWorking(workingDesc, workingNote, userId!);
-            }
+        StatefulBuilder(
+          builder: (context, localSetState) {
+            return ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green,
+                padding: EdgeInsets.symmetric(horizontal: 40, vertical: 12),
+              ),
+
+              onPressed: isSubmitting
+                  ? null
+                  : () async {
+                if (isRecording) {
+                  showToast(msg: 'Please stop the recording first.', backgroundColor: Colors.red);
+                  return;
+                }
+
+                localSetState(() => isSubmitting = true);
+
+                await _addWorking(workingDesc, workingNote, userId!);
+
+                localSetState(() => isSubmitting = false);
+              },
+              child: isSubmitting
+                  ? SizedBox(
+                height: 16,
+                width: 16,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              )
+                  : Text(
+                'Add',
+                style: TextStyle(color: Colors.white),
+              ),
+            );
           },
-          child: Text(
-            'Add',
-            style: TextStyle(color: Colors.white),
-          ),
         ),
         TextButton(
           onPressed: () => Navigator.pop(context),
           child: Text('Cancel'),
         ),
       ],
-      isFullScreen: true,
       additionalTitleContent: Padding(
         padding: const EdgeInsets.only(top: 1.0),
         child: Column(
@@ -321,8 +386,9 @@ class _DailyWorkingStatusState extends State<DailyWorkingStatus> {
       ),
     );
   }
+
   Future<void> _addWorking(String workingDesc, String workingNote, int userId) async {
-    if (workingDesc.isEmpty && audioFilePath == null && workingNote.isEmpty) {
+    if (workingDesc.isEmpty && audioFilePath == null && workingNote.isEmpty && _WorkingImageFile == null) {
       showToast(msg: 'Please fill in either the description, note, or add an audio recording.', backgroundColor: Colors.red);
       return;
     }
@@ -349,7 +415,14 @@ class _DailyWorkingStatusState extends State<DailyWorkingStatus> {
       request.fields['workingDesc'] = workingDesc;
       request.fields['workingNote'] = workingNote;
       request.fields['userId'] = userId.toString();
-
+      if (_WorkingImageFile != null) {
+        var image = await http.MultipartFile.fromPath(
+          'imageFile',
+          _WorkingImageFile!.path,
+          contentType: MediaType('image', 'jpeg'),
+        );
+        request.files.add(image);
+      }
       if (currentLocation != null && currentLocation!.isNotEmpty) {
         request.fields['location'] = currentLocation!;
       }
@@ -664,7 +737,37 @@ class _DailyWorkingStatusState extends State<DailyWorkingStatus> {
       showToast(msg: message);
     }
   }
-
+  void _showImageDialog(String? imageUrl) {
+    if (imageUrl == null || imageUrl.isEmpty) {
+      showToast(msg: "No image available", backgroundColor: Colors.red);
+      return;
+    }
+    showCustomAlertDialog(
+      context,
+      title: 'Task Image',
+      content: Padding(
+        padding: const EdgeInsets.only(top: 30.0),
+        child: InteractiveViewer(
+          panEnabled: true,
+          minScale: 0.5,
+          maxScale: 6.0,
+          child: Image.network(
+            imageUrl,
+            fit: BoxFit.contain,
+            errorBuilder: (context, error, stackTrace) =>
+                Text("Failed to load image."),
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text("Close"),
+        )
+      ],
+      titleHeight: 60,
+    );
+  }
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -799,6 +902,7 @@ class _DailyWorkingStatusState extends State<DailyWorkingStatus> {
                             trailingIcon: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
+
                                 Icon(
                                   role['viewStatus'] == true
                                       ? Icons.check_circle_outline
@@ -806,24 +910,7 @@ class _DailyWorkingStatusState extends State<DailyWorkingStatus> {
                                   color: role['viewStatus'] == true ? Colors.green : Colors.grey[400],
                                   size: 35,
                                 ),
-                                // if (hasAudioFile)
-                                //   IconButton(
-                                //     icon: Icon(
-                                //       isPlayingMap[role['workingDescFilePath']] == true
-                                //           ? Icons.pause_circle
-                                //           : Icons.play_circle,
-                                //       color: isPlayingMap[role['workingDescFilePath']] == true
-                                //           ? Colors.red
-                                //           : Colors.green,
-                                //     ),
-                                //     onPressed: () {
-                                //       if (isPlayingMap[role['workingDescFilePath']] == true) {
-                                //         _stopAudio(role['workingDescFilePath']);
-                                //       } else {
-                                //         _playAudio(role['workingDescFilePath']);
-                                //       }
-                                //     },
-                                //   ),
+
                                 if (isAdmin)
                                   IconButton(
                                     onPressed: () => _confirmDeleteRole(role['txnId']),
@@ -834,6 +921,12 @@ class _DailyWorkingStatusState extends State<DailyWorkingStatus> {
                             ),
                             leadingIcon2:    Row(
                               children: [
+                                if (role['imageFilePath'] != null && role['imageFilePath'].toString().isNotEmpty)
+                                  IconButton(
+                                    icon: Icon(Icons.image, color: Colors.blue),
+                                    onPressed: () => _showImageDialog(role['imageFilePath']),
+                                    tooltip: 'View Task Image',
+                                  ),
                                 if (hasAudioFile)
                                   IconButton(
                                     icon: Icon(
@@ -874,25 +967,6 @@ class _DailyWorkingStatusState extends State<DailyWorkingStatus> {
                                     size: 25,
                                   ),
                                 ),
-                                // if (hasAudioFile)
-                                //   IconButton(
-                                //     icon: Icon(
-                                //       size: 25,
-                                //       isPlayingMap[role['workingDescFilePath']] == true
-                                //           ? Icons.pause_circle
-                                //           : Icons.play_circle,
-                                //       color: isPlayingMap[role['workingDescFilePath']] == true
-                                //           ? Colors.red
-                                //           : Colors.green,
-                                //     ),
-                                //     onPressed: () {
-                                //       if (isPlayingMap[role['workingDescFilePath']] == true) {
-                                //         _stopAudio(role['workingDescFilePath']);
-                                //       } else {
-                                //         _playAudio(role['workingDescFilePath']);
-                                //       }
-                                //     },
-                                //   ),
                               ],
                             ),
 

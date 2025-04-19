@@ -12,6 +12,8 @@ class TasksScreen extends StatefulWidget {
 
 class _TasksScreenState extends State<TasksScreen> {
   List<Map<String, dynamic>> projects = [];
+  bool isSubmitting = false;
+
   List<Map<String, dynamic>> team = [];
   String? selectedProjectName;
   bool isAllFieldsVisible = false;
@@ -39,7 +41,6 @@ class _TasksScreenState extends State<TasksScreen> {
   File? _selectedImage;
   File? _commentImageFile;
   Timer? positionTimer;
-
   @override
   void initState() {
     super.initState();
@@ -301,7 +302,7 @@ class _TasksScreenState extends State<TasksScreen> {
     }
   }
 
-  Future<void> _showAddTaskModal() async {
+  Future _showAddTaskModal() async {
     setState(() {
       selectedprojectId = null;
       selectedTeamMemberId = null;
@@ -312,225 +313,274 @@ class _TasksScreenState extends State<TasksScreen> {
       isRecording = false;
       isPlayingMap.clear();
       isPlaying = false;
+      _selectedImage = null;
     });
+
     String? selectedStatus1 = 'open';
-    String? selectedPriority1= 'low';
+    String? selectedPriority1 = 'low';
+
     showCustomAlertDialog(
-        context,
-        title: 'Add Task',
-        content: StatefulBuilder(
-          builder: (context, setState) {
-            return SingleChildScrollView(
-              child: Padding(
-                padding: const EdgeInsets.all(20.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    CustomDropdown<String>(
-                      options: projects.map((project) =>
-                          project['projectId'].toString()).toList(),
-                      displayValue: (projectId) {
-                        final project = projects.firstWhere(
-                                (project) =>
-                            project['projectId'].toString() == projectId);
-                        return project['projectName'];
-                      },
-                      onChanged: (value) async {
-                        setState(() {
-                          selectedprojectId =
-                          value != null ? int.tryParse(value) : null;
-                          team.clear();
-                        });
-
-                        if (selectedprojectId != null) {
-                          await fetchTeamMembers();
-                        }
-                        setState(() {});
-                      },
-                      labelText: ' Select Project',
+      context,
+      title: 'Add Task',
+      content: StatefulBuilder(
+        builder: (context, setState) {
+          return SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.all(20.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  CustomDropdown(
+                    options: projects.map((project) =>
+                        project['projectId'].toString()).toList(),
+                    displayValue: (projectId) {
+                      final project = projects.firstWhere((project) =>
+                      project['projectId'].toString() == projectId);
+                      return project['projectName'];
+                    },
+                    onChanged: (value) async {
+                      setState(() {
+                        selectedprojectId = value != null ? int.tryParse(value) : null;
+                        team.clear();
+                      });
+                      if (selectedprojectId != null) {
+                        await fetchTeamMembers();
+                      }
+                      setState(() {});
+                    },
+                    labelText: ' Select Project',
+                  ),
+                  SizedBox(height: 10),
+                  DropdownButtonFormField<int>(
+                    decoration: InputDecoration(
+                      labelText: 'Select Team Member',
+                      border: OutlineInputBorder(),
                     ),
-                    SizedBox(height: 10),
-                    DropdownButtonFormField<int>(
-                      decoration: InputDecoration(
-                        labelText: 'Select Team Member',
-                        border: OutlineInputBorder(),
-                      ),
-                      items: team.map((member) {
-                        return DropdownMenuItem<int>(
-                          value: member['userId'],
-                          child: Text(
-                            '${member['userName'] ?? 'Unknown'}',
-                            style: TextStyle(fontSize: 16),
-                          ),
-                        );
-                      }).toList(),
-                      onChanged: (value) {
-                        setState(() {
-                          selectedTeamMemberId = value;
-                        });
-                      },
-                    ),
-                    SizedBox(height: 10),
-                    TextField(
-                      onChanged: (value) => taskTitle = value,
-                      decoration: InputDecoration(
-                        labelText: 'Task Title',
-                        border: OutlineInputBorder(),
-                      ),
-                    ),
-                    SizedBox(height: 10),
-                    TextField(
-                      onChanged: (value) => taskDescription = value,
-                      decoration: InputDecoration(
-                        labelText: 'Task Description',
-                        border: OutlineInputBorder(),
-                      ),
-                      maxLines: 3,
-                    ),
-                    SizedBox(height: 10),
-
-                    CustomDropdown<String>(
-                      options: ['low', 'medium', 'high'],
-                      selectedOption: selectedPriority1,
-                      displayValue: (priority) => priority,
-                      onChanged: (value) {
-                        setState(() {
-                          selectedPriority = value;
-                        });
-                      },
-                      labelText: ' Select Priority',
-                    ),
-                    SizedBox(height: 10),
-                    CustomDropdown<String>(
-                      options: ['open', 'in-progress', 'completed', 'blocked'],
-                      selectedOption: selectedStatus1,
-                      displayValue: (status) => status,
-                      onChanged: (value) {
-                        setState(() {
-                          selectedStatus = value;
-                        });
-                      },
-                      labelText: 'Select Status',
-                    ),
-
-                    SizedBox(height: 15),
-                    TextField(
-                      controller: TextEditingController(
-                          text: dueDate != null
-                              ? DateformatddMMyyyy.formatDateddMMyyyy(dueDate!)
-                              : DateformatddMMyyyy.formatDateddMMyyyy(DateTime.now())
-                      ),
-                      readOnly: true,
-                      onTap: () async {
-                        DateTime? pickedDate = await showDatePicker(
-                          context: context,
-                          initialDate: dueDate ?? DateTime.now(),
-                          firstDate: DateTime(2000),
-                          lastDate: DateTime(2101),
-                        );
-                        if (pickedDate != null) {
-                          setState(() {
-                            dueDate = pickedDate;
-                          });
-                        }
-                      },
-                      decoration: InputDecoration(
-                        labelText: 'Select Due Date',
-                        border: OutlineInputBorder(),
-                        suffixIcon: Icon(Icons.calendar_month),
-
-                      ),
-                    ),
-                    SizedBox(height:10 ,),
-
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        GestureDetector(
-                            onTap: () {
-                              if (isRecording) {
-                                _stopRecording();
-                                setState(() {
-                                  isRecording = false;
-                                });
-                              } else {
-                                setState(() {
-                                  isRecording = true;
-                                });
-                                _startRecording();
-                              }
-                            },
-                            child: isRecording
-                                ? Avatar()
-                                : Icon(Icons.mic, color: Color(0xFF005296), size: 40)
+                    items: team.map((member) {
+                      return DropdownMenuItem<int>(
+                        value: member['userId'],
+                        child: Text(
+                          '${member['userName'] ?? 'Unknown'}',
+                          style: TextStyle(fontSize: 16),
                         ),
-                        if (audioFilePath != null)
-                          IconButton(
-                            icon: Icon(
-                              isPlaying ? Icons.pause : Icons.play_arrow,
-                              size: 35,
-                              color: isPlaying ? Colors.red : Colors.green,
-                            ),
-                            onPressed: () {
-                              if (isPlaying) {
-                                setState(() {
-                                  isPlaying = false;
-                                });
-                              } else {
-                                _playAudio(audioFilePath);
-                                setState(() {
-                                  isPlaying = true;
-                                });
-                              }
-                            },
-                            tooltip: isPlaying ? "Pause Recording" : "Play Recording",
+                      );
+                    }).toList(),
+                    onChanged: (value) {
+                      setState(() {
+                        selectedTeamMemberId = value;
+                      });
+                    },
+                  ),
+                  SizedBox(height: 10),
+                  TextField(
+                    onChanged: (value) => taskTitle = value,
+                    decoration: InputDecoration(
+                      labelText: 'Task Title',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  SizedBox(height: 10),
+                  TextField(
+                    onChanged: (value) => taskDescription = value,
+                    decoration: InputDecoration(
+                      labelText: 'Task Description',
+                      border: OutlineInputBorder(),
+                    ),
+                    maxLines: 3,
+                  ),
+                  SizedBox(height: 10),
+                  CustomDropdown<String>(
+                    options: ['low', 'medium', 'high'],
+                    selectedOption: selectedPriority1,
+                    displayValue: (priority) => priority,
+                    onChanged: (value) {
+                      setState(() {
+                        selectedPriority = value;
+                      });
+                    },
+                    labelText: ' Select Priority',
+                  ),
+                  SizedBox(height: 10),
+                  CustomDropdown<String>(
+                    options: ['open', 'in-progress', 'completed', 'blocked'],
+                    selectedOption: selectedStatus1,
+                    displayValue: (status) => status,
+                    onChanged: (value) {
+                      setState(() {
+                        selectedStatus = value;
+                      });
+                    },
+                    labelText: 'Select Status',
+                  ),
+                  SizedBox(height: 15),
+                  TextField(
+                    controller: TextEditingController(
+                      text: dueDate != null
+                          ? DateformatddMMyyyy.formatDateddMMyyyy(dueDate!)
+                          : DateformatddMMyyyy.formatDateddMMyyyy(DateTime.now()),
+                    ),
+                    readOnly: true,
+                    onTap: () async {
+                      DateTime? pickedDate = await showDatePicker(
+                        context: context,
+                        initialDate: dueDate ?? DateTime.now(),
+                        firstDate: DateTime(2000),
+                        lastDate: DateTime(2101),
+                      );
+                      if (pickedDate != null) {
+                        setState(() {
+                          dueDate = pickedDate;
+                        });
+                      }
+                    },
+                    decoration: InputDecoration(
+                      labelText: 'Select Due Date',
+                      border: OutlineInputBorder(),
+                      suffixIcon: Icon(Icons.calendar_month),
+                    ),
+                  ),
+                  SizedBox(height: 10),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      GestureDetector(
+                        onTap: () {
+                          if (isRecording) {
+                            _stopRecording();
+                            setState(() {
+                              isRecording = false;
+                            });
+                          } else {
+                            setState(() {
+                              isRecording = true;
+                            });
+                            _startRecording();
+                          }
+                        },
+                        child: isRecording
+                            ? Avatar()
+                            : Icon(Icons.mic, color: Color(0xFF005296), size: 40),
+                      ),
+                      if (audioFilePath != null)
+                        IconButton(
+                          icon: Icon(
+                            isPlaying ? Icons.pause : Icons.play_arrow,
+                            size: 35,
+                            color: isPlaying ? Colors.red : Colors.green,
                           ),
-                        PopupMenuButton<ImageSource>(
-                          icon: Icon(Icons.upload, size: 30, color: Colors.blue,),
-                          onSelected: (source) async {
-                            final picker = ImagePicker();
-                            final pickedFile = await picker.pickImage(source: source);
-                            if (pickedFile != null) {
+                          onPressed: () {
+                            if (isPlaying) {
                               setState(() {
-                                _commentImageFile = File(pickedFile.path);
+                                isPlaying = false;
+                              });
+                            } else {
+                              _playAudio(audioFilePath);
+                              setState(() {
+                                isPlaying = true;
                               });
                             }
                           },
-                          itemBuilder: (BuildContext context) => <PopupMenuEntry<ImageSource>>[
-                            const PopupMenuItem<ImageSource>(
-                              value: ImageSource.gallery,
-                              child: Text('Choose from Gallery'),
+                          tooltip: isPlaying ? "Pause Recording" : "Play Recording",
+                        ),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          PopupMenuButton<ImageSource>(
+                            icon: Icon(Icons.upload, size: 30, color: Colors.blue),
+                            tooltip: 'Upload Image',
+                            onSelected: (source) async {
+                              final picker = ImagePicker();
+                              final pickedFile = await picker.pickImage(source: source);
+                              if (pickedFile != null) {
+                                setState(() {
+                                  _selectedImage = File(pickedFile.path);
+                                });
+                              }
+                            },
+                            itemBuilder: (BuildContext context) =>
+                            <PopupMenuEntry<ImageSource>>[
+                              const PopupMenuItem<ImageSource>(
+                                value: ImageSource.gallery,
+                                child: Text('Choose from Gallery'),
+                              ),
+                              const PopupMenuItem<ImageSource>(
+                                value: ImageSource.camera,
+                                child: Text('Take a Picture'),
+                              ),
+                            ],
+                          ),
+                          if (_selectedImage != null)
+                            InkWell(
+                              onTap: () {
+                                showCustomAlertDialog(
+                                  context,
+                                  title: "Review Image",
+                                  content: Padding(
+                                    padding: const EdgeInsets.only(top: 60.0),
+                                    child: Image.file(_selectedImage!),
+                                  ),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () {
+                                        Navigator.of(context).pop();
+                                      },
+                                      child: Text('Close'),
+                                    ),
+                                  ],
+                                  titleHeight: 65,
+                                );
+                              },
+                              child: Icon(Icons.image, color: Colors.green, size: 30),
                             ),
-                            const PopupMenuItem<ImageSource>(
-                              value: ImageSource.camera,
-                              child: Text('Take a Picture'),
-                            ),
-                          ],
-                        ),                      ],
-                    ),
-                  ],
-                ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ],
               ),
-            );
+            ),
+          );
+        },
+      ),
+      actions: [
+        StatefulBuilder(
+          builder: (context, localSetState) {
+       return  ElevatedButton(
+          onPressed: isSubmitting
+              ? null
+              : () async {
+            localSetState(() => isSubmitting = true);
+            await _addTask(_selectedImage);
+            localSetState(() => isSubmitting = false);
+
           },
+          style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+          child:  isSubmitting
+              ? SizedBox(
+            height: 16,
+            width: 16,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+            ),
+          )
+              : Text(
+            'Add',
+            style: TextStyle(color: Colors.white),
+          ),
+        );
+  },
+  ),
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text('Cancel'),
         ),
-        actions: [
-          ElevatedButton(
-            onPressed: () async {
-              await _addTask(_selectedImage);
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-            child: Text('Add Task', style: TextStyle(color: Colors.white)),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Cancel'),
-          ),
-        ],
-        titleHeight: 65,
-        isFullScreen: true
+      ],
+      titleHeight: 65,
+      isFullScreen: true,
     );
   }
+
   void _confirmDeleteTask(int taskId) {
     showCustomAlertDialog(
         context,
@@ -612,8 +662,8 @@ class _TasksScreenState extends State<TasksScreen> {
   }
 
   Future<void> _showEditTaskModal(int taskId) async {
-    Map<String, dynamic> taskToEdit = tasks.firstWhere((
-        task) => task['taskId'] == taskId);
+    Map<String, dynamic> taskToEdit = tasks.firstWhere((task) => task['taskId'] == taskId);
+
     taskTitle = taskToEdit['taskTitle'] ?? '';
     taskDescription = taskToEdit['taskDescription'] ?? '';
     selectedprojectId = taskToEdit['projectId'];
@@ -622,193 +672,260 @@ class _TasksScreenState extends State<TasksScreen> {
     selectedStatus = taskToEdit['taskStatus'];
     String dueDateString = taskToEdit['taskDueDate'] ?? '';
     dueDate = DateFormat('dd-MM-yyyy').parse(dueDateString);
+    String? currentImageUrl = taskToEdit['imageFilePath'];
+    _selectedImage = null;
 
     if (selectedprojectId != null) {
       await fetchTeamMembers();
+      if (!team.any((member) => member['userId'] == selectedTeamMemberId)) {
+        selectedTeamMemberId = null;
+      }
     }
-    print("SHreyashrma$selectedTeamMemberId");
+
     showCustomAlertDialog(
-        context,
-        title: 'Edit Task',
-        content: StatefulBuilder(
-          builder: (context, setState) {
-            return SingleChildScrollView(
-              child: Padding(
-                padding: const EdgeInsets.all(20.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    CustomDropdown<String>(
-                      options: projects.map((project) =>
-                          project['projectId'].toString()).toList(),
-                      displayValue: (projectId) {
-                        final project = projects.firstWhere(
-                                (project) =>
-                            project['projectId'].toString() == projectId);
-                        return project['projectName'];
-                      },
-                      selectedOption: selectedprojectId?.toString(),
-                      onChanged: (value) async {
-                        setState(() {
-                          selectedprojectId =
-                          value != null ? int.tryParse(value) : null;
-                          team.clear();
-                        });
-                        if (selectedprojectId != null) {
-                          await fetchTeamMembers();
-                          if (!team.any((member) =>
-                          member['userId'] == selectedTeamMemberId)) {
-                            selectedTeamMemberId = null;
-                          }
+      context,
+      title: 'Edit Task',
+      content: StatefulBuilder(
+        builder: (context, setState) {
+          return SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.all(20.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  CustomDropdown<String>(
+                    options: projects.map((project) => project['projectId'].toString()).toList(),
+                    displayValue: (projectId) {
+                      final project = projects.firstWhere((project) =>
+                      project['projectId'].toString() == projectId);
+                      return project['projectName'];
+                    },
+                    selectedOption: selectedprojectId?.toString(),
+                    onChanged: (value) async {
+                      setState(() {
+                        selectedprojectId = value != null ? int.tryParse(value) : null;
+                        team.clear();
+                      });
+                      if (selectedprojectId != null) {
+                        await fetchTeamMembers();
+                        if (!team.any((member) => member['userId'] == selectedTeamMemberId)) {
+                          selectedTeamMemberId = null;
                         }
-                        setState(() {});
-                      },
-                      labelText: 'Select Project',
+                      }
+                      setState(() {});
+                    },
+                    labelText: 'Select Project',
+                  ),
+                  SizedBox(height: 10),
+                  DropdownButtonFormField<int>(
+                    value: selectedTeamMemberId,
+                    decoration: InputDecoration(
+                      labelText: 'Select Team Member',
+                      border: OutlineInputBorder(),
                     ),
-                    SizedBox(height: 10),
-                    DropdownButtonFormField<int>(
-                      value: selectedTeamMemberId,
-                      decoration: InputDecoration(labelText: 'Select Team Member',
-                          border: OutlineInputBorder()),
-                      items: team.map((member) {
-                        return DropdownMenuItem<int>(
-                          value: member['userId'],
-                          child: Text(
-                            '${member['userName'] ?? 'Unknown'}',
-                            style: TextStyle(fontSize: 16),
-                          ),                      );
-                      }).toList(),
-                      onChanged: (value) {
+                    items: team.map((member) {
+                      return DropdownMenuItem<int>(
+                        value: member['userId'],
+                        child: Text('${member['userName'] ?? 'Unknown'}', style: TextStyle(fontSize: 16)),
+                      );
+                    }).toList(),
+                    onChanged: (value) {
+                      setState(() {
+                        selectedTeamMemberId = value;
+                      });
+                    },
+                  ),
+                  SizedBox(height: 10),
+                  TextField(
+                    controller: TextEditingController(text: taskTitle),
+                    onChanged: (value) => taskTitle = value,
+                    decoration: InputDecoration(
+                      labelText: 'Task Title',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  SizedBox(height: 10),
+                  TextField(
+                    controller: TextEditingController(text: taskDescription),
+                    onChanged: (value) => taskDescription = value,
+                    decoration: InputDecoration(
+                      labelText: 'Task Description',
+                      border: OutlineInputBorder(),
+                    ),
+                    maxLines: 3,
+                  ),
+                  SizedBox(height: 10),
+                  CustomDropdown<String>(
+                    options: ['low', 'medium', 'high'],
+                    displayValue: (priority) => priority,
+                    selectedOption: selectedPriority,
+                    onChanged: (value) {
+                      setState(() {
+                        selectedPriority = value;
+                      });
+                    },
+                    labelText: 'Select Priority',
+                  ),
+                  SizedBox(height: 10),
+                  CustomDropdown<String>(
+                    options: ['open', 'in-progress', 'completed', 'blocked'],
+                    displayValue: (status) => status,
+                    selectedOption: selectedStatus,
+                    onChanged: (value) {
+                      setState(() {
+                        selectedStatus = value;
+                      });
+                    },
+                    labelText: 'Select Status',
+                  ),
+                  SizedBox(height: 15),
+                  TextField(
+                    controller: TextEditingController(
+                      text: dueDate != null
+                          ? DateFormat('dd-MM-yyyy').format(dueDate!)
+                          : 'Select Due Date',
+                    ),
+                    readOnly: true,
+                    onTap: () async {
+                      DateTime? pickedDate = await showDatePicker(
+                        context: context,
+                        initialDate: dueDate ?? DateTime.now(),
+                        firstDate: DateTime(2000),
+                        lastDate: DateTime(2101),
+                      );
+                      if (pickedDate != null) {
                         setState(() {
-                          selectedTeamMemberId = value;
+                          dueDate = pickedDate;
                         });
-                      },
+                      }
+                    },
+                    decoration: InputDecoration(
+                      labelText: 'Select Due Date',
+                      border: OutlineInputBorder(),
+                      suffixIcon: Icon(Icons.calendar_month),
                     ),
-                    SizedBox(height: 10),
-                    TextField(
-                      controller: TextEditingController(text: taskTitle),
-                      onChanged: (value) => taskTitle = value,
-                      decoration: InputDecoration(
-                        labelText: 'Task Title',
-                        border: OutlineInputBorder(),
-                      ),
-                    ),
-                    SizedBox(height: 10),
-
-                    TextField(
-                      controller: TextEditingController(text: taskDescription),
-                      onChanged: (value) => taskDescription = value,
-                      decoration: InputDecoration(
-                        labelText: 'Task Description',
-                        border: OutlineInputBorder(),
-                      ),
-                      maxLines: 3,
-                    ),
-                    SizedBox(height: 10),
-                    CustomDropdown<String>(
-                      options: ['low', 'medium', 'high'],
-                      displayValue: (priority) => priority,
-                      selectedOption: selectedPriority,
-                      onChanged: (value) {
-                        setState(() {
-                          selectedPriority = value;
-                        });
-                      },
-                      labelText: 'Select Priority',
-                    ),
-                    SizedBox(height: 10),
-                    CustomDropdown<String>(
-                      options: ['open', 'in-progress', 'completed', 'blocked'],
-                      displayValue: (status) => status,
-                      selectedOption: selectedStatus,
-                      onChanged: (value) {
-                        setState(() {
-                          selectedStatus = value;
-                        });
-                      },
-                      labelText: 'Select Status',
-                    ),
-                    SizedBox(height: 15),
-
-                    TextField(
-                      controller: TextEditingController(
-                          text: dueDate != null
-                              ? DateFormat('dd-MM-yyyy').format(dueDate!)
-                              : 'Select Due Date'
-
-                      ),
-
-                      readOnly: true,
-                      onTap: () async {
-                        DateTime? pickedDate = await showDatePicker(
-                          context: context,
-                          initialDate: dueDate ?? DateTime.now(),
-                          firstDate: DateTime(2000),
-                          lastDate: DateTime(2101),
-                        );
-
-                        if (pickedDate != null) {
-                          setState(() {
-                            dueDate = pickedDate;
-                          });
-                        }
-                      },
-                      decoration: InputDecoration(
-                        labelText: 'Select Due Date',
-                        border: OutlineInputBorder(),
-                        suffixIcon: Icon(Icons.calendar_month),
-                      ),
-                    ),
-                    SizedBox(height: 10,),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        Text("Upload Image"),
-                        PopupMenuButton<ImageSource>(
-                          icon: Icon(Icons.upload, size: 30, color: Colors.blue,),
-                          tooltip: 'Upload Image',
-                          onSelected: (source) async {
-                            final picker = ImagePicker();
-                            final pickedFile = await picker.pickImage(source: source);
-                            if (pickedFile != null) {
-                              setState(() {
-                                _commentImageFile = File(pickedFile.path);
-                              });
-                            }
-                          },
-                          itemBuilder: (BuildContext context) => <PopupMenuEntry<ImageSource>>[
-                            const PopupMenuItem<ImageSource>(
-                              value: ImageSource.gallery,
-                              child: Text('Choose from Gallery'),
+                  ),
+                  SizedBox(height: 10),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // Upload icon
+                          PopupMenuButton<ImageSource>(
+                            icon: Icon(Icons.upload, size: 30, color: Colors.blue),
+                            onSelected: (source) async {
+                              final picker = ImagePicker();
+                              final pickedFile = await picker.pickImage(source: source);
+                              if (pickedFile != null) {
+                                setState(() {
+                                  _selectedImage = File(pickedFile.path);
+                                });
+                              }
+                            },
+                            itemBuilder: (BuildContext context) => <PopupMenuEntry<ImageSource>>[
+                              const PopupMenuItem<ImageSource>(
+                                value: ImageSource.gallery,
+                                child: Text('Choose from Gallery'),
+                              ),
+                              const PopupMenuItem<ImageSource>(
+                                value: ImageSource.camera,
+                                child: Text('Take a Picture'),
+                              ),
+                            ],
+                          ),
+                          if (_selectedImage != null)
+                            InkWell(
+                              onTap: () {
+                                showCustomAlertDialog(
+                                  context,
+                                  title: "Review New Image",
+                                  content: Padding(
+                                    padding: const EdgeInsets.only(top: 60.0),
+                                    child: Image.file(_selectedImage!),
+                                  ),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () {
+                                        Navigator.of(context).pop();
+                                      },
+                                      child: Text('Close'),
+                                    ),
+                                  ],
+                                  titleHeight: 65,
+                                );
+                              },
+                              child: Icon(Icons.image, color: Colors.green, size: 30),
+                            )
+                          else if (currentImageUrl != null)
+                            InkWell(
+                              onTap: () {
+                                showCustomAlertDialog(
+                                  context,
+                                  title: "Current Image",
+                                  content: Padding(
+                                    padding: const EdgeInsets.only(top: 60.0),
+                                    child: Image.network(currentImageUrl),
+                                  ),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () {
+                                        Navigator.of(context).pop();
+                                      },
+                                      child: Text('Close'),
+                                    ),
+                                  ],
+                                  titleHeight: 65,
+                                );
+                              },
+                              child: Icon(Icons.image, color: Colors.green, size: 30),
                             ),
-                            const PopupMenuItem<ImageSource>(
-                              value: ImageSource.camera,
-                              child: Text('Take a Picture'),
-                            ),
-                          ],
-                        ),                      ],
-                    ),
-                  ],
-                ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ],
               ),
-            );
+            ),
+          );
+        },
+      ),
+      actions: [
+        StatefulBuilder(
+          builder: (context, localSetState) {
+        return ElevatedButton(
+          onPressed: isSubmitting
+              ? null
+              : () async {
+            localSetState(() => isSubmitting = true);
+            _updateTask(taskId, _selectedImage);
+            localSetState(() => isSubmitting = false);
           },
+          style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+          child:  isSubmitting
+              ? SizedBox(
+            height: 16,
+            width: 16,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+            ),
+          )
+              : Text(
+            'Update',
+            style: TextStyle(color: Colors.white),
+          ),
+        );
+  },
+  ),
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text('Cancel'),
         ),
-        actions: [
-          ElevatedButton(
-            onPressed: () {
-              _updateTask(taskId,_selectedImage);
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-            child: Text('Update Task', style: TextStyle(color: Colors.white)),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Cancel'),
-          ),
-        ],
-        titleHeight: 65,
-        isFullScreen: true
+      ],
+      titleHeight: 65,
+      isFullScreen: true,
     );
   }
 
@@ -913,10 +1030,8 @@ class _TasksScreenState extends State<TasksScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
-                      Text("Upload Image"),
                       PopupMenuButton<ImageSource>(
                         icon: Icon(Icons.upload, size: 30, color: Colors.blue,),
-                        tooltip: 'Upload Image',
                         onSelected: (source) async {
                           final picker = ImagePicker();
                           final pickedFile = await picker.pickImage(source: source);
@@ -937,7 +1052,32 @@ class _TasksScreenState extends State<TasksScreen> {
                           ),
                         ],
                       ),
-
+                      if (_commentImageFile != null)
+                        Positioned(
+                          left: 0,
+                          child: InkWell(
+                            onTap: () {
+                              showCustomAlertDialog(
+                                  context,
+                                  title: "Review Image",
+                                  content: Padding(
+                                    padding: const EdgeInsets.only(top: 60.0),
+                                    child: Image.file(_commentImageFile!),
+                                  ),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () {
+                                        Navigator.of(context).pop();
+                                      },
+                                      child: Text('Close'),
+                                    ),
+                                  ],
+                                  titleHeight: 65
+                              );
+                            },
+                            child: Icon(Icons.image, color: Colors.green, size: 30),
+                          ),
+                        ),
                     ],
                   ),
                   SizedBox(height: 20,),
@@ -964,6 +1104,7 @@ class _TasksScreenState extends State<TasksScreen> {
                             child: isRecording
                                 ? Avatar()
                                 : Icon(Icons.mic, color: Color(0xFF005296), size: 40)
+
                         ),
                         SizedBox(width: 30,),
                         if (audioFilePath != null)
@@ -998,17 +1139,39 @@ class _TasksScreenState extends State<TasksScreen> {
         },
       ),
       actions: [
-        ElevatedButton(
+        StatefulBuilder(
+          builder: (context, localSetState) {
+       return  ElevatedButton(
           style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-          onPressed: () {
+          onPressed: isSubmitting
+              ? null
+              : () async {
+
+            localSetState(() => isSubmitting = true);
             if (comment.isEmpty && audioFilePath == null) {
               showToast(msg: 'Please enter either comment or record audio');
               return;
             }
             _addComments(taskId, comment,);
+            localSetState(() => isSubmitting = false);
+
           },
-          child: Text('Add', style: TextStyle(color: Colors.white)),
-        ),
+          child: isSubmitting
+              ? SizedBox(
+            height: 16,
+            width: 16,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+            ),
+          )
+              : Text(
+            'Add',
+            style: TextStyle(color: Colors.white),
+          ),
+        );
+  },
+  ),
         TextButton(
             onPressed: () => Navigator.pop(context), child: Text('Cancel')),
       ],
@@ -1195,6 +1358,7 @@ class _TasksScreenState extends State<TasksScreen> {
     showCustomAlertDialog(
       context,
       title: 'Full Comment',
+      titleHeight: 65,
       content: SingleChildScrollView(
         child: Padding(
           padding: const EdgeInsets.all(15.0),
@@ -1521,7 +1685,14 @@ class _TasksScreenState extends State<TasksScreen> {
                                 .length > 10
                                 ? task['taskDescription'].substring(0, 10) + '...'
                                 : task['taskDescription'];
-                            bool isOverdue = dueDate != null && dueDate.isBefore(DateTime.now());
+                            bool isOverdue = dueDate != null &&
+                                dueDate.isBefore(DateTime.now().subtract(Duration(days: 1)).add(Duration(
+                                  hours: -DateTime.now().hour,
+                                  minutes: -DateTime.now().minute,
+                                  seconds: -DateTime.now().second,
+                                  milliseconds: -DateTime.now().millisecond,
+                                  microseconds: -DateTime.now().microsecond,
+                                )));
                             bool hasAudioFile = task['audioFilePath'] != null && task['audioFilePath'] != '';
 
                             return buildUserCard(
@@ -1543,51 +1714,45 @@ class _TasksScreenState extends State<TasksScreen> {
                               onDelete: () => _confirmDeleteTask(task['taskId']),
                               leadingIcon3: Row(
                                 children: [
-                                  if (task['comments'] == null ||
-                                      task['comments'].isEmpty)
-                                    Container()
-                                  else
-                                    Positioned(
-                                      right: 50,
-                                      child: Stack(
-                                        children: [
-                                          IconButton(
-                                            icon: Icon(Icons.comment, size: 25, color: Colors.orange),
-                                            onPressed: () => _showCommentsModal(task['taskId']),
-                                          ),
-                                          Positioned(
-                                            top: 0,
-                                            right: 0,
-                                            child: Container(
-                                              padding: EdgeInsets.all(6),
-                                              decoration: BoxDecoration(
-                                                color: Colors.white,
-                                                shape: BoxShape.circle,
-                                              ),
-                                              constraints: BoxConstraints(
-                                                minWidth: 19,
-                                                minHeight: 19,
-                                              ),
-                                              child: Center(
-                                                child: Text(
-                                                  '${task['viewCount']}',
-                                                  style: TextStyle(
-                                                    color: Colors.black,
-                                                    fontSize: 12,
-                                                    fontWeight: FontWeight.bold,
-                                                  ),
-                                                  textAlign: TextAlign.center,
+                                  if (task['comments'] != null && task['comments'].isNotEmpty)
+                                    Stack(
+                                      children: [
+                                        IconButton(
+                                          icon: Icon(Icons.comment, size: 25, color: Colors.orange),
+                                          onPressed: () => _showCommentsModal(task['taskId']),
+                                        ),
+                                        Positioned(
+                                          top: 0,
+                                          right: 0,
+                                          child: Container(
+                                            padding: EdgeInsets.all(6),
+                                            decoration: BoxDecoration(
+                                              color: Colors.white,
+                                              shape: BoxShape.circle,
+                                            ),
+                                            constraints: BoxConstraints(
+                                              minWidth: 19,
+                                              minHeight: 19,
+                                            ),
+                                            child: Center(
+                                              child: Text(
+                                                '${task['viewCount']}',
+                                                style: TextStyle(
+                                                  color: Colors.black,
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.bold,
                                                 ),
+                                                textAlign: TextAlign.center,
                                               ),
                                             ),
                                           ),
-                                        ],
-                                      ),
+                                        ),
+                                      ],
                                     )
                                 ],
                               ),
-                              trailingIcon: Row(
-                                mainAxisAlignment: MainAxisAlignment.end,
+
+                              leadingIcon4: Row(
                                 children: [
                                   if (hasAudioFile)
                                     IconButton(
@@ -1608,13 +1773,17 @@ class _TasksScreenState extends State<TasksScreen> {
                                         }
                                       },
                                     ),
-
                                   if (task['imageFilePath'] != null && task['imageFilePath'].toString().isNotEmpty)
                                     IconButton(
                                       icon: Icon(Icons.image, color: Colors.blue),
                                       onPressed: () => _showImageDialog(task['imageFilePath']),
                                       tooltip: 'View Task Image',
                                     ),
+                                ],
+                              ),
+                              trailingIcon: Row(
+                                mainAxisAlignment: MainAxisAlignment.end,
+                                children: [
 
                                   if(roleName == "User")
                                     IconButton(onPressed: () => _showEditTaskUser(task['taskId']),
@@ -1630,6 +1799,7 @@ class _TasksScreenState extends State<TasksScreen> {
                                       },
                                       icon: Icon(Icons.arrow_downward),
                                     ),
+
                                   if ((taskExpansionStates[task['taskId']
                                       .toString()] ?? false))
                                     IconButton(

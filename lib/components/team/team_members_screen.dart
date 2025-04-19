@@ -289,9 +289,18 @@ class _TeamMembersScreenState extends State<TeamMembersScreen> {
       showToast(msg: response['message'] ?? 'Failed to update role');
     }
   }
+  Future<void> _showEditTeammemberModal(int tmemberId, bool? tmStatus) async {
+    // Find the team member using the provided `tmemberId`
+    final currentMember = teams.firstWhere(
+          (member) => member['tmemberId'] == tmemberId,
+      orElse: () => <String, dynamic>{}, // Default to an empty map if not found
+    );
 
-  Future<void> _showEditTeammemberModal(int tmemberId,bool? tmStatus) async {
-    final currentMember = teams.firstWhere((member) => member['tmemberId'] == tmemberId);
+    if (currentMember.isEmpty) {
+      showToast(msg: 'Team member not found');
+      return;
+    }
+
     selectedUserId = currentMember['userId'];
     selectedRoleId = currentMember['tMRoleId'];
     selectedTeamId = currentMember['teamId'];
@@ -312,7 +321,11 @@ class _TeamMembersScreenState extends State<TeamMembersScreen> {
                 CustomDropdown<int>(
                   options: teamsList.map<int>((team) => team['teamId'] as int).toList(),
                   selectedOption: selectedTeamId,
-                  displayValue: (teamId) => teamsList.firstWhere((team) => team['teamId'] == teamId)['teamName'],
+                  displayValue: (teamId) =>
+                  teamsList.firstWhere(
+                        (team) => team['teamId'] == teamId,
+                    orElse: () => {'teamName': 'Unknown'},
+                  )['teamName'],
                   onChanged: (value) {
                     setState(() {
                       selectedTeamId = value;
@@ -324,7 +337,11 @@ class _TeamMembersScreenState extends State<TeamMembersScreen> {
                 CustomDropdown<int>(
                   options: usersList.map<int>((user) => user['userId'] as int).toList(),
                   selectedOption: selectedUserId,
-                  displayValue: (userId) => usersList.firstWhere((user) => user['userId'] == userId)['userName'],
+                  displayValue: (userId) =>
+                  usersList.firstWhere(
+                        (user) => user['userId'] == userId,
+                    orElse: () => {'userName': 'Unknown'},
+                  )['userName'],
                   onChanged: (value) {
                     setState(() {
                       selectedUserId = value;
@@ -336,7 +353,11 @@ class _TeamMembersScreenState extends State<TeamMembersScreen> {
                 CustomDropdown<int>(
                   options: rolesList.map<int>((role) => role['tMRoleId'] as int).toList(),
                   selectedOption: selectedRoleId,
-                  displayValue: (tMRoleId) => rolesList.firstWhere((role) => role['tMRoleId'] == tMRoleId)['teamMemberRole'],
+                  displayValue: (tMRoleId) =>
+                  rolesList.firstWhere(
+                        (role) => role['tMRoleId'] == tMRoleId,
+                    orElse: () => {'teamMemberRole': 'Unknown'},
+                  )['teamMemberRole'],
                   onChanged: (value) {
                     setState(() {
                       selectedRoleId = value;
@@ -345,7 +366,6 @@ class _TeamMembersScreenState extends State<TeamMembersScreen> {
                   labelText: 'Select Member Role',
                 ),
                 SizedBox(height: 15),
-
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -367,7 +387,6 @@ class _TeamMembersScreenState extends State<TeamMembersScreen> {
                         inactiveTrackColor: Colors.red[200],
                       ),
                     ),
-
                   ],
                 ),
               ],
@@ -395,6 +414,7 @@ class _TeamMembersScreenState extends State<TeamMembersScreen> {
       titleHeight: 65,
     );
   }
+
   List<Map<String, dynamic>> getFilteredData() {
     return teams.where((project) {
       bool matchesTeamName = true;

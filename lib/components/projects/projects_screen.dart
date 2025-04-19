@@ -77,7 +77,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
       if (response['statusCode'] == 200 && response['apiResponse'] != null) {
         setState(() {
           teamsList = List<Map<String, dynamic>>.from(response['apiResponse']);
-          print("Teams List Updated: $teamsList"); // Log the teams list
+          print("Teams List Updated: $teamsList");
         });
       } else {
         print("Failed to load teams. Response: ${response['statusCode']}");
@@ -319,7 +319,6 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                               labelText: 'Start Date',
                               border: OutlineInputBorder(),
                                 suffixIcon: Icon(Icons.calendar_month)
-
                             ),
                           ),
                         ),

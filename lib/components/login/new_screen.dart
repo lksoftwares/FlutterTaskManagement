@@ -13,6 +13,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
   int totalPending = 0;
   int totalViewCount = 0;
   String? roleName;
+  int todayPresentCount = 0;
   Map<String, int> stageCounts = {};
   Map<String, int> taskStatusCounts = {};
   int totalTasks = 0;
@@ -26,6 +27,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
     _fetchWorkingData();
     fetchWorkingDays();
     _fetchProjectData();
+    _fetchAttendanceData();
 _fetchTask();
 
   }
@@ -84,6 +86,30 @@ _fetchTask();
       setState(() {
         isLoading = false;
       });
+    }
+  }
+  Future<void> _fetchAttendanceData() async {
+    setState(() {
+      isLoading = true;
+    });
+
+    final apiService = ApiService();
+    final response = await apiService.request(
+      method: 'GET',
+      endpoint: 'attendance/',  // replace with actual endpoint
+      tokenRequired: true,
+    );
+
+    if (response['statusCode'] == 200) {
+      setState(() {
+        todayPresentCount = response['apiResponse']['todayPresentCount'] ?? 0;
+        isLoading = false;
+      });
+    } else {
+      setState(() {
+        isLoading = false;
+      });
+      showToast(msg: response['message'] ?? 'Failed to fetch attendance');
     }
   }
 
@@ -238,11 +264,13 @@ _fetchTask();
   Widget buildCard(
       String title,
       IconData icon,
-      Color color,
-      {Widget? destinationScreen,
+      Color color, {
+        Widget? destinationScreen,
         String? extraText,
         Widget? content,
-        double fontSize = 16}) {
+        double fontSize = 15,
+        Color? titleBgColor,
+      }) {
     return GestureDetector(
       onTap: () {
         if (destinationScreen != null) {
@@ -254,40 +282,70 @@ _fetchTask();
           showToast(msg: "No screen provided.");
         }
       },
-        child: Container(
-          width: 200,
-          height: 107,
-          child: Card(
-            elevation: 5,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            color: color,
-            child: Padding(
-              padding: const EdgeInsets.all(12.0),
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Container(
+            width: 200,
+            height: 97,
+            child: Card(
+              elevation: 5,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+              color: color,
               child: Column(
                 children: [
-                  Text(
-                    title,
-                    style: TextStyle( fontSize: fontSize, fontWeight: FontWeight.bold, color: Colors.white),
-                  ),
-                  SizedBox(height: 5),
-                  if (extraText != null)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 4.0),
-                      child: Text(
-                        extraText,
-                        style: TextStyle(fontSize: 16, color: Colors.white,fontWeight: FontWeight.bold),
-                        textAlign: TextAlign.center,
+                  Container(
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: titleBgColor ?? Colors.blue,
+                      borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(10),
                       ),
                     ),
-                  if (content != null) content,
+                    padding: const EdgeInsets.symmetric(vertical: 2.0),
+                    child: Text(
+                      title,
+                      style: TextStyle(
+                        fontSize: fontSize,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          if (extraText != null)
+                            Text(
+                              extraText,
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          if (content != null) content,
+                        ],
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
           ),
-        ),
-
+        ],
+      ),
     );
   }
+
 
   Future<void> _fetchTodaysAbsents() async {
     final response = await new ApiService().request(
@@ -531,6 +589,7 @@ _fetchTask();
                             }
                           },
                         ),
+
                         if (totalPending > -1)
                           Positioned(
                             top: 0,
@@ -551,7 +610,7 @@ _fetchTask();
                               ),
                             ),
                           ),
-                      ],
+                       ],
                     ),
                   ),
               ],
@@ -567,16 +626,16 @@ _fetchTask();
                       ),
                     ),
                   ),
-                  Padding(
-                    padding: const EdgeInsets.only(top: 585.5),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        image: DecorationImage(
-                          image: AssetImage("images/bg.jpg"),
-                        ),
-                      ),
-                    ),
-                  ),
+                  // Padding(
+                  //   padding: const EdgeInsets.only(top: 585.5),
+                  //   child: Container(
+                  //     decoration: BoxDecoration(
+                  //       image: DecorationImage(
+                  //         image: AssetImage("images/bg.jpg"),
+                  //       ),
+                  //     ),
+                  //   ),
+                  // ),
                   Padding(
                     padding: const EdgeInsets.all(16.0),
                     child: Column(
@@ -585,8 +644,8 @@ _fetchTask();
                           children: [
                             Expanded(child: buildCard(
                               "WORKING DAYS",
-                              fontSize: 17,
                               Icons.calendar_month,
+                              titleBgColor: Colors.green[100]!,
                               Colors.green[300]!,
                               destinationScreen: Workingdayslist(),
                               content: Padding(
@@ -615,6 +674,8 @@ _fetchTask();
                               "PROJECT STAGE",
                               Icons.check_circle,
                               Colors.grey[400]!,
+                              titleBgColor: Colors.grey[200]!,
+
                               destinationScreen: ProjectsScreen(),
                               extraText: null,
                               content: Padding(
@@ -663,7 +724,7 @@ _fetchTask();
                                         Row(
                                           children: [
                                             Icon(Icons.cancel, color: Colors.red, size: 20),
-                                            SizedBox(height: 8),
+                                            SizedBox(height: 8,width: 4,),
                                             Text(
                                               '${stageCounts['Cancelled'] ?? 0}',
                                               style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
@@ -678,11 +739,14 @@ _fetchTask();
                             )),
                           ],
                         ),
+                        SizedBox(height: 13,),
                         Row(
                           children: [
                             Expanded(child: buildCard(
                               "TOTAL TASKS",
                               Icons.task,
+                              titleBgColor: Colors.blue[100]!,
+
                               Colors.blue[200]!,
                               destinationScreen: TasksScreen(),
                               content: Padding(
@@ -731,7 +795,7 @@ _fetchTask();
                                         Row(
                                           children: [
                                             Icon(Icons.cancel, color: Colors.red, size: 20),
-                                            SizedBox(height: 8),
+                                            SizedBox(height: 8,width: 4,),
                                             Text(
                                               '${taskStatusCounts['Cancelled'] ?? 0}',
                                               style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
@@ -744,8 +808,38 @@ _fetchTask();
                                 ),
                               ),
                             )),
-                            Expanded(child: buildCard("Card 4", Icons.check_circle, Colors.pink[300]!)),
-
+                            Expanded(
+                              child: buildCard(
+                                "TODAY ATTENDANCE",
+                                Icons.how_to_reg,
+                                titleBgColor: Colors.pink[100]!,
+                                destinationScreen: AttendanceScreen(),
+                                Colors.pink[300]!,
+                                extraText: null,
+                                content: Padding(
+                                  padding: const EdgeInsets.only(top: 0.0),
+                                  child: Column(
+                                    children: [
+                                      Row(
+                                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                        children: [
+                                          Row(
+                                            children: [
+                                              Icon(Icons.how_to_reg, color: Colors.yellow, size: 25),
+                                              SizedBox(height: 8),
+                                              Text(
+                                                '$todayPresentCount',
+                                                style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
                           ],
                         ),
                       ],
