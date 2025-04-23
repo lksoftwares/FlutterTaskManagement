@@ -34,7 +34,6 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   int? selectedUserId;
   String? selectedUserName;
 
-
   @override
   void initState() {
     super.initState();
@@ -51,8 +50,8 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         method: 'get',
         endpoint: 'User/?status=1',
         tokenRequired: true
-
     );
+
     if (response['statusCode'] == 200 && response['apiResponse'] != null) {
       setState(() {
         usersList = List<Map<String, dynamic>>.from(response['apiResponse']);
@@ -61,21 +60,23 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       print("Failed to load users");
     }
   }
+
   Future<void> saveAttendanceState() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     await prefs.setBool('hasCheckedIn', hasCheckedIn);
     await prefs.setBool('hasCheckedOut', hasCheckedOut);
   }
+
   void toggleAttendanceSection() {
     setState(() {
       isAttendanceSectionVisible = !isAttendanceSectionVisible;
     });
   }
+
   Future<void> fetchHoliday() async {
     setState(() {
       isLoading = true;
     });
-
     final response = await new ApiService().request(
         method: 'get',
         endpoint: 'holidays/',
@@ -397,7 +398,6 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                             setStateDialog(() {});
                           },
                           fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
-                            // Sync the controller only once when selectedUserName is null
                             if (selectedUserName == null && controller.text.isNotEmpty) {
                               WidgetsBinding.instance.addPostFrameCallback((_) {
                                 controller.clear();
@@ -479,8 +479,6 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     );
   }
 
-
-
   Future<void> fetchAttendanceCountData({bool reset = false}) async {
     setState(() => isLoading = true);
 
@@ -544,6 +542,89 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     }
   }
 
+  void showHolidayDialog(BuildContext context, List<dynamic>? holidayList) {
+    final bool hasHolidays = holidayList != null && holidayList.isNotEmpty;
+    final Widget contentWidget = hasHolidays
+        ? Container(
+      constraints: BoxConstraints(maxHeight: 600),
+      child: Padding(
+        padding: const EdgeInsets.only(top: 20.0),
+        child: ListView.separated(
+          shrinkWrap: true,
+          itemCount: holidayList!.length,
+          separatorBuilder: (_, __) => Divider(color: Colors.grey.shade300),
+          itemBuilder: (context, index) {
+            final holiday = holidayList[index];
+            DateTime holidayDate = DateTime.parse(holiday['holidayDate']);
+            String formattedDate = DateformatddMMyyyy.formatDateddMMyyyy(holidayDate);
+            return Row(
+              children: [
+                SizedBox(width: 20),
+                Icon(Icons.calendar_month, color: Colors.orange, size: 22),
+                SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        holiday['holidayName'],
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 16,
+                        ),
+                      ),
+                      Text(
+                        formattedDate,
+                        style: TextStyle(
+                          color: Colors.grey[600],
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
+      ),
+    )
+        : Padding(
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      child: Row(
+        children: [
+          Icon(Icons.info_outline, color: Colors.grey),
+          SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              "No holidays found for this period.",
+              style: TextStyle(fontSize: 16, color: Colors.grey[700]),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    showCustomAlertDialog(
+      context,
+      title: "📅 Holiday List",
+      titleHeight: 63,
+      content: contentWidget,
+      actions: [
+        TextButton(
+          child: Text(
+            "Close",
+            style: TextStyle(color: Colors.blueAccent),
+          ),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ],
+    );
+  }
+
+
+
+
   Widget buildAttendanceCountList() {
     final filteredData = getFilteredAttendanceData();
     final groupedData = groupAttendanceByUser(filteredData);
@@ -589,7 +670,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                       ),
 
                       Text(
-                        "${user['totalPresent'] ?? 0} / ${user['totalDaysInRange'] ?? 0}",
+                        "${user['totalworkingDays'] ?? 0} / ${user['totalDaysInRange'] ?? 0}",
                         style: TextStyle(
                             color: Colors.black87,
                             fontWeight: FontWeight.bold,
@@ -618,7 +699,6 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                                       color: Colors.indigo.shade900)),
                               Text("📅 ${formatDateRange(record['range'])}",
                                   style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-
                             ],
                           ),
                           SizedBox(height: 14),
@@ -626,16 +706,22 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text("✅ P",
+                              Text("P ✅",
                                   style: TextStyle(
                                       fontWeight: FontWeight.bold, fontSize: 16)),
-                              Text("❌ AB ",
+                              GestureDetector(
+                                onTap: () => showHolidayDialog(context, record['holidayList']),
+                                child: Text("H 📆",
+                                    style: TextStyle(
+                                        fontWeight: FontWeight.bold, fontSize: 16)),
+                              ),
+                              Text("AB ❌",
                                   style: TextStyle(
                                       fontWeight: FontWeight.bold, fontSize: 16)),
-                              Text("📝 L",
+                              Text("L 📝",
                                   style: TextStyle(
                                       fontWeight: FontWeight.bold, fontSize: 16)),
-                              Text("📆 H",
+                              Text("Total",
                                   style: TextStyle(
                                       fontWeight: FontWeight.bold, fontSize: 16)),
                             ],
@@ -645,14 +731,16 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text("${record['totalPresent'] ?? 0}/${record['totalDaysInRange'] ?? 0}",
-                                  style: TextStyle(color: Colors.green, fontSize: 16)),
-                              Text("${record['absentDays'] ?? 0}",
-                                  style: TextStyle(color: Colors.redAccent, fontSize: 16)),
-                              Text("${record['totalLeaves'] ?? 0}",
-                                  style: TextStyle(color: Colors.blueGrey, fontSize: 16)),
+                              Text("${record['totalPresent'] ?? 0}",
+                                  style: TextStyle(color: Colors.green, fontSize: 16,fontWeight: FontWeight.w900)),
                               Text("${record['totalHolidays'] ?? 0}",
-                                  style: TextStyle(color: Colors.teal, fontSize: 16)),
+                                  style: TextStyle(color: Colors.green, fontSize: 16,fontWeight: FontWeight.w900)),
+                              Text("${record['absentDays'] ?? 0}",
+                                  style: TextStyle(color: Colors.green, fontSize: 16,fontWeight: FontWeight.w900)),
+                              Text("${record['totalLeaves'] ?? 0}",
+                                  style: TextStyle(color: Colors.green, fontSize: 16,fontWeight: FontWeight.w900)),
+                              Text("${record['workingDays'] ?? 0}/${record['totalDaysInRange'] ?? 0}",
+                                  style: TextStyle(color: Colors.green, fontSize: 16,fontWeight: FontWeight.w900)),
                             ],
                           ),
                           SizedBox(height: 8),
@@ -672,7 +760,6 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     }
 
     List<Map<String, dynamic>> allRecords = [];
-
     for (var entry in groupedData.entries) {
       String userName = entry.key;
       for (var record in entry.value) {
@@ -727,16 +814,22 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text("✅ P",
+                    Text("P ✅",
+                        style: TextStyle(
+                            fontWeight: FontWeight.w900, fontSize: 16)),
+                    GestureDetector(
+                      onTap: () => showHolidayDialog(context, record['holidayList']),
+                      child: Text("H 📆",
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold, fontSize: 16)),
+                    ),
+                    Text("AB ❌",
                         style: TextStyle(
                             fontWeight: FontWeight.bold, fontSize: 16)),
-                    Text("❌ AB ",
+                    Text("L 📝",
                         style: TextStyle(
                             fontWeight: FontWeight.bold, fontSize: 16)),
-                    Text("📝 L",
-                        style: TextStyle(
-                            fontWeight: FontWeight.bold, fontSize: 16)),
-                    Text("📆 H",
+                    Text("Total",
                         style: TextStyle(
                             fontWeight: FontWeight.bold, fontSize: 16)),
                   ],
@@ -746,14 +839,16 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text("${record['totalPresent'] ?? 0}/${record['totalDaysInRange'] ?? 0}",
-                        style: TextStyle(color: Colors.green, fontSize: 16)),
-                    Text("${record['absentDays'] ?? 0}",
-                        style: TextStyle(color: Colors.redAccent, fontSize: 16)),
-                    Text("${record['totalLeaves'] ?? 0}",
-                        style: TextStyle(color: Colors.blueGrey, fontSize: 16)),
+                    Text("${record['totalPresent'] ?? 0}",
+                        style: TextStyle(color: Colors.green, fontSize: 16,fontWeight: FontWeight.w900)),
                     Text("${record['totalHolidays'] ?? 0}",
-                        style: TextStyle(color: Colors.teal, fontSize: 16)),
+                        style: TextStyle(color: Colors.teal, fontSize: 16,fontWeight: FontWeight.w900)),
+                    Text("${record['absentDays'] ?? 0}",
+                        style: TextStyle(color: Colors.redAccent, fontSize: 16,fontWeight: FontWeight.w900)),
+                    Text("${record['totalLeaves'] ?? 0}",
+                        style: TextStyle(color: Colors.blueGrey, fontSize: 16,fontWeight: FontWeight.w900)),
+                    Text("${record['workingDays'] ?? 0}/${record['totalDaysInRange'] ?? 0}",
+                        style: TextStyle(color: Colors.green, fontSize: 16,fontWeight: FontWeight.w900)),
                   ],
                 ),
                 SizedBox(height: 8),

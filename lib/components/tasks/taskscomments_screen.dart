@@ -59,7 +59,7 @@ class _TaskscommentsScreenState extends State<TaskscommentsScreen> {
     );
     if (response['statusCode'] == 200 && response['apiResponse'] != null) {
       setState(() {
-        tasksList = List<Map<String, dynamic>>.from(response['apiResponse']);
+        tasksList = List<Map<String, dynamic>>.from(response['apiResponse']["taskList"]);
       });
     } else {
       print('Failed to load tasks');
@@ -276,6 +276,7 @@ class _TaskscommentsScreenState extends State<TaskscommentsScreen> {
         ),
       ],
       titleHeight: 65,
+      isFullScreen: false
     );
   }
 

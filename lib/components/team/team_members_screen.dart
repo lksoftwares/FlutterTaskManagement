@@ -290,11 +290,8 @@ class _TeamMembersScreenState extends State<TeamMembersScreen> {
     }
   }
   Future<void> _showEditTeammemberModal(int tmemberId, bool? tmStatus) async {
-    // Find the team member using the provided `tmemberId`
-    final currentMember = teams.firstWhere(
-          (member) => member['tmemberId'] == tmemberId,
-      orElse: () => <String, dynamic>{}, // Default to an empty map if not found
-    );
+
+    Map<String, dynamic> currentMember = teams.firstWhere((task) => task['tmemberId'] == tmemberId);
 
     if (currentMember.isEmpty) {
       showToast(msg: 'Team member not found');

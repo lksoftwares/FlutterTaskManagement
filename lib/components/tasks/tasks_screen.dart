@@ -13,13 +13,14 @@ class TasksScreen extends StatefulWidget {
 class _TasksScreenState extends State<TasksScreen> {
   List<Map<String, dynamic>> projects = [];
   bool isSubmitting = false;
-
   List<Map<String, dynamic>> team = [];
   String? selectedProjectName;
   bool isAllFieldsVisible = false;
   bool isLoading = false;
   String? selectedStatus = 'open';
   String? selectedPriority = 'low';
+  String? selectedUserName;
+
   List<Map<String, dynamic>> tasks = [];
   String? selectedRoleName;
   String taskTitle = '';
@@ -40,13 +41,18 @@ class _TasksScreenState extends State<TasksScreen> {
   Map<String, bool> isPlayingMap = {};
   File? _selectedImage;
   File? _commentImageFile;
+  List<Map<String, dynamic>> users = [];
+
   Timer? positionTimer;
+  bool isImageLoading = false;
+
   @override
   void initState() {
     super.initState();
     _initializeRecorder();
     _initializePlayer();
     fetchProjects();
+    fetchUsers();
     fetchTasks();
     _getUserId();
   }
@@ -56,7 +62,7 @@ class _TasksScreenState extends State<TasksScreen> {
   List<String> taskStages = ['open', 'in-progress', 'completed', 'blocked'];
   Map<String, bool> selectedStages = {
     'open': true,
-    'in-progress': false,
+    'in-progress': true,
     'completed': false,
     'blocked': false,
   };
@@ -129,24 +135,36 @@ class _TasksScreenState extends State<TasksScreen> {
 
   Future<void> fetchTeamMembers() async {
     if (selectedprojectId == null) return;
-
     final response = await new ApiService().request(
         method: 'get',
         endpoint: 'teams/GetTeamMembers?projectId=$selectedprojectId&status=1',
         tokenRequired: true
     );
-    print('Fetching team members for project ID: $selectedprojectId');
 
     if (response['statusCode'] == 200 && response['apiResponse'] != null) {
       setState(() {
         team = List<Map<String, dynamic>>.from(response['apiResponse']);
       });
-      print('Team members fetched: $team');
     } else {
       showToast(msg: response['message'] ?? 'Failed to load team members');
     }
   }
+  Future<void> fetchUsers() async {
+    final response = await new ApiService().request(
+        method: 'get',
+        endpoint: 'User/?status=1',
+        tokenRequired: true
+    );
+    print("responsesssss $response");
+    if (response['statusCode'] == 200 && response['apiResponse'] != null) {
+      setState(() {
+        users = List<Map<String, dynamic>>.from(response['apiResponse']);
+      });
 
+    } else {
+      showToast(msg: response['message'] ?? 'Failed to load users');
+    }
+  }
   Future<void> fetchProjects() async {
     setState(() {
       isLoading = true;
@@ -509,7 +527,13 @@ class _TasksScreenState extends State<TasksScreen> {
                               ),
                             ],
                           ),
-                          if (_selectedImage != null)
+                          if (isImageLoading)
+                            SizedBox(
+                              height: 24,
+                              width: 24,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          else if (_selectedImage != null)
                             InkWell(
                               onTap: () {
                                 showCustomAlertDialog(
@@ -543,34 +567,25 @@ class _TasksScreenState extends State<TasksScreen> {
         },
       ),
       actions: [
+
         StatefulBuilder(
           builder: (context, localSetState) {
-       return  ElevatedButton(
-          onPressed: isSubmitting
-              ? null
-              : () async {
-            localSetState(() => isSubmitting = true);
-            await _addTask(_selectedImage);
-            localSetState(() => isSubmitting = false);
+            return LoadingButton(
+              isLoading: isSubmitting,
+              label: 'Add',
+              onPressed: () async {
+                if (isRecording) {
+                  showToast(msg: 'Please stop the recording first.', backgroundColor: Colors.red);
+                  return;
+                }
 
+                localSetState(() => isSubmitting = true);
+                await _addTask(_selectedImage);
+                localSetState(() => isSubmitting = false);
+              },
+            );
           },
-          style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-          child:  isSubmitting
-              ? SizedBox(
-            height: 16,
-            width: 16,
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
-              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-            ),
-          )
-              : Text(
-            'Add',
-            style: TextStyle(color: Colors.white),
-          ),
-        );
-  },
-  ),
+        ),
         TextButton(
           onPressed: () => Navigator.pop(context),
           child: Text('Cancel'),
@@ -835,7 +850,13 @@ class _TasksScreenState extends State<TasksScreen> {
                               ),
                             ],
                           ),
-                          if (_selectedImage != null)
+                          if (isImageLoading)
+                            SizedBox(
+                              height: 24,
+                              width: 24,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                        else if (_selectedImage != null)
                             InkWell(
                               onTap: () {
                                 showCustomAlertDialog(
@@ -894,31 +915,18 @@ class _TasksScreenState extends State<TasksScreen> {
       actions: [
         StatefulBuilder(
           builder: (context, localSetState) {
-        return ElevatedButton(
-          onPressed: isSubmitting
-              ? null
-              : () async {
-            localSetState(() => isSubmitting = true);
-            _updateTask(taskId, _selectedImage);
-            localSetState(() => isSubmitting = false);
+            return LoadingButton(
+              isLoading: isSubmitting,
+              label: 'Edit',
+              onPressed: () async {
+
+                localSetState(() => isSubmitting = true);
+                _updateTask(taskId, _selectedImage);
+                localSetState(() => isSubmitting = false);
+              },
+            );
           },
-          style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-          child:  isSubmitting
-              ? SizedBox(
-            height: 16,
-            width: 16,
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
-              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-            ),
-          )
-              : Text(
-            'Update',
-            style: TextStyle(color: Colors.white),
-          ),
-        );
-  },
-  ),
+        ),
         TextButton(
           onPressed: () => Navigator.pop(context),
           child: Text('Cancel'),
@@ -1052,31 +1060,34 @@ class _TasksScreenState extends State<TasksScreen> {
                           ),
                         ],
                       ),
-                      if (_commentImageFile != null)
-                        Positioned(
-                          left: 0,
-                          child: InkWell(
-                            onTap: () {
-                              showCustomAlertDialog(
-                                  context,
-                                  title: "Review Image",
-                                  content: Padding(
-                                    padding: const EdgeInsets.only(top: 60.0),
-                                    child: Image.file(_commentImageFile!),
+                      if (isImageLoading)
+                        SizedBox(
+                          height: 24,
+                          width: 24,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                     else if (_commentImageFile != null)
+                        InkWell(
+                          onTap: () {
+                            showCustomAlertDialog(
+                                context,
+                                title: "Review Image",
+                                content: Padding(
+                                  padding: const EdgeInsets.only(top: 60.0),
+                                  child: Image.file(_commentImageFile!),
+                                ),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () {
+                                      Navigator.of(context).pop();
+                                    },
+                                    child: Text('Close'),
                                   ),
-                                  actions: [
-                                    TextButton(
-                                      onPressed: () {
-                                        Navigator.of(context).pop();
-                                      },
-                                      child: Text('Close'),
-                                    ),
-                                  ],
-                                  titleHeight: 65
-                              );
-                            },
-                            child: Icon(Icons.image, color: Colors.green, size: 30),
-                          ),
+                                ],
+                                titleHeight: 65
+                            );
+                          },
+                          child: Icon(Icons.image, color: Colors.green, size: 30),
                         ),
                     ],
                   ),
@@ -1141,37 +1152,25 @@ class _TasksScreenState extends State<TasksScreen> {
       actions: [
         StatefulBuilder(
           builder: (context, localSetState) {
-       return  ElevatedButton(
-          style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-          onPressed: isSubmitting
-              ? null
-              : () async {
-
-            localSetState(() => isSubmitting = true);
-            if (comment.isEmpty && audioFilePath == null) {
-              showToast(msg: 'Please enter either comment or record audio');
-              return;
-            }
-            _addComments(taskId, comment,);
-            localSetState(() => isSubmitting = false);
-
+            return LoadingButton(
+              isLoading: isSubmitting,
+              label: 'Add',
+              onPressed: () async {
+                if (isRecording) {
+                  showToast(msg: 'Please stop the recording first.', backgroundColor: Colors.red);
+                  return;
+                }
+                if (comment.isEmpty && audioFilePath == null) {
+                  showToast(msg: 'Please enter either comment or record audio');
+                  return;
+                }
+                localSetState(() => isSubmitting = true);
+                _addComments(taskId, comment,);
+                localSetState(() => isSubmitting = false);
+              },
+            );
           },
-          child: isSubmitting
-              ? SizedBox(
-            height: 16,
-            width: 16,
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
-              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-            ),
-          )
-              : Text(
-            'Add',
-            style: TextStyle(color: Colors.white),
-          ),
-        );
-  },
-  ),
+        ),
         TextButton(
             onPressed: () => Navigator.pop(context), child: Text('Cancel')),
       ],
@@ -1401,12 +1400,19 @@ class _TasksScreenState extends State<TasksScreen> {
 
   List<Map<String, dynamic>> getFilteredData() {
     if (selectedStages.values.every((value) => !value)) {
-      return tasks.where((task) => task['taskStatus'] == 'open').toList();
+      return tasks.where((task) {
+        final status = task['taskStatus']?.toString().trim().toLowerCase();
+        return status == 'open' || status == 'in-progress';
+      }).toList();
     }
+
     return tasks.where((task) {
       bool matchesStage = selectedStages[task['taskStatus']] ?? false;
       bool matchesDate = true;
-
+      bool matchesuserName = true;
+      if (selectedUserName != null && selectedUserName!.isNotEmpty) {
+        matchesuserName = task['taskAssignedToName'] == selectedUserName;
+      }
       if (fromDate != null && toDate != null) {
         DateTime workingDate = _parseDate(task['taskDueDate']);
         matchesDate = (workingDate.isAtSameMomentAs(fromDate!) ||
@@ -1414,7 +1420,7 @@ class _TasksScreenState extends State<TasksScreen> {
             (workingDate.isAtSameMomentAs(toDate!) ||
                 workingDate.isBefore(toDate!));
       }
-      return matchesStage && matchesDate;
+      return matchesStage && matchesDate && matchesuserName;
     }).toList();
   }
 
@@ -1537,24 +1543,159 @@ class _TasksScreenState extends State<TasksScreen> {
     );
   }
 
-  void _showDatePicker() {
-    showDateRangePicker(
-      context: context,
-      firstDate: DateTime(2025,DateTime.february),
-      lastDate: DateTime(2025,DateTime.december),
-      initialDateRange: fromDate != null && toDate != null
-          ? DateTimeRange(start: fromDate!, end: toDate!)
-          : null,
-    ).then((pickedDateRange) {
-      if (pickedDateRange != null) {
-        setState(() {
-          fromDate = pickedDateRange.start;
-          toDate = pickedDateRange.end;
-        });
-      }
-    });
+  void _showFilter() {
+    List<DropdownItem<String>> stageItems = taskStages
+        .map((stage) => DropdownItem(label: stage, value: stage))
+        .toList();
+    showCustomAlertDialog(
+     context,
+          title: 'Select Data',
+          content: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(15.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    MultiSelectDropdown(
+                      width: 275,
+                      items: stageItems,
+                      controller: controller,
+                      hintText: 'Select Task Stage',
+                      onSelectionChange: (selectedItems) {
+                        setState(() {
+                          selectedStages = {
+                            for (var stage in taskStages)
+                              stage: selectedItems.contains(stage),
+                          };
+                        });
+                        fetchTasks();
+                      },
+                    ),
+                    IconButton(
+                      icon: Icon(Icons.date_range, size: 30, color: Colors.blue),
+                      onPressed: () async {
+                        Navigator.of(context).pop();
+                        final pickedDateRange = await showDateRangePicker(
+                          context: context,
+                          firstDate: DateTime(2025, DateTime.february),
+                          lastDate: DateTime(2025, DateTime.december),
+                          initialDateRange: fromDate != null && toDate != null
+                              ? DateTimeRange(start: fromDate!, end: toDate!)
+                              : null,
+                        );
+
+                        if (pickedDateRange != null) {
+                          setState(() {
+                            fromDate = pickedDateRange.start;
+                            toDate = pickedDateRange.end;
+                          });
+                        }
+                      },
+                    ),
+                    SizedBox(height: 10),
+                  ],
+                ),
+              ),
+              Autocomplete<String>(
+                optionsBuilder: (TextEditingValue textEditingValue) {
+                  return users
+                      .where((user) => user['userName']!
+                      .toLowerCase()
+                      .contains(textEditingValue.text.toLowerCase()))
+                      .map((user) => user['userName'] as String)
+                      .toList();
+                },
+                onSelected: (String userName) {
+                  setState(() {
+                    selectedUserName = userName;
+                  });
+                  fetchTasks();
+                },
+                fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+                  return Container(
+                    width: 320,
+                    child: TextField(
+                      controller: controller,
+                      focusNode: focusNode,
+                      decoration: InputDecoration(
+                        labelText: 'Select User',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        prefixIcon: Icon(Icons.person),
+                      ),
+                      onChanged: (value) {
+                        if (value.isEmpty) {
+                          setState(() {
+                            selectedUserName = null;
+                          });
+                          fetchTasks();
+                        }
+                      },
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              child: Text('Apply'),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+          ],
+       titleHeight: 65
+    );
   }
 
+  // void _showFilter() {
+  //   MultiSelectController<String> controller = MultiSelectController<String>();
+  //   List<Map<String, String>> userStringList = users
+  //       .map((user) => {
+  //     'userName': user['userName'] as String,
+  //   })
+  //       .toList();
+  //   showCustomAlertDialog(
+  //     context,
+  //      title: "Filter",
+  //      content: FilterDialog(
+  //         taskStages: taskStages,
+  //         users: userStringList,
+  //         controller: controller,
+  //         onStageSelected: (selectedStages) {
+  //           setState(() {
+  //             selectedStages = selectedStages;
+  //           });
+  //           fetchTasks();
+  //         },
+  //         onDateRangeSelected: (pickedDateRange) {
+  //           if (pickedDateRange != null) {
+  //             setState(() {
+  //               fromDate = pickedDateRange.start;
+  //               toDate = pickedDateRange.end;
+  //             });
+  //           }
+  //         },
+  //         onUserSelected: (userName) {
+  //           setState(() {
+  //             selectedUserName = userName;
+  //           });
+  //           fetchTasks();
+  //         },
+  //         fromDate: fromDate,
+  //         toDate: toDate,
+  //       ), actions: [
+  //     TextButton(
+  //       child: Text('Apply'),
+  //       onPressed: () => Navigator.of(context).pop(),
+  //     ),    ]
+  //
+  //    showStageDropdown: true,
+  //       showDatePicker: true,
+  //       showUserAutocomplete: false,
+  //   );
+  // }
 
   void _showImageDialog(String? imageUrl) {
     if (imageUrl == null || imageUrl.isEmpty) {
@@ -1573,8 +1714,15 @@ class _TasksScreenState extends State<TasksScreen> {
           child: Image.network(
             imageUrl,
             fit: BoxFit.contain,
+            loadingBuilder: (context, child, loadingProgress) {
+              if (loadingProgress == null) return child;
+              return Padding(
+                padding: const EdgeInsets.all(20.0),
+                child: CircularProgressIndicator(),
+              );
+            },
             errorBuilder: (context, error, stackTrace) =>
-                Text("Failed to load image."),
+                Center(child: Text("Failed to load image.")),
           ),
         ),
       ),
@@ -1587,6 +1735,7 @@ class _TasksScreenState extends State<TasksScreen> {
       titleHeight: 60,
     );
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -1611,25 +1760,25 @@ class _TasksScreenState extends State<TasksScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
-                      MultiSelectDropdown(
-                        width: 240,
-                        items: stageItems,
-                        controller: controller,
-                        hintText: 'Select Task Stage',
-                        onSelectionChange: (selectedItems) {
-                          setState(() {
-                            selectedStages = {
-                              for (var stage in taskStages)
-                                stage: selectedItems.contains(stage),
-                            };
-                          });
-                          fetchTasks();
-                        },
-                      ),
+                      // MultiSelectDropdown(
+                      //   width: 240,
+                      //   items: stageItems,
+                      //   controller: controller,
+                      //   hintText: 'Select Task Stage',
+                      //   onSelectionChange: (selectedItems) {
+                      //     setState(() {
+                      //       selectedStages = {
+                      //         for (var stage in taskStages)
+                      //           stage: selectedItems.contains(stage),
+                      //       };
+                      //     });
+                      //     fetchTasks();
+                      //   },
+                      // ),
                       IconButton(
                         icon: Icon(
                             Icons.filter_alt_outlined, color: Colors.blue, size: 30),
-                        onPressed: _showDatePicker,
+                        onPressed: _showFilter,
                       ),
                       IconButton(
                         icon: Icon(
@@ -1773,11 +1922,11 @@ class _TasksScreenState extends State<TasksScreen> {
                                         }
                                       },
                                     ),
+
                                   if (task['imageFilePath'] != null && task['imageFilePath'].toString().isNotEmpty)
                                     IconButton(
                                       icon: Icon(Icons.image, color: Colors.blue),
                                       onPressed: () => _showImageDialog(task['imageFilePath']),
-                                      tooltip: 'View Task Image',
                                     ),
                                 ],
                               ),

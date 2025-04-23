@@ -24,31 +24,34 @@ class _WorkingdayslistState extends State<Workingdayslist> {
 
     SharedPreferences prefs = await SharedPreferences.getInstance();
     int? userId = prefs.getInt('user_Id');
+    String roleName = prefs.getString('role_Name') ?? "";
+    String endpoint = 'Working/';
+    if (roleName == 'Admin') {
+      endpoint = 'Working/';
+    } else if (userId != null) {
+      endpoint = 'Working/?userId=$userId';
+    }
+    final response = await ApiService().request(
+      method: 'get',
+      endpoint: endpoint,
+      tokenRequired: true,
+    );
 
-    if (userId != null) {
-      final response = await new ApiService().request(
-        method: 'get',
-        endpoint: 'Working/?userId=$userId',
-        tokenRequired: true
-      );
-      print('Response: $response');
+    print('Response: $response');
 
-      if (response['statusCode'] == 200 && response['apiResponse'] != null) {
-        setState(() {
-          totalWorkingDaysList = List<Map<String, dynamic>>.from(
-            response['apiResponse']['totalWorkingDaysList'].map((data) => {
-
-              'txnId': data['txnId']?? 0,
-              'totalDaysInMonth': data['totalDaysInMonth'],
-              'totalWorkingDays': data['totalWorkingDays'],
-            }),
-          );
-        });
-      } else {
-        showToast(msg: response['message'] ?? 'Failed to load working days');
-      }
+    if (response['statusCode'] == 200 && response['apiResponse'] != null) {
+      setState(() {
+        totalWorkingDaysList = List<Map<String, dynamic>>.from(
+          response['apiResponse']['totalWorkingDaysList'].map((data) => {
+            'txnId': data['txnId'] ?? 0,
+            'userName': data['userName']??"",
+            'totalDaysInMonth': data['totalDaysInMonth'],
+            'totalWorkingDays': data['totalWorkingDays'],
+          }),
+        );
+      });
     } else {
-      showToast(msg: 'User ID not found in SharedPreferences');
+      showToast(msg: response['message'] ?? 'Failed to load working days');
     }
 
     setState(() {
@@ -78,9 +81,9 @@ class _WorkingdayslistState extends State<Workingdayslist> {
                   Column(
                     children: totalWorkingDaysList.map((days) {
                       Map<String, dynamic> roleFields = {
-
-                        'DaysinMonth': days['totalDaysInMonth'],
+                        'UserName': days['userName'],
                         '': days[''],
+                        'DaysinMonth': days['totalDaysInMonth'],
                         'WorkingDays': days['totalWorkingDays'],
                       };
 

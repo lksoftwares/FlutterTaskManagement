@@ -88,7 +88,7 @@ class _AssigntaskScreenState extends State<AssigntaskScreen> {
     if (response['statusCode'] == 200 && response['apiResponse'] != null) {
       setState(() {
         tasks = List<Map<String, dynamic>>.from(
-          response['apiResponse'].map((project) => {
+          response['apiResponse']["taskList"].map((project) => {
             'taskId': project['taskId'] ?? 0,
             'taskTitle': project['taskTitle'] ?? 'Unknown taskTitle',
           }),

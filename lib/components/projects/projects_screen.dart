@@ -19,6 +19,9 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
   int? selectedTeamId;
   String? selectedStage;
   String? selectedStage2;
+  bool isSubmitting = false;
+
+
   @override
   void initState() {
     super.initState();
@@ -189,23 +192,41 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
         ),
       ),
       actions: [
-        ElevatedButton(
+        StatefulBuilder(
+          builder: (context, localSetState) {
+       return  ElevatedButton(
           style: ElevatedButton.styleFrom(
             backgroundColor: Colors.green,
           ),
-          onPressed: () {
-            if (teamName.isEmpty ) {
-              showToast(msg: 'Please fill in both fields');
-            } else {
-              _addTeam(teamName, tmDescription);
-              fetchTeams();
-            }
-          },
-          child: Text(
+         onPressed: isSubmitting
+             ? null
+             : () async {
+           if (teamName.isEmpty ) {
+             showToast(msg: 'Please fill in both fields');
+           }
+           localSetState(() => isSubmitting = true);
+
+           _addTeam(teamName, tmDescription);
+           fetchTeams();
+           localSetState(() => isSubmitting = false);
+         },
+
+          child: isSubmitting
+              ? SizedBox(
+            height: 16,
+            width: 16,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+            ),
+          )
+              : Text(
             'Add',
             style: TextStyle(color: Colors.white),
           ),
-        ),
+        );
+  },
+  ),
         TextButton(
           onPressed: () => Navigator.pop(context),
           child: Text('Cancel'),
@@ -359,16 +380,22 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
           }
        ),
       actions: [
-        ElevatedButton(
-          style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-          onPressed: () {
-            if (projectName.isEmpty  || userId == null || startDate == null || endDate == null) {
-              showToast(msg: 'Please fill in all fields');
-              return;
-            }
-            _addProject(projectName, projectDescription, userId!, userId!, selectedTeamId!, startDate!, endDate!);
+        StatefulBuilder(
+          builder: (context, localSetState) {
+            return LoadingButton(
+              isLoading: isSubmitting,
+              label: 'Add',
+              onPressed: () async {
+                if (projectName.isEmpty  || userId == null || startDate == null || endDate == null) {
+                  showToast(msg: 'Please fill in all fields');
+                  return;
+                }
+                localSetState(() => isSubmitting = true);
+                _addProject(projectName, projectDescription, userId!, userId!, selectedTeamId!, startDate!, endDate!);
+                localSetState(() => isSubmitting = false);
+              },
+            );
           },
-          child: Text('Add', style: TextStyle(color: Colors.white)),
         ),
         TextButton(
           onPressed: () => Navigator.pop(context),
@@ -454,166 +481,186 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
       showToast(msg: message);
     }
   }
+
   void _showEditProjectModal(Map<String, dynamic> project) {
-    TextEditingController projectNameController = TextEditingController(text: project['projectName']);
-    TextEditingController projectDescriptionController = TextEditingController(text: project['projectDescription']);
+    TextEditingController projectNameController =
+    TextEditingController(text: project['projectName']);
+    TextEditingController projectDescriptionController =
+    TextEditingController(text: project['projectDescription']);
+
     DateTime startDate = DateTime.parse(project['startDate']);
     DateTime endDate = DateTime.parse(project['endDate']);
-    TextEditingController startDateController = TextEditingController(text: DateformatddMMyyyy.formatDateddMMyyyy(startDate));
-    TextEditingController endDateController = TextEditingController(text: DateformatddMMyyyy.formatDateddMMyyyy(endDate));
-     int? selectedTeamId = project['teamId'];
+
+    TextEditingController startDateController = TextEditingController(
+        text: DateformatddMMyyyy.formatDateddMMyyyy(startDate));
+    TextEditingController endDateController = TextEditingController(
+        text: DateformatddMMyyyy.formatDateddMMyyyy(endDate));
+
+    int? selectedTeamId = project['teamId'];
     bool? selectedStatus = project['projectStatus'];
-    selectedStage = project['projectStage'];
+    String? selectedStage = project['projectStage'];
+    if (selectedTeamId != null &&
+        !teamsList.any((team) => team['teamId'] == selectedTeamId)) {
+      selectedTeamId = null;
+    }
+
     showCustomAlertDialog(
       context,
       title: 'Edit Project',
-      content: StatefulBuilder(
-          builder: (context, setState) {
-            return SingleChildScrollView(
-              child: Padding(
-                padding: const EdgeInsets.all(15.0),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
+      content: StatefulBuilder(builder: (context, setState) {
+        return SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(15.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: projectNameController,
+                  decoration: InputDecoration(
+                    labelText: 'Project Name',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                SizedBox(height: 15),
+                TextField(
+                  controller: projectDescriptionController,
+                  decoration: InputDecoration(
+                    labelText: 'Project Description',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                SizedBox(height: 15),
+                CustomDropdown<int>(
+                  options: teamsList
+                      .map<int>((team) => team['teamId'] as int)
+                      .toList(),
+                  selectedOption: selectedTeamId,
+                 displayValue: (teamId) {
+                    final team = teamsList.firstWhere(
+                          (team) => team['teamId'] == teamId,
+                      orElse: () => {'teamName': 'Unknown Team'},
+                    );
+                    return team['teamName'];
+                  },
+
+                  onChanged: (value) {
+                    setState(() {
+                      selectedTeamId = value;
+                    });
+                  },
+                  labelText: 'Select Team',
+                ),
+
+                SizedBox(height: 15),
+                CustomDropdown<String>(
+                  options: [
+                    'Pending',
+                    'In Progress',
+                    'Completed',
+                    'On Hold',
+                    'Cancelled'
+                  ],
+                  displayValue: (status) => status,
+                  selectedOption: selectedStage,
+                  onChanged: (value) {
+                    setState(() {
+                      selectedStage = value;
+                    });
+                  },
+                  labelText: 'Select Status',
+                ),
+                SizedBox(height: 15),
+
+                // Start Date Picker
+                GestureDetector(
+                  onTap: () async {
+                    DateTime? picked = await showDatePicker(
+                      context: context,
+                      initialDate: startDate,
+                      firstDate: DateTime(2000),
+                      lastDate: DateTime(2101),
+                    );
+                    if (picked != null) {
+                      setState(() {
+                        startDate = picked;
+                        startDateController.text =
+                            DateformatddMMyyyy.formatDateddMMyyyy(startDate);
+                      });
+                    }
+                  },
+                  child: AbsorbPointer(
+                    child: TextField(
+                      controller: startDateController,
+                      decoration: InputDecoration(
+                        labelText: 'Start Date',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                  ),
+                ),
+                SizedBox(height: 15),
+                GestureDetector(
+                  onTap: () async {
+                    DateTime? picked = await showDatePicker(
+                      context: context,
+                      initialDate: endDate,
+                      firstDate: DateTime(2000),
+                      lastDate: DateTime(2101),
+                    );
+                    if (picked != null) {
+                      setState(() {
+                        endDate = picked;
+                        endDateController.text =
+                            DateformatddMMyyyy.formatDateddMMyyyy(endDate);
+                      });
+                    }
+                  },
+                  child: AbsorbPointer(
+                    child: TextField(
+                      controller: endDateController,
+                      decoration: InputDecoration(
+                        labelText: 'End Date',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                  ),
+                ),
+                SizedBox(height: 10),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    TextField(
-                      controller: projectNameController,
-                      decoration: InputDecoration(
-                        labelText: 'Project Name',
-                        border: OutlineInputBorder(),
-                      ),
+                    Text(
+                      'Status:',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                     ),
-                    SizedBox(height: 15),
-                    TextField(
-                      controller: projectDescriptionController,
-                      decoration: InputDecoration(
-                        labelText: 'Project Description',
-                        border: OutlineInputBorder(),
-                      ),
-                    ),
-                    SizedBox(height: 15),
-                    CustomDropdown<int>(
-                      options: teamsList.map<int>((team) => team['teamId'] as int).toList(),
-                      selectedOption: selectedTeamId,
-                      displayValue: (teamId) => teamsList.firstWhere((team) => team['teamId'] == teamId)['teamName'],
-                      onChanged: (value) {
-                        setState(() {
-                          selectedTeamId = value;
-                        });
-                      },
-                      labelText: 'Select Team',
-                    ),
-                    SizedBox(height: 15),
-
-
-                    CustomDropdown<String>(
-                      options: [
-                        'Pending',
-                        'In Progress',
-                        'Completed',
-                        'On Hold',
-                        'Cancelled'
-                      ],
-                      displayValue: (status) => status,
-                      selectedOption: selectedStage,
-                      onChanged: (value) {
-                        setState(() {
-                          selectedStage = value;
-                        });
-                      },
-                      labelText: 'Select Status',
-                    ),
-                    SizedBox(height: 15),
-
-                    GestureDetector(
-                      onTap: () async {
-                        DateTime? picked = await showDatePicker(
-                          context: context,
-                          initialDate: startDate,
-                          firstDate: DateTime(2000),
-                          lastDate: DateTime(2101),
-                        );
-                        if (picked != null) {
+                    Transform.scale(
+                      scale: 1.3,
+                      child: Switch(
+                        value: selectedStatus ?? false,
+                        onChanged: (bool value) {
                           setState(() {
-                            startDate = picked;
-                            startDateController.text = DateformatddMMyyyy
-                                .formatDateddMMyyyy(startDate);
+                            selectedStatus = value;
                           });
-                        }
-                      },
-                      child: AbsorbPointer(
-                        child: TextField(
-                          controller: startDateController,
-                          decoration: InputDecoration(
-                            labelText: 'Start Date',
-                            border: OutlineInputBorder(),
-                          ),
-                        ),
+                        },
+                        activeColor: Colors.green,
+                        inactiveThumbColor: Colors.red,
+                        inactiveTrackColor: Colors.red[200],
                       ),
-                    ),
-                    SizedBox(height: 15),
-                    GestureDetector(
-                      onTap: () async {
-                        DateTime? picked = await showDatePicker(
-                          context: context,
-                          initialDate: endDate,
-                          firstDate: DateTime(2000),
-                          lastDate: DateTime(2101),
-                        );
-                        if (picked != null) {
-                          setState(() {
-                            endDate = picked;
-                            endDateController.text = DateformatddMMyyyy
-                                .formatDateddMMyyyy(endDate);
-                          });
-                        }
-                      },
-                      child: AbsorbPointer(
-                        child: TextField(
-                          controller: endDateController,
-                          decoration: InputDecoration(
-                            labelText: 'End Date',
-                            border: OutlineInputBorder(),
-                          ),
-                        ),
-                      ),
-                    ),
-                    SizedBox(height: 10),
-
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Status:',
-                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                        ),
-                        Transform.scale(
-                          scale: 1.3,
-                          child: Switch(
-                            value: selectedStatus ?? false,
-                            onChanged: (bool value) {
-                              setState(() {
-                                selectedStatus = value;
-                              });
-                            },
-                            activeColor: Colors.green,
-                            inactiveThumbColor: Colors.red,
-                            inactiveTrackColor: Colors.red[200],
-                          ),
-                        ),
-
-                      ],
                     ),
                   ],
                 ),
-              ),
-            );
-          }
-      ),
+              ],
+            ),
+          ),
+        );
+      }),
       actions: [
         ElevatedButton(
           style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
           onPressed: () {
-            if (projectNameController.text.isEmpty  || startDate == null || endDate == null) {
+            if (projectNameController.text.isEmpty ||
+                startDate == null ||
+                endDate == null) {
               showToast(msg: 'Please fill in all fields');
               return;
             }
@@ -626,7 +673,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
               selectedTeamId!,
               startDate,
               endDate,
-              selectedStatus ?? false
+              selectedStatus ?? false,
             );
           },
           child: Text('Update', style: TextStyle(color: Colors.white)),
@@ -639,6 +686,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
       titleHeight: 65,
     );
   }
+
   Future<void> _updateProject(int projectId, String projectName, String projectDescription, int createdBy, int updatedBy, int teamId, DateTime startDate, DateTime endDate,bool projectStatus) async {
     final response = await ApiService().request(
       method: 'post',

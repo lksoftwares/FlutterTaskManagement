@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import'dart:convert';
 import 'package:http_parser/http_parser.dart';
 
+
 class DailyWorkingStatus extends StatefulWidget {
   const DailyWorkingStatus({super.key});
 
@@ -271,32 +272,29 @@ class _DailyWorkingStatusState extends State<DailyWorkingStatus> {
                           child: Text('Take a Picture'),
                         ),
                       ],
-                    ),
+                ),
                     if (_WorkingImageFile != null)
-                      Positioned(
-                        left: 0,
-                        child: InkWell(
-                          onTap: () {
-                            showCustomAlertDialog(
-                                context,
-                                title: "Review Image",
-                                content: Padding(
-                                  padding: const EdgeInsets.only(top: 60.0),
-                                  child: Image.file(_WorkingImageFile!),
+                      InkWell(
+                        onTap: () {
+                          showCustomAlertDialog(
+                              context,
+                              title: "Review Image",
+                              content: Padding(
+                                padding: const EdgeInsets.only(top: 60.0),
+                                child: Image.file(_WorkingImageFile!),
+                              ),
+                              actions: [
+                                TextButton(
+                                  onPressed: () {
+                                    Navigator.of(context).pop();
+                                  },
+                                  child: Text('Close'),
                                 ),
-                                actions: [
-                                  TextButton(
-                                    onPressed: () {
-                                      Navigator.of(context).pop();
-                                    },
-                                    child: Text('Close'),
-                                  ),
-                                ],
-                                titleHeight: 65
-                            );
-                          },
-                          child: Icon(Icons.image, color: Colors.green, size: 30),
-                        ),
+                              ],
+                              titleHeight: 65
+                          );
+                        },
+                        child: Icon(Icons.image, color: Colors.green, size: 30),
                       ),
                   ],
                 ),
@@ -327,42 +325,23 @@ class _DailyWorkingStatusState extends State<DailyWorkingStatus> {
       actions: [
         StatefulBuilder(
           builder: (context, localSetState) {
-            return ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.green,
-                padding: EdgeInsets.symmetric(horizontal: 40, vertical: 12),
-              ),
-
-              onPressed: isSubmitting
-                  ? null
-                  : () async {
+            return LoadingButton(
+              isLoading: isSubmitting,
+              label: 'Add',
+              onPressed: () async {
                 if (isRecording) {
                   showToast(msg: 'Please stop the recording first.', backgroundColor: Colors.red);
                   return;
                 }
 
                 localSetState(() => isSubmitting = true);
-
                 await _addWorking(workingDesc, workingNote, userId!);
-
                 localSetState(() => isSubmitting = false);
               },
-              child: isSubmitting
-                  ? SizedBox(
-                height: 16,
-                width: 16,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                ),
-              )
-                  : Text(
-                'Add',
-                style: TextStyle(color: Colors.white),
-              ),
             );
           },
         ),
+
         TextButton(
           onPressed: () => Navigator.pop(context),
           child: Text('Cancel'),
@@ -754,8 +733,15 @@ class _DailyWorkingStatusState extends State<DailyWorkingStatus> {
           child: Image.network(
             imageUrl,
             fit: BoxFit.contain,
+            loadingBuilder: (context, child, loadingProgress) {
+              if (loadingProgress == null) return child;
+              return Padding(
+                padding: const EdgeInsets.all(20.0),
+                child: CircularProgressIndicator(),
+              );
+            },
             errorBuilder: (context, error, stackTrace) =>
-                Text("Failed to load image."),
+                Center(child: Text("Failed to load image.")),
           ),
         ),
       ),
