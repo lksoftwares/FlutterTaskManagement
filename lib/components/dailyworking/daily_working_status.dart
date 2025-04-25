@@ -5,7 +5,6 @@ import 'package:http/http.dart' as http;
 import'dart:convert';
 import 'package:http_parser/http_parser.dart';
 
-
 class DailyWorkingStatus extends StatefulWidget {
   const DailyWorkingStatus({super.key});
 
@@ -20,7 +19,6 @@ class _DailyWorkingStatusState extends State<DailyWorkingStatus> {
   String? audioFilePath;
   bool isPlaying = false;
   bool isSubmitting = false;
-
   String? selectedUserId;
   Map<String, bool> isPlayingMap = {};
   bool isLoading = false;
@@ -129,7 +127,6 @@ class _DailyWorkingStatusState extends State<DailyWorkingStatus> {
 
 
     String endpoint = 'Working/';
-
     if (roleName == 'Admin') {
       endpoint = 'Working/';
     } else if (userId != null) {
@@ -333,7 +330,6 @@ class _DailyWorkingStatusState extends State<DailyWorkingStatus> {
                   showToast(msg: 'Please stop the recording first.', backgroundColor: Colors.red);
                   return;
                 }
-
                 localSetState(() => isSubmitting = true);
                 await _addWorking(workingDesc, workingNote, userId!);
                 localSetState(() => isSubmitting = false);

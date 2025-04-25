@@ -436,7 +436,6 @@ _fetchTask();
                                   ),
                                 ],
                               ),
-
                             ],
                           ),
                         ),
@@ -465,6 +464,7 @@ _fetchTask();
       showToast(msg: 'Failed to fetch absentees');
     }
   }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -541,7 +541,7 @@ _fetchTask();
                             }
                           },
                         ),
-                        if (totalViewCount > -1)
+                        if (totalViewCount > 0)
                           Positioned(
                             top: 0,
                             right: 0,
@@ -590,7 +590,7 @@ _fetchTask();
                           },
                         ),
 
-                        if (totalPending > -1)
+                        if (totalPending > 0)
                           Positioned(
                             top: 0,
                             right: 0,

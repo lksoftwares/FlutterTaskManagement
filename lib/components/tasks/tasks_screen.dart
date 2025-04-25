@@ -14,13 +14,13 @@ class _TasksScreenState extends State<TasksScreen> {
   List<Map<String, dynamic>> projects = [];
   bool isSubmitting = false;
   List<Map<String, dynamic>> team = [];
+  int? selectedUserId;
   String? selectedProjectName;
   bool isAllFieldsVisible = false;
   bool isLoading = false;
   String? selectedStatus = 'open';
   String? selectedPriority = 'low';
   String? selectedUserName;
-
   List<Map<String, dynamic>> tasks = [];
   String? selectedRoleName;
   String taskTitle = '';
@@ -42,9 +42,12 @@ class _TasksScreenState extends State<TasksScreen> {
   File? _selectedImage;
   File? _commentImageFile;
   List<Map<String, dynamic>> users = [];
-
+  Map<String, dynamic>? taskStatusCounts;
+  int? totalTasks;
   Timer? positionTimer;
   bool isImageLoading = false;
+  List<dynamic>? monthlyUserTaskCounts;
+
 
   @override
   void initState() {
@@ -155,7 +158,6 @@ class _TasksScreenState extends State<TasksScreen> {
         endpoint: 'User/?status=1',
         tokenRequired: true
     );
-    print("responsesssss $response");
     if (response['statusCode'] == 200 && response['apiResponse'] != null) {
       setState(() {
         users = List<Map<String, dynamic>>.from(response['apiResponse']);
@@ -214,6 +216,7 @@ class _TasksScreenState extends State<TasksScreen> {
         tokenRequired: true
     );
     if (response['statusCode'] == 200 && response['apiResponse'] != null) {
+      final taskData = response['apiResponse'];
       setState(() {
         tasks = List<Map<String, dynamic>>.from(
           response['apiResponse']["taskList"].map((role) {
@@ -268,6 +271,10 @@ class _TasksScreenState extends State<TasksScreen> {
             };
           }).toList(),
         );
+        if (selectedUserId == null) {
+          taskStatusCounts = taskData["taskStatusCounts"];
+          totalTasks = taskData["totalTasks"];
+        }
       });
       print("shreya$tasks");
     } else {}
@@ -1264,16 +1271,35 @@ class _TasksScreenState extends State<TasksScreen> {
                                           if (roleName == 'Admin') {
                                             if (index < task['taskCmmntId'].length) {
                                               final commentId = task['taskCmmntId'][index];
-                                              _viewTask(commentId);
-                                              _showFullComment(context, comment.toString());
+
+                                              _viewTask(commentId).then((_) {
+                                                setState(() {
+                                                  if (index < viewStatusList.length) {
+                                                    viewStatusList[index] = true;
+                                                  } else {
+                                                    viewStatusList.add(true);
+                                                  }
+                                                });
+
+                                                _showFullComment(context, comment.toString(), () {
+                                                  setState(() {
+                                                    viewStatusList[index] = true;
+                                                  });
+                                                });
+                                              });
                                             } else {
                                               print('Error: Index out of bounds for taskCmmntId');
                                             }
                                           } else {
-                                            _showFullComment(context, comment.toString());
+                                            _showFullComment(context, comment.toString(), () {
+                                              setState(() {
+                                                viewStatusList[index] = true;
+                                              });
+                                            });
                                           }
                                         },
                                       ),
+
                                       if (commentAudio != null)
                                         IconButton(
                                           icon: Icon(
@@ -1346,14 +1372,8 @@ class _TasksScreenState extends State<TasksScreen> {
       ),
     );
   }
-  Future<void> _stopAudio(String url) async {
-    await _player!.stopPlayer();
-    setState(() {
-      isPlayingMap[url] = false;
-    });
-    positionTimer?.cancel();
-  }
-  void _showFullComment(BuildContext context, String comment) {
+
+  void _showFullComment(BuildContext context, String comment, VoidCallback onViewed) {
     showCustomAlertDialog(
       context,
       title: 'Full Comment',
@@ -1367,14 +1387,22 @@ class _TasksScreenState extends State<TasksScreen> {
       actions: <Widget>[
         TextButton(
           child: Text('Close'),
-          onPressed: () async {
+          onPressed: () {
             Navigator.of(context).pop();
+            onViewed();
           },
         ),
       ],
     );
   }
 
+  Future<void> _stopAudio(String url) async {
+    await _player!.stopPlayer();
+    setState(() {
+      isPlayingMap[url] = false;
+    });
+    positionTimer?.cancel();
+  }
   Future<void> _viewTask(int taskCmmntId) async {
     print(taskCmmntId);
     final response = await new ApiService().request(
@@ -1557,19 +1585,59 @@ class _TasksScreenState extends State<TasksScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    MultiSelectDropdown(
-                      width: 275,
-                      items: stageItems,
-                      controller: controller,
-                      hintText: 'Select Task Stage',
-                      onSelectionChange: (selectedItems) {
+                    // MultiSelectDropdown(
+                    //   width: 275,
+                    //   items: stageItems,
+                    //   controller: controller,
+                    //   hintText: 'Select Task Stage',
+                    //   onSelectionChange: (selectedItems) {
+                    //     setState(() {
+                    //       selectedStages = {
+                    //         for (var stage in taskStages)
+                    //           stage: selectedItems.contains(stage),
+                    //       };
+                    //     });
+                    //     fetchTasks();
+                    //   },
+                    // ),
+                    Autocomplete<String>(
+                      optionsBuilder: (TextEditingValue textEditingValue) {
+                        return users
+                            .where((user) => user['userName']!
+                            .toLowerCase()
+                            .contains(textEditingValue.text.toLowerCase()))
+                            .map((user) => user['userName'] as String)
+                            .toList();
+                      },
+                      onSelected: (String userName) {
                         setState(() {
-                          selectedStages = {
-                            for (var stage in taskStages)
-                              stage: selectedItems.contains(stage),
-                          };
+                          selectedUserName = userName;
                         });
                         fetchTasks();
+                      },
+                      fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+                        return Container(
+                          width: 275,
+                          child: TextField(
+                            controller: controller,
+                            focusNode: focusNode,
+                            decoration: InputDecoration(
+                              labelText: 'Select User',
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              prefixIcon: Icon(Icons.person),
+                            ),
+                            onChanged: (value) {
+                              if (value.isEmpty) {
+                                setState(() {
+                                  selectedUserName = null;
+                                });
+                                fetchTasks();
+                              }
+                            },
+                          ),
+                        );
                       },
                     ),
                     IconButton(
@@ -1597,46 +1665,7 @@ class _TasksScreenState extends State<TasksScreen> {
                   ],
                 ),
               ),
-              Autocomplete<String>(
-                optionsBuilder: (TextEditingValue textEditingValue) {
-                  return users
-                      .where((user) => user['userName']!
-                      .toLowerCase()
-                      .contains(textEditingValue.text.toLowerCase()))
-                      .map((user) => user['userName'] as String)
-                      .toList();
-                },
-                onSelected: (String userName) {
-                  setState(() {
-                    selectedUserName = userName;
-                  });
-                  fetchTasks();
-                },
-                fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
-                  return Container(
-                    width: 320,
-                    child: TextField(
-                      controller: controller,
-                      focusNode: focusNode,
-                      decoration: InputDecoration(
-                        labelText: 'Select User',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        prefixIcon: Icon(Icons.person),
-                      ),
-                      onChanged: (value) {
-                        if (value.isEmpty) {
-                          setState(() {
-                            selectedUserName = null;
-                          });
-                          fetchTasks();
-                        }
-                      },
-                    ),
-                  );
-                },
-              ),
+
             ],
           ),
           actions: [
@@ -1736,6 +1765,287 @@ class _TasksScreenState extends State<TasksScreen> {
     );
   }
 
+  DateTime? startDate;
+  DateTime? endDate;
+
+  DateTimeRange? selectedDateRange;
+  Map<String, List<Map<String, dynamic>>> groupTasksByUserName(List<dynamic> data) {
+    Map<String, List<Map<String, dynamic>>> grouped = {};
+
+    for (var month in data) {
+      String? monthName = month['monthName'];
+      String? range = month['range'];
+      List users = month['users'];
+
+      for (var user in users) {
+        String userName = user['taskAssignedToName'] ?? 'Unknown';
+
+        if (!grouped.containsKey(userName)) {
+          grouped[userName] = [];
+        }
+
+        grouped[userName]!.add({
+          ...user,
+          'monthName': monthName,
+          'range': range,
+        });
+      }
+    }
+
+    return grouped;
+  }
+  String formatDateRange(String? range) {
+    if (range == null || !range.contains(' to ')) return '';
+    try {
+      final parts = range.split(' to ');
+      final start = DateFormat('yyyy-MM-dd').parse(parts[0]);
+      final end = DateFormat('yyyy-MM-dd').parse(parts[1]);
+
+      final formattedStart = DateFormat('dd-MM-yyyy').format(start);
+      final formattedEnd = DateFormat('dd-MM-yyyy').format(end);
+
+      return '$formattedStart to $formattedEnd';
+    } catch (e) {
+      return range;
+    }
+  }
+
+  Future<void> _showTaskcount() async {
+    await _fetchTaskCounts();
+
+    showCustomAlertDialog(
+      context,
+      title: 'Task Summary',
+      titleHeight: 60,
+      content: StatefulBuilder(
+        builder: (context, setState) {
+          Future<void> _pickDateRange() async {
+            DateTime now = DateTime.now();
+            final picked = await showDateRangePicker(
+              context: context,
+              firstDate: DateTime(2025),
+              lastDate: DateTime(2026),
+            );
+
+            if (picked != null) {
+              setState(() {
+                selectedDateRange = picked;
+              });
+
+              await _fetchTaskCounts(
+                start: picked.start,
+                end: picked.end,
+              );
+
+              setState(() {});
+            }
+          }
+
+          final groupedTasks = groupTasksByUserName(monthlyUserTaskCounts ?? []);
+
+          return SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    IconButton(
+                      icon: Icon(Icons.date_range, size: 30, color: Colors.blue),
+                      onPressed: _pickDateRange,
+                    ),
+                  ],
+                ),
+                SizedBox(height: 10),
+                groupedTasks.isEmpty
+                    ? NoDataFoundScreen()
+                    : ListView.builder(
+                  shrinkWrap: true,
+                  physics: NeverScrollableScrollPhysics(),
+                  itemCount: groupedTasks.length,
+                  itemBuilder: (context, index) {
+                    String userName = groupedTasks.keys.elementAt(index);
+                    List<Map<String, dynamic>> userRecords = groupedTasks[userName]!;
+
+                    return Card(
+                      elevation: 4,
+                      margin: EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                      color: Colors.blue.shade50,
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  userName,
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 22,
+                                    color: Colors.indigo.shade800,
+                                  ),
+                                ),
+                                Row(
+                                  children: [
+                                    Text(
+                                      "📝 ${userRecords[0]['openTillNow'] ?? 0}",
+                                      style: TextStyle(
+                                        color: Colors.blue,
+                                        fontSize: 16,
+                                      ),
+                                    ),
+                                    SizedBox(width: 8),
+                                    Text(
+                                      "🔄 ${userRecords[0]['inProgressTillNow'] ?? 0}",
+                                      style: TextStyle(
+                                        color: Colors.orange,
+                                        fontSize: 16,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+
+                            SizedBox(height: 10),
+                            ListView.builder(
+                              shrinkWrap: true,
+                              physics: NeverScrollableScrollPhysics(),
+                              itemCount: userRecords.length,
+                              itemBuilder: (context, idx) {
+                                final record = userRecords[idx];
+                                return Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Text(
+                                          record['monthName'] ?? '',
+                                          style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 16,
+                                              color: Colors.indigo.shade900),
+                                        ),
+                                        Text(
+                                          "📅 ${formatDateRange(record['range'])}",
+                                          style: TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.bold),
+                                        ),
+                                      ],
+                                    ),
+                                    SizedBox(height: 14),
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Text("✅ C",
+                                            style: TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 16)),
+                                        Text("🔄 Prog.",
+                                            style: TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 16)),
+                                        Text("📝 Open",
+                                            style: TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 16)),
+                                        Text("⛔ Block",
+                                            style: TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 16)),
+                                      ],
+                                    ),
+                                    SizedBox(height: 4),
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Text("${record['completed'] ?? 0}",
+                                            style: TextStyle(
+                                                color: Colors.green,
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.w900)),
+                                        Text("${record['inProgress'] ?? 0}",
+                                            style: TextStyle(
+                                                color: Colors.orange,
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.w900)),
+                                        Text("${record['open'] ?? 0}",
+                                            style: TextStyle(
+                                                color: Colors.blue,
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.w900)),
+                                        Text("${record['blocked'] ?? 0}",
+                                            style: TextStyle(
+                                                color: Colors.red,
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.w900)),
+                                      ],
+                                    ),
+                                    SizedBox(height: 8),
+                                    Divider(color: Colors.black12),
+                                    SizedBox(height: 8),
+                                  ],
+                                );
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text("Close"),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _fetchTaskCounts({DateTime? start, DateTime? end}) async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    int? userId = prefs.getInt('user_Id');
+    roleName = prefs.getString('role_Name');
+
+    String endpoint = roleName == 'Admin'
+        ? 'tasks/'
+        : 'tasks/?userId=$userId';
+
+    if (start != null && end != null) {
+      String formattedStart = "${start.year}-${start.month.toString().padLeft(2, '0')}-${start.day.toString().padLeft(2, '0')}";
+      String formattedEnd = "${end.year}-${end.month.toString().padLeft(2, '0')}-${end.day.toString().padLeft(2, '0')}";
+      endpoint += (endpoint.contains('?') ? '&' : '?') + 'startDate=$formattedStart&endDate=$formattedEnd';
+    }
+
+    final response = await ApiService().request(
+      method: 'get',
+      endpoint: endpoint,
+      tokenRequired: true,
+    );
+
+    if (response['statusCode'] == 200 && response['apiResponse'] != null) {
+      taskStatusCounts = response['apiResponse']['taskStatusCounts'];
+      totalTasks = response['apiResponse']['totalTasks'];
+      monthlyUserTaskCounts = response['apiResponse']['monthlyUserTaskCounts'];
+    } else {
+      taskStatusCounts = null;
+      totalTasks = 0;
+      monthlyUserTaskCounts = [];
+    }
+  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -1760,21 +2070,27 @@ class _TasksScreenState extends State<TasksScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
-                      // MultiSelectDropdown(
-                      //   width: 240,
-                      //   items: stageItems,
-                      //   controller: controller,
-                      //   hintText: 'Select Task Stage',
-                      //   onSelectionChange: (selectedItems) {
-                      //     setState(() {
-                      //       selectedStages = {
-                      //         for (var stage in taskStages)
-                      //           stage: selectedItems.contains(stage),
-                      //       };
-                      //     });
-                      //     fetchTasks();
-                      //   },
-                      // ),
+                      MultiSelectDropdown(
+                        width: 200,
+                        items: stageItems,
+                        controller: controller,
+                        hintText: 'Select Stage',
+                        onSelectionChange: (selectedItems) {
+                          setState(() {
+                            selectedStages = {
+                              for (var stage in taskStages)
+                                stage: selectedItems.contains(stage),
+                            };
+                          });
+                          fetchTasks();
+                        },
+                      ),
+                      IconButton(
+                        icon: Icon(Icons.task,color: Colors.orange, size: 30),
+                        tooltip: 'View Task Summary',
+                        onPressed: _showTaskcount,
+                      ),
+
                       IconButton(
                         icon: Icon(
                             Icons.filter_alt_outlined, color: Colors.blue, size: 30),
@@ -1834,14 +2150,25 @@ class _TasksScreenState extends State<TasksScreen> {
                                 .length > 10
                                 ? task['taskDescription'].substring(0, 10) + '...'
                                 : task['taskDescription'];
-                            bool isOverdue = dueDate != null &&
-                                dueDate.isBefore(DateTime.now().subtract(Duration(days: 1)).add(Duration(
-                                  hours: -DateTime.now().hour,
-                                  minutes: -DateTime.now().minute,
-                                  seconds: -DateTime.now().second,
-                                  milliseconds: -DateTime.now().millisecond,
-                                  microseconds: -DateTime.now().microsecond,
-                                )));
+                            DateTime? completedAt;
+                            if (task['taskCompletedAt'] != null && task['taskCompletedAt'].toString().trim().isNotEmpty) {
+                              try {
+                                completedAt = DateFormat('dd-MM-yyyy').parse(task['taskCompletedAt']);
+                              } catch (e) {
+                                print('Error parsing completed date: ${task['taskCompletedAt']} - $e');
+                              }
+                            }
+
+                            bool isOverdue = false;
+                            if (dueDate != null) {
+                              final today = DateTime.now();
+                              final nowDateOnly = DateTime(today.year, today.month, today.day);
+                              final dueDateOnly = DateTime(dueDate.year, dueDate.month, dueDate.day);
+                              if ((completedAt == null || completedAt.isAfter(dueDateOnly)) && dueDateOnly.isBefore(nowDateOnly)) {
+                                isOverdue = true;
+                              }
+                            }
+
                             bool hasAudioFile = task['audioFilePath'] != null && task['audioFilePath'] != '';
 
                             return buildUserCard(

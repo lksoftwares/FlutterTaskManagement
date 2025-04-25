@@ -433,8 +433,8 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                       onPressed: () async {
                         DateTimeRange? pickedRange = await showDateRangePicker(
                           context: context,
-                          firstDate: DateTime(2023),
-                          lastDate: DateTime(2025, 12),
+                          firstDate: DateTime(2025),
+                          lastDate: DateTime.now(),
                         );
                         if (pickedRange != null) {
                           setStateDialog(() {
@@ -446,6 +446,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                         }
                       },
                     ),
+
                   ],
                 ),
                 const SizedBox(height: 10),
@@ -455,10 +456,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                       ? Center(
                     child: Padding(
                       padding: const EdgeInsets.only(top: 80.0),
-                      child: Text(
-                        "No data found",
-                        style: TextStyle(fontSize: 25, color: Colors.grey),
-                      ),
+                      child: NoDataFoundScreen()
                     ),
                   )
                       : buildAttendanceCountList(),
@@ -478,15 +476,30 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       titleHeight: 60,
     );
   }
-
   Future<void> fetchAttendanceCountData({bool reset = false}) async {
     setState(() => isLoading = true);
 
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    int? userId = prefs.getInt('user_Id');
+    String roleName = prefs.getString('role_Name') ?? "";
+
     String endpoint = 'attendance/';
+
     if (!reset && countStartDate != null && countEndDate != null) {
       String formattedStart = DateFormat('yyyy-MM-dd').format(countStartDate!);
       String formattedEnd = DateFormat('yyyy-MM-dd').format(countEndDate!);
-      endpoint = 'attendance/?startDate=$formattedStart&endDate=$formattedEnd';
+
+      if (roleName == 'Admin') {
+        endpoint = 'attendance/?startDate=$formattedStart&endDate=$formattedEnd';
+      } else if (userId != null) {
+        endpoint = 'attendance/?startDate=$formattedStart&endDate=$formattedEnd&userId=$userId';
+      }
+    } else {
+      if (roleName == 'Admin') {
+        endpoint = 'attendance/';
+      } else if (userId != null) {
+        endpoint = 'attendance/?userId=$userId';
+      }
     }
 
     final response = await ApiService().request(
@@ -506,11 +519,11 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
           response['apiResponse']['combinedData'] ?? [],
         );
       });
-    }
-    else {
+    } else {
       showToast(msg: response['message'] ?? 'Failed to fetch data');
     }
   }
+
 
   Map<String, List<Map<String, dynamic>>> groupAttendanceByUser(List<Map<String, dynamic>> data) {
     Map<String, List<Map<String, dynamic>>> groupedData = {};
@@ -596,10 +609,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
           Icon(Icons.info_outline, color: Colors.grey),
           SizedBox(width: 10),
           Expanded(
-            child: Text(
-              "No holidays found for this period.",
-              style: TextStyle(fontSize: 16, color: Colors.grey[700]),
-            ),
+            child:NoDataFoundScreen()
           ),
         ],
       ),

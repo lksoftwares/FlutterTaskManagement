@@ -119,6 +119,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
             'endDate': role['endDate'] ?? '',
             'createdBy': role['createdBy'] ?? '',
             'updatedBy': role['updatedBy'] ?? '',
+
             'projectStatus': role['projectStatus'] ?? false,
             'projectStage': role['projectStage'] ?? '',
           }),
@@ -133,8 +134,8 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
     });
   }
 
-  Future<void> _addTeam(String teamName, String tmDescription) async {
-    final response = await new ApiService().request(
+  Future<void> _addTeam(String teamName, String tmDescription, VoidCallback onTeamAdded) async {
+    final response = await ApiService().request(
       method: 'post',
       endpoint: 'teams/create',
       tokenRequired: true,
@@ -143,23 +144,26 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
         'tmDescription': tmDescription,
       },
     );
+
     if (response.isNotEmpty && response['statusCode'] == 200) {
-       fetchTeams();
       showToast(
         msg: response['message'] ?? 'Team added successfully',
         backgroundColor: Colors.green,
       );
+      onTeamAdded();
       Navigator.pop(context);
     } else {
       showToast(
         msg: response['message'] ?? 'Failed to add Team',
+        backgroundColor: Colors.red,
       );
     }
   }
 
-  void _showAddTeamModal() {
+  void _showAddTeamModal(VoidCallback onTeamAdded) {
     String teamName = '';
     String tmDescription = '';
+
     InputDecoration inputDecoration = InputDecoration(
       labelText: 'Team Name',
       border: OutlineInputBorder(),
@@ -173,60 +177,65 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
     showCustomAlertDialog(
       context,
       title: 'Add Team',
-      content: Padding(
-        padding: const EdgeInsets.all(15.0),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            SizedBox(height: 15),
-            TextField(
-              onChanged: (value) => teamName = value,
-              decoration: inputDecoration,
+      content: StatefulBuilder(
+        builder: (context, localSetState) {
+          return Padding(
+            padding: const EdgeInsets.all(15.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(height: 15),
+                TextField(
+                  onChanged: (value) => teamName = value,
+                  decoration: inputDecoration,
+                ),
+                SizedBox(height: 15),
+                TextField(
+                  onChanged: (value) => tmDescription = value,
+                  decoration: descriptionDecoration,
+                ),
+              ],
             ),
-            SizedBox(height: 15),
-            TextField(
-              onChanged: (value) => tmDescription = value,
-              decoration: descriptionDecoration,
-            ),
-          ],
-        ),
+          );
+        },
       ),
       actions: [
         StatefulBuilder(
           builder: (context, localSetState) {
-       return  ElevatedButton(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.green,
-          ),
-         onPressed: isSubmitting
-             ? null
-             : () async {
-           if (teamName.isEmpty ) {
-             showToast(msg: 'Please fill in both fields');
-           }
-           localSetState(() => isSubmitting = true);
+            return ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green,
+              ),
+              onPressed: isSubmitting
+                  ? null
+                  : () async {
+                if (teamName.isEmpty) {
+                  showToast(msg: 'Please fill in both fields');
+                  return;
+                }
 
-           _addTeam(teamName, tmDescription);
-           fetchTeams();
-           localSetState(() => isSubmitting = false);
-         },
+                localSetState(() => isSubmitting = true);
 
-          child: isSubmitting
-              ? SizedBox(
-            height: 16,
-            width: 16,
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
-              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-            ),
-          )
-              : Text(
-            'Add',
-            style: TextStyle(color: Colors.white),
-          ),
-        );
-  },
-  ),
+                await _addTeam(teamName, tmDescription, onTeamAdded);
+
+                localSetState(() => isSubmitting = false);
+              },
+              child: isSubmitting
+                  ? SizedBox(
+                height: 16,
+                width: 16,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              )
+                  : Text(
+                'Add',
+                style: TextStyle(color: Colors.white),
+              ),
+            );
+          },
+        ),
         TextButton(
           onPressed: () => Navigator.pop(context),
           child: Text('Cancel'),
@@ -235,6 +244,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
       titleHeight: 65,
     );
   }
+
 
   void _showAddProjectModal() {
     setState(() {
@@ -247,12 +257,19 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
     TextEditingController startDateController = TextEditingController(text: DateformatddMMyyyy.formatDateddMMyyyy(startDate));
     TextEditingController endDateController = TextEditingController(text: DateformatddMMyyyy.formatDateddMMyyyy(endDate));
     String? selectedStage = 'Pending';
-    fetchTeams();
+    int? localSelectedTeamId;
+    List teams = [];
+    void loadTeams(StateSetter modalSetState) async {
+      await fetchTeams();
+      modalSetState(() {
+        teams = teamsList;
+      });
+    }
     showCustomAlertDialog(
       context,
       title: 'Add Project',
       content: StatefulBuilder(
-          builder: (context, setState) {
+          builder: (context, modalSetState) {
             return SingleChildScrollView(
               child: Padding(
                 padding: const EdgeInsets.all(15.0),
@@ -279,22 +296,27 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                       Row(
                         children: [
                           CustomDropdown<int>(
-                            options: teamsList.map<int>((
-                                team) => team['teamId'] as int).toList(),
+                            options: teamsList.map<int>((team) => team['teamId'] as int).toList(),
                             selectedOption: selectedTeamId,
                             displayValue: (teamId) =>
-                            teamsList.firstWhere((team) =>
-                            team['teamId'] == teamId)['teamName'],
+                            teamsList.firstWhere((team) => team['teamId'] == teamId)['teamName'],
                             onChanged: (value) {
-                              setState(() {
+                              modalSetState(() {
                                 selectedTeamId = value;
                               });
                             },
                             labelText: 'Select Team',
                             width: 280,
                           ),
-                          IconButton(onPressed: _showAddTeamModal, icon: Icon(Icons.add_circle,size: 30,
-                            color: Colors.blue,))
+                          IconButton(
+                            onPressed: () {
+                              _showAddTeamModal(() async {
+                                await fetchTeams();
+                                modalSetState(() {});
+                              });
+                            },
+                            icon: Icon(Icons.add_circle, size: 30, color: Colors.blue),
+                          )
                         ],
                       ),
                       SizedBox(height: 15),

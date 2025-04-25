@@ -148,6 +148,8 @@ class _TeamMembersScreenState extends State<TeamMembersScreen> {
     });
 
     await fetchRoles();
+    await fetchTeams();
+    await fetchUsers();
 
     showCustomAlertDialog(
       context,
