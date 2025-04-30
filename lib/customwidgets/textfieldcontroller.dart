@@ -44,6 +44,7 @@ class _CustomTextFieldState extends State<CustomTextField> {
           obscureText: widget.obscureText,
           keyboardType: widget.keyboardType,
           maxLines: widget.maxLines,
+
           decoration: InputDecoration(
             labelText: widget.label,
             hintText: widget.hintText,

@@ -72,3 +72,5 @@ export 'package:flutter_bloc/flutter_bloc.dart';
 export 'package:collection/collection.dart';
 export 'package:lktaskmanagementapp/customwidgets/time_method.dart';
 export 'package:lktaskmanagementapp/customwidgets/loadingbutton.dart';
+export 'package:lktaskmanagementapp/components/internship/internship_screen.dart';
+export 'package:lktaskmanagementapp/components/internship/internship_form.dart';

@@ -47,6 +47,8 @@ class _TasksScreenState extends State<TasksScreen> {
   Timer? positionTimer;
   bool isImageLoading = false;
   List<dynamic>? monthlyUserTaskCounts;
+  Map<int, bool> isTaskStarted = {};
+  Map<int, bool> isTaskPaused = {};
 
 
   @override
@@ -197,6 +199,7 @@ class _TasksScreenState extends State<TasksScreen> {
       isLoading = false;
     });
   }
+
   Future<void> fetchTasks() async {
     setState(() {
       isLoading = true;
@@ -230,12 +233,15 @@ class _TasksScreenState extends State<TasksScreen> {
               'viewCount': role['viewCount'] ?? 0,
               'taskAssignedTo': role['taskAssignedTo'] ?? '',
               'createdAt': role['createdAt'] ?? '',
+              'taskStartedAt': role['taskStartedAt'] ?? "",
               'taskCompletedAt': role['taskCompletedAt'] ?? "--/--/----",
               'taskHour': role['taskHour'] ?? '00:00',
               'taskStatus': role['taskStatus'] ?? '',
               'imageFilePath': role['imageFilePath'] ?? null,
               'audioFilePath': role['audioFilePath'] ?? null,
               'projectName': role['projectName'] ?? '',
+              'taskPausedAt': role['taskPausedAt'] ?? null,
+              'taskResumedAt': role['taskResumedAt'] ?? null,
               'cmmntImageFilePath': (role['taskComments'] as List<dynamic>?)
                   ?.map((commentMap) => commentMap['cmmntImageFilePath'])
                   .toList() ??
@@ -1539,7 +1545,7 @@ class _TasksScreenState extends State<TasksScreen> {
   void _showFullDescription(String taskDescription,  BuildContext context) {
     showCustomAlertDialog(
       context,
-      title: 'Working Description',
+      title: 'Task Description',
       content: Padding(
         padding: const EdgeInsets.only(left:20,right: 20),
         child: Column(
@@ -1568,6 +1574,7 @@ class _TasksScreenState extends State<TasksScreen> {
       ],
       titleFontSize: 27.0,
       isFullScreen: true,
+      titleHeight: 65
     );
   }
 
@@ -1640,6 +1647,7 @@ class _TasksScreenState extends State<TasksScreen> {
                         );
                       },
                     ),
+
                     IconButton(
                       icon: Icon(Icons.date_range, size: 30, color: Colors.blue),
                       onPressed: () async {
@@ -1943,19 +1951,23 @@ class _TasksScreenState extends State<TasksScreen> {
                                     Row(
                                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                       children: [
-                                        Text("✅ C",
+                                        Text("C ✅",
                                             style: TextStyle(
                                                 fontWeight: FontWeight.bold,
                                                 fontSize: 16)),
-                                        Text("🔄 Prog.",
+                                        Text("P 🔄",
                                             style: TextStyle(
                                                 fontWeight: FontWeight.bold,
                                                 fontSize: 16)),
-                                        Text("📝 Open",
+                                        Text("O 📝",
                                             style: TextStyle(
                                                 fontWeight: FontWeight.bold,
                                                 fontSize: 16)),
-                                        Text("⛔ Block",
+                                        Text("B ⛔",
+                                            style: TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 16)),
+                                        Text("Total",
                                             style: TextStyle(
                                                 fontWeight: FontWeight.bold,
                                                 fontSize: 16)),
@@ -1970,6 +1982,7 @@ class _TasksScreenState extends State<TasksScreen> {
                                                 color: Colors.green,
                                                 fontSize: 16,
                                                 fontWeight: FontWeight.w900)),
+
                                         Text("${record['inProgress'] ?? 0}",
                                             style: TextStyle(
                                                 color: Colors.orange,
@@ -1985,6 +1998,35 @@ class _TasksScreenState extends State<TasksScreen> {
                                                 color: Colors.red,
                                                 fontSize: 16,
                                                 fontWeight: FontWeight.w900)),
+                                        Text("${record['totalTaskCount'] ?? 0}",
+                                            style: TextStyle(
+                                                color: Colors.red,
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.w900)),
+                                      ],
+                                    ),
+                                    SizedBox(height: 15,),
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Text(
+                                          "🕒 Min: ${userRecords[0]['minHours'] ?? 0}",
+                                          style: TextStyle(
+                                            color: Colors.green,
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w700
+                                          ),
+                                        ),
+                                        SizedBox(width: 8),
+                                        Text(
+                                          "🕒 Max: ${userRecords[0]['maxHours'] ?? 0}",
+                                          style: TextStyle(
+                                            color: Colors.orange,
+                                            fontSize: 16,
+                                              fontWeight: FontWeight.w700
+
+                                          ),
+                                        ),
                                       ],
                                     ),
                                     SizedBox(height: 8),
@@ -2046,6 +2088,49 @@ class _TasksScreenState extends State<TasksScreen> {
     }
   }
 
+  Future<void> _updateTaskStart(int taskId) async {
+    final response = await ApiService().request(
+      method: 'post',
+      endpoint: 'tasks/Update',
+      tokenRequired: true,
+      isMultipart: true,
+      body: {
+        'taskId': taskId,
+        'taskUpdatedBy': userId,
+        'startTask': true,
+        'updateFlag': true,
+      },
+    );
+    if (response['statusCode'] == 200) {
+      showToast(msg:'Task time starts ', backgroundColor: Colors.green);
+      fetchTasks();
+    } else {
+      showToast(msg: response['message'] ?? 'Failed to start task');
+    }
+  }
+  Future<void> _updateTaskStatus(int taskId, {bool pause = false, bool resume = false}) async {
+    final response = await ApiService().request(
+      method: 'post',
+      endpoint: 'tasks/Update',
+      tokenRequired: true,
+      isMultipart: true,
+      body: {
+        'taskId': taskId,
+        'taskUpdatedBy': userId,
+        'pauseTask': pause,
+        'resumeTask': resume,
+        'updateFlag': true,
+      },
+    );
+
+    if (response['statusCode'] == 200) {
+      showToast(msg: response['message'] ?? 'task',backgroundColor: Colors.green);
+
+      fetchTasks();
+    } else {
+      showToast(msg: response['message'] ?? 'Failed to update task');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -2073,7 +2158,7 @@ class _TasksScreenState extends State<TasksScreen> {
                       MultiSelectDropdown(
                         width: 200,
                         items: stageItems,
-                        controller: controller,
+                          controller: controller,
                         hintText: 'Select Stage',
                         onSelectionChange: (selectedItems) {
                           setState(() {
@@ -2180,6 +2265,7 @@ class _TasksScreenState extends State<TasksScreen> {
                                 'DueDate': task['taskDueDate'],
                                 'TaskAssign': 'To:${task['taskAssignedToName']}\nBy:${task['taskCreatedByName']}',
                                 'CreatedAt': task['createdAt'],
+                                'StartedAt': task['taskStartedAt'] ?? "--/--/----",
                                 'CompletionAt': '${task['taskCompletedAt']}\nHours:${task['taskHour']}',
                                 'Comment': allComments,
                                 },
@@ -2260,7 +2346,35 @@ class _TasksScreenState extends State<TasksScreen> {
                               trailingIcon: Row(
                                 mainAxisAlignment: MainAxisAlignment.end,
                                 children: [
+                                  if (canComment && (task['taskStartedAt'] != null && task['taskStartedAt'].toString().trim().isNotEmpty))
+                                    IconButton(
+                                      icon: Icon(
+                                        isTaskPaused[task['taskId']] == true ? Icons.play_arrow : Icons.pause,
+                                        color: isTaskPaused[task['taskId']] == true ? Colors.green : Colors.red,
+                                      ),
+                                      tooltip: isTaskPaused[task['taskId']] == true ? 'Resume Task' : 'Pause Task',
+                                      onPressed: () async {
+                                        bool isPaused = isTaskPaused[task['taskId']] ?? false;
+                                        await _updateTaskStatus(
+                                          task['taskId'],
+                                          pause: !isPaused,
+                                          resume: isPaused,
+                                        );
+                                        setState(() {
+                                          isTaskPaused[task['taskId']] = !isPaused;
+                                        });
+                                      },
+                                    ),
 
+
+                                  if (canComment)
+                                    IconButton(
+                                    icon: Icon(Icons.access_time, color: Colors.purple),
+                                    tooltip: 'Start Task',
+                                    onPressed: () async {
+                                      await _updateTaskStart(task['taskId']);
+                                    },
+                                  ),
                                   if(roleName == "User")
                                     IconButton(onPressed: () => _showEditTaskUser(task['taskId']),
                                         icon: Icon(Icons.edit,color: Colors.green,)),
@@ -2294,6 +2408,7 @@ class _TasksScreenState extends State<TasksScreen> {
                                       icon: Icon(
                                           Icons.comment, color: Colors.orange),
                                     ),
+
                                   if(roleName == "Admin")
                                     IconButton(
                                       onPressed: () =>
@@ -2329,10 +2444,10 @@ class _TasksScreenState extends State<TasksScreen> {
                             );
                           }).toList(),
                         )
-                   ],
+                    ],
+                 ),
               ),
-            ),
-          ),
+           ),
         ),
       ),
     );

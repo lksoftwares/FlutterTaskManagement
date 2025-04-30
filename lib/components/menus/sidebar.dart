@@ -266,6 +266,7 @@
 //     );
 //   }
 // }
+
 import 'package:lktaskmanagementapp/components/menus/rolebasedmenu.dart';
 import 'package:lktaskmanagementapp/packages/headerfiles.dart';
 
@@ -390,6 +391,7 @@ class _NavBarState extends State<NavBar> {
     'ShiftsScreen': (context) => ShiftsScreen(),
     'AssignShifts': (context) => AssignShifts(),
     'TeammemberroleScreen': (context) => TeammemberroleScreen(),
+    'InternshipScreen': (context) => InternshipScreen(),
 
   };
 

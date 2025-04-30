@@ -90,6 +90,8 @@ flutter:
      - images/dashboard.jpg
      - images/bottomlk.jpg
      - images/bg.jpg
+     - images/intenship.png
+     - images/internship.png
 
 
   # An image asset can refer to one or more resolution-specific "variants", see
