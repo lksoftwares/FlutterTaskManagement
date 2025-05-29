@@ -80,7 +80,7 @@
 // //   }
 // // }
 import 'package:flutter/material.dart';
-import 'package:collection/collection.dart'; // For deep list comparison
+import 'package:collection/collection.dart';
 
 class CustomDropdown<T extends Object> extends StatefulWidget {
   final List<T> options;
@@ -111,14 +111,15 @@ class CustomDropdown<T extends Object> extends StatefulWidget {
   }) : super(key: key);
 
   @override
-  _CustomDropdownState<T> createState() => _CustomDropdownState<T>();
+  CustomDropdownState<T> createState() => CustomDropdownState<T>();
 }
 
-class _CustomDropdownState<T extends Object> extends State<CustomDropdown<T>> {
+class CustomDropdownState<T extends Object> extends State<CustomDropdown<T>> {
   final TextEditingController _controller = TextEditingController();
   final FocusNode _focusNode = FocusNode();
   OverlayEntry? _overlayEntry;
   final LayerLink _layerLink = LayerLink();
+
 
   List<T> _filteredOptions = [];
 
@@ -136,24 +137,25 @@ class _CustomDropdownState<T extends Object> extends State<CustomDropdown<T>> {
   void didUpdateWidget(covariant CustomDropdown<T> oldWidget) {
     super.didUpdateWidget(oldWidget);
 
-    // Update displayed text if selected option changed
     if (widget.selectedOption != oldWidget.selectedOption) {
       _controller.text = widget.selectedOption != null
           ? widget.displayValue(widget.selectedOption!)
           : '';
     }
 
-    // ✅ Update filtered list if options change
     if (!const DeepCollectionEquality().equals(widget.options, oldWidget.options)) {
       setState(() {
         _filteredOptions = widget.options;
       });
 
-      // Optional: reopen overlay with updated list
       if (_overlayEntry != null) {
-        _overlayEntry?.remove();
-        _overlayEntry = _createOverlayEntry();
-        Overlay.of(context).insert(_overlayEntry!);
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            _overlayEntry?.remove();
+            _overlayEntry = _createOverlayEntry();
+            Overlay.of(context).insert(_overlayEntry!);
+          }
+        });
       }
     }
   }
@@ -185,6 +187,11 @@ class _CustomDropdownState<T extends Object> extends State<CustomDropdown<T>> {
     _overlayEntry = null;
   }
 
+  void closeDropdown() {
+    _focusNode.unfocus();
+    _hideOverlay();
+  }
+
   OverlayEntry _createOverlayEntry() {
     RenderBox renderBox = context.findRenderObject() as RenderBox;
     var size = renderBox.size;
@@ -207,10 +214,12 @@ class _CustomDropdownState<T extends Object> extends State<CustomDropdown<T>> {
             child: Container(
               height: height,
               child: _filteredOptions.isEmpty
-                  ? const Center(child: Padding(
-                padding: EdgeInsets.all(16),
-                child: Text('No options found'),
-              ))
+                  ? const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(16),
+                  child: Text('No options found'),
+                ),
+              )
                   : ListView.builder(
                 padding: EdgeInsets.zero,
                 shrinkWrap: true,
@@ -235,6 +244,16 @@ class _CustomDropdownState<T extends Object> extends State<CustomDropdown<T>> {
         ),
       ),
     );
+  }
+
+  void _rebuildOverlay() {
+    if (_overlayEntry != null) {
+      _overlayEntry?.remove();
+      _overlayEntry = _createOverlayEntry();
+      Overlay.of(context).insert(_overlayEntry!);
+    } else if (_focusNode.hasFocus) {
+      _showOverlay();
+    }
   }
 
   @override
@@ -288,18 +307,7 @@ class _CustomDropdownState<T extends Object> extends State<CustomDropdown<T>> {
       ),
     );
   }
-
-  void _rebuildOverlay() {
-    if (_overlayEntry != null) {
-      _overlayEntry?.remove();
-      _overlayEntry = _createOverlayEntry();
-      Overlay.of(context).insert(_overlayEntry!);
-    } else if (_focusNode.hasFocus) {
-      _showOverlay();
-    }
-  }
 }
-
 
 //
 // import 'package:flutter/material.dart';

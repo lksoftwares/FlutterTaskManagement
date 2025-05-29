@@ -12,6 +12,8 @@ class CustomTextField extends StatefulWidget {
   final VoidCallback? onSuffixIconPressed;
   final ValueChanged<String>? onChanged;
   final int? maxLines;
+  final FormFieldValidator<String>? validator;
+  final FocusNode? focusNode;
 
   CustomTextField({
     Key? key,
@@ -26,6 +28,8 @@ class CustomTextField extends StatefulWidget {
     this.onSuffixIconPressed,
     this.onChanged,
     this.maxLines,
+    this.validator,
+    this.focusNode,
   }) : super(key: key);
 
   @override
@@ -39,17 +43,27 @@ class _CustomTextFieldState extends State<CustomTextField> {
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: Container(
         width: widget.width,
-        child: TextField(
+        child: TextFormField(
           controller: widget.controller,
+          focusNode: widget.focusNode,
           obscureText: widget.obscureText,
           keyboardType: widget.keyboardType,
-          maxLines: widget.maxLines,
-
+          maxLines: widget.maxLines ?? 1,
+          autovalidateMode: AutovalidateMode.onUserInteraction,
+          validator: widget.validator,
           decoration: InputDecoration(
             labelText: widget.label,
             hintText: widget.hintText,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8.0),
+            ),
+            errorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8.0),
+              borderSide: BorderSide(color: Colors.red),
+            ),
+            focusedErrorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8.0),
+              borderSide: BorderSide(color: Colors.red, width: 2.0),
             ),
             prefixIcon: widget.prefixIcon,
             suffixIcon: widget.suffixIcon != null
@@ -59,8 +73,12 @@ class _CustomTextFieldState extends State<CustomTextField> {
             )
                 : null,
           ),
-          onChanged: widget.onChanged,
+          onChanged: (val) {
+            widget.onChanged?.call(val);
+            setState(() {});
+          },
         ),
+
       ),
     );
   }

@@ -18,6 +18,10 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
   Map<String, int> taskStatusCounts = {};
   int totalTasks = 0;
   List<Map<String, dynamic>> totalWorkingDaysList = [];
+  List<Map<String, dynamic>> internship = [];
+  Map<String, int> internshipStatusCounts = {};
+  int totalInternshipStatusCount = 0;
+
 
   @override
   void initState() {
@@ -28,15 +32,15 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
     fetchWorkingDays();
     _fetchProjectData();
     _fetchAttendanceData();
-_fetchTask();
-
+    _fetchTask();
+    fetchStudents();
   }
+
   Future<void> _loadUserData() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     setState(() {
       userName = prefs.getString('user_Name') ?? "Guest";
       roleName = prefs.getString('role_Name') ?? "Guest";
-
     });
   }
 
@@ -45,6 +49,37 @@ _fetchTask();
     super.dispose();
   }
 
+  Future<void> fetchStudents() async {
+    setState(() {
+      isLoading = true;
+    });
+
+    final apiService = ApiService();
+    final response = await apiService.request(
+      method: 'GET',
+      endpoint: 'InternshipStudent/',
+      tokenRequired: true,
+    );
+
+    if (response['statusCode'] == 200) {
+      setState(() {
+        internshipStatusCounts = Map<String, int>.from(
+          response['apiResponse']['internshipStatusCounts'] ?? {},
+        );
+        totalInternshipStatusCount =
+            response['apiResponse']['totalInternshipStatusCount'] ?? 0;
+        isLoading = false;
+        print(totalInternshipStatusCount);
+      });
+    } else {
+      setState(() {
+        isLoading = false;
+      });
+      showToast(msg: response['message'] ?? 'Failed to fetch count');
+    }
+  }
+
+
   void _navigateAndRefreshWorking() async {
     await Navigator.push(
       context,
@@ -52,6 +87,7 @@ _fetchTask();
     );
     await _fetchWorkingData();
   }
+
   void _navigateAndRefreshLeaves() async {
     await Navigator.push(
       context,
@@ -67,15 +103,16 @@ _fetchTask();
     );
     await _fetchTask();
   }
+
   Future<void> _fetchLeaveData() async {
     setState(() {
       isLoading = true;
     });
     final apiService = ApiService();
     final response = await apiService.request(
-      method: 'GET',
-      endpoint: 'leave/',
-      tokenRequired: true
+        method: 'GET',
+        endpoint: 'leave/',
+        tokenRequired: true
     );
     if (response['statusCode'] == 200) {
       setState(() {
@@ -88,6 +125,7 @@ _fetchTask();
       });
     }
   }
+
   Future<void> _fetchAttendanceData() async {
     setState(() {
       isLoading = true;
@@ -96,7 +134,7 @@ _fetchTask();
     final apiService = ApiService();
     final response = await apiService.request(
       method: 'GET',
-      endpoint: 'attendance/',  // replace with actual endpoint
+      endpoint: 'attendance/',
       tokenRequired: true,
     );
 
@@ -126,11 +164,13 @@ _fetchTask();
             title: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('Total Task Pending',style: TextStyle(fontWeight: FontWeight.w900),),
-                Icon(Icons.pending_actions,size: 25,color: Colors.orange,)
+                Text('Total Task Pending',
+                  style: TextStyle(fontWeight: FontWeight.w900),),
+                Icon(Icons.pending_actions, size: 25, color: Colors.orange,)
               ],
             ),
-            content: Text('There are ${taskStatusCounts['open']} open tasks that need attention.'),
+            content: Text(
+                'There are ${taskStatusCounts['open']} open tasks that need attention.'),
             actions: <Widget>[
               TextButton(
                 onPressed: () {
@@ -161,8 +201,9 @@ _fetchTask();
       if (response['statusCode'] == 200 && response['apiResponse'] != null) {
         setState(() {
           totalWorkingDaysList = List<Map<String, dynamic>>.from(
-            response['apiResponse']['totalWorkingDaysList'].map((data) => {
-              'txnId': data['txnId']?? 0,
+            response['apiResponse']['totalWorkingDaysList'].map((data) =>
+            {
+              'txnId': data['txnId'] ?? 0,
               'totalDaysInMonth': data['totalDaysInMonth'],
               'totalWorkingDays': data['totalWorkingDays'],
             }),
@@ -184,8 +225,8 @@ _fetchTask();
   Future<void> _fetchWorkingData() async {
     final apiService = ApiService();
     final response = await apiService.request(
-      method: 'GET',
-      endpoint: 'working/',
+        method: 'GET',
+        endpoint: 'working/',
         tokenRequired: true
     );
     if (response['statusCode'] == 200) {
@@ -211,17 +252,18 @@ _fetchTask();
     );
     if (response['statusCode'] == 200) {
       setState(() {
-        stageCounts = Map<String, int>.from(response['apiResponse']['stageCounts']);
+        stageCounts =
+        Map<String, int>.from(response['apiResponse']['stageCounts']);
         isLoading = false;
         print(stageCounts);
       });
-    } else if (response['errorCode']== 401) {
+    } else if (response['errorCode'] == 401) {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => LoginScreen()),
       );
       showToast(msg: response['message'] ?? 'Failed');
-    }else {
+    } else {
       setState(() {
         isLoading = false;
       });
@@ -249,7 +291,8 @@ _fetchTask();
     );
     if (response['statusCode'] == 200) {
       setState(() {
-        taskStatusCounts = Map<String, int>.from(response['apiResponse']['taskStatusCounts']);
+        taskStatusCounts =
+        Map<String, int>.from(response['apiResponse']['taskStatusCounts']);
         totalTasks = response['apiResponse']['totalTasks'];
         isLoading = false;
         print(taskStatusCounts);
@@ -261,8 +304,8 @@ _fetchTask();
       showToast(msg: response['message'] ?? 'Failed');
     }
   }
-  Widget buildCard(
-      String title,
+
+  Widget buildCard(String title,
       IconData icon,
       Color color, {
         Widget? destinationScreen,
@@ -349,8 +392,8 @@ _fetchTask();
 
   Future<void> _fetchTodaysAbsents() async {
     final response = await new ApiService().request(
-      method: 'get',
-      endpoint: 'leave/',
+        method: 'get',
+        endpoint: 'leave/',
         tokenRequired: true
 
     );
@@ -396,7 +439,8 @@ _fetchTask();
                               ),
                               SizedBox(height: 8),
                               Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment: MainAxisAlignment
+                                    .spaceBetween,
                                 children: [
                                   Text(
                                     "From:",
@@ -417,7 +461,8 @@ _fetchTask();
                               ),
                               SizedBox(height: 8),
                               Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment: MainAxisAlignment
+                                    .spaceBetween,
                                 children: [
                                   Text(
                                     "To:",
@@ -477,6 +522,7 @@ _fetchTask();
         onRefresh: _fetchData,
         child: Column(
           children: [
+            // Top Icon Stack Section
             Stack(
               children: [
                 ClipPath(
@@ -496,7 +542,8 @@ _fetchTask();
                   child: Stack(
                     children: [
                       IconButton(
-                        icon: Icon(Icons.pending_actions, size: 25, color: Colors.white),
+                        icon: Icon(Icons.pending_actions, size: 25,
+                            color: Colors.white),
                         onPressed: () {
                           if (taskStatusCounts['open'] != null) {
                             _navigateAndRefreshTask();
@@ -511,15 +558,16 @@ _fetchTask();
                           right: 0,
                           child: Container(
                             padding: EdgeInsets.all(6),
-                            decoration: BoxDecoration(
-                              color: Colors.red,
-                              shape: BoxShape.circle,
-                            ),
-                            constraints: BoxConstraints(minWidth: 21, minHeight: 21),
+                            decoration: BoxDecoration(color: Colors.red,
+                                shape: BoxShape.circle),
+                            constraints: BoxConstraints(minWidth: 21,
+                                minHeight: 21),
                             child: Center(
                               child: Text(
                                 '${taskStatusCounts['open']}',
-                                style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
+                                style: TextStyle(color: Colors.white,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold),
                                 textAlign: TextAlign.center,
                               ),
                             ),
@@ -548,14 +596,15 @@ _fetchTask();
                             child: Container(
                               padding: EdgeInsets.all(6),
                               decoration: BoxDecoration(
-                                color: Colors.blue,
-                                shape: BoxShape.circle,
-                              ),
-                              constraints: BoxConstraints(minWidth: 19, minHeight: 19),
+                                  color: Colors.blue, shape: BoxShape.circle),
+                              constraints: BoxConstraints(
+                                  minWidth: 19, minHeight: 19),
                               child: Center(
                                 child: Text(
                                   '$totalViewCount',
-                                  style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                                  style: TextStyle(color: Colors.white,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold),
                                   textAlign: TextAlign.center,
                                 ),
                               ),
@@ -580,7 +629,8 @@ _fetchTask();
                     child: Stack(
                       children: [
                         IconButton(
-                          icon: Icon(Icons.notifications_rounded, size: 25, color: Colors.white),
+                          icon: Icon(Icons.notifications_rounded, size: 25,
+                              color: Colors.white),
                           onPressed: () {
                             if (totalPending > 0) {
                               _navigateAndRefreshLeaves();
@@ -589,7 +639,6 @@ _fetchTask();
                             }
                           },
                         ),
-
                         if (totalPending > 0)
                           Positioned(
                             top: 0,
@@ -597,24 +646,27 @@ _fetchTask();
                             child: Container(
                               padding: EdgeInsets.all(6),
                               decoration: BoxDecoration(
-                                color: Colors.red,
-                                shape: BoxShape.circle,
-                              ),
-                              constraints: BoxConstraints(minWidth: 21, minHeight: 21),
+                                  color: Colors.red, shape: BoxShape.circle),
+                              constraints: BoxConstraints(
+                                  minWidth: 21, minHeight: 21),
                               child: Center(
                                 child: Text(
                                   '$totalPending',
-                                  style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
+                                  style: TextStyle(color: Colors.white,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.bold),
                                   textAlign: TextAlign.center,
                                 ),
                               ),
                             ),
                           ),
-                       ],
+                      ],
                     ),
                   ),
               ],
             ),
+
+            // Body content
             Expanded(
               child: Stack(
                 children: [
@@ -626,215 +678,239 @@ _fetchTask();
                       ),
                     ),
                   ),
-                  // Padding(
-                  //   padding: const EdgeInsets.only(top: 585.5),
-                  //   child: Container(
-                  //     decoration: BoxDecoration(
-                  //       image: DecorationImage(
-                  //         image: AssetImage("images/bg.jpg"),
-                  //       ),
-                  //     ),
-                  //   ),
-                  // ),
                   Padding(
                     padding: const EdgeInsets.all(16.0),
                     child: Column(
                       children: [
+
+                        // First Row
                         Row(
                           children: [
-                            Expanded(child: buildCard(
-                              "WORKING DAYS",
-                              Icons.calendar_month,
-                              titleBgColor: Colors.green[100]!,
-                              Colors.green[300]!,
-                              destinationScreen: Workingdayslist(),
-                              content: Padding(
-                                padding: const EdgeInsets.only(top: 0.0),
-                                child: Column(
-                                  children: [
-                                    if (totalWorkingDaysList.isNotEmpty)
-                                      for (var workingData in totalWorkingDaysList)
-                                        Padding(
-                                          padding: const EdgeInsets.symmetric(vertical: 5.0),
-                                          child: Row(
-                                            mainAxisAlignment: MainAxisAlignment.center,
-                                            children: [
-                                              Text(
-                                                '${workingData['totalWorkingDays']} / ${workingData['totalDaysInMonth']}',
-                                                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
-                                              ),
-                                            ],
+                            Expanded(
+                              child: buildCard(
+                                "WORKING DAYS",
+                                Icons.calendar_month,
+                                titleBgColor: Colors.green[100]!,
+                                Colors.green[300]!,
+                                destinationScreen: Workingdayslist(),
+                                content: Column(
+                                  children: totalWorkingDaysList.map((
+                                      workingData) {
+                                    return Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                          vertical: 5.0),
+                                      child: Row(
+                                        mainAxisAlignment: MainAxisAlignment
+                                            .center,
+                                        children: [
+                                          Text(
+                                            '${workingData['totalWorkingDays']} / ${workingData['totalDaysInMonth']}',
+                                            style: TextStyle(fontSize: 18,
+                                                fontWeight: FontWeight.bold,
+                                                color: Colors.white),
                                           ),
-                                        ),
-                                  ],
+                                        ],
+                                      ),
+                                    );
+                                  }).toList(),
                                 ),
                               ),
-                            )),
-                            Expanded(child: buildCard(
-                              "PROJECT STAGE",
-                              Icons.check_circle,
-                              Colors.grey[400]!,
-                              titleBgColor: Colors.grey[200]!,
-
-                              destinationScreen: ProjectsScreen(),
-                              extraText: null,
-                              content: Padding(
-                                padding: const EdgeInsets.only(top: 0.0),
-                                child: Column(
+                            ),
+                            Expanded(
+                              child: buildCard(
+                                "PROJECT STAGE",
+                                Icons.check_circle,
+                                Colors.grey[400]!,
+                                titleBgColor: Colors.grey[200]!,
+                                destinationScreen: ProjectsScreen(),
+                                content: Column(
                                   children: [
                                     Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                      mainAxisAlignment: MainAxisAlignment
+                                          .spaceEvenly,
                                       children: [
-                                        Row(
-                                          children: [
-                                            Icon(Icons.hourglass_bottom_outlined, color: Colors.yellow, size: 20),
-                                            SizedBox(height: 8),
-                                            Text(
-                                              '${stageCounts['Pending'] ?? 0}',
-                                              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
-                                            ),
-                                          ],
-                                        ),
-                                        Row(
-                                          children: [
-                                            Icon(Icons.change_circle_rounded, color: Colors.blue, size: 20),
-                                            SizedBox(height: 8),
-                                            Text(
-                                              ' ${stageCounts['In Progress'] ?? 0}',
-                                              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
-                                            ),
-                                          ],
-                                        ),
+                                        Icon(Icons.hourglass_bottom_outlined,
+                                            color: Colors.yellow, size: 20),
+                                        Text('${stageCounts['Pending'] ?? 0}',
+                                            style: TextStyle(
+                                                color: Colors.white)),
+                                        Icon(Icons.change_circle_rounded,
+                                            color: Colors.blue, size: 20),
+                                        Text('${stageCounts['In Progress'] ??
+                                            0}', style: TextStyle(
+                                            color: Colors.white)),
                                       ],
                                     ),
-                                    SizedBox(height: 5,),
+                                    SizedBox(height: 5),
                                     Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                      mainAxisAlignment: MainAxisAlignment
+                                          .spaceEvenly,
                                       children: [
-                                        Row(
-                                          children: [
-                                            Icon(Icons.pause_circle, color: Colors.deepOrangeAccent, size: 20),
-                                            SizedBox(height: 8),
-                                            Text(
-                                              ' ${stageCounts['On Hold'] ?? 0}',
-                                              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
-                                            ),
-                                          ],
-                                        ),
-                                        Row(
-                                          children: [
-                                            Icon(Icons.cancel, color: Colors.red, size: 20),
-                                            SizedBox(height: 8,width: 4,),
-                                            Text(
-                                              '${stageCounts['Cancelled'] ?? 0}',
-                                              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
-                                            ),
-                                          ],
-                                        ),
+                                        Icon(Icons.pause_circle,
+                                            color: Colors.deepOrangeAccent,
+                                            size: 20),
+                                        Text('${stageCounts['On Hold'] ?? 0}',
+                                            style: TextStyle(
+                                                color: Colors.white)),
+                                        Icon(Icons.cancel, color: Colors.red,
+                                            size: 20),
+                                        Text('${stageCounts['Cancelled'] ?? 0}',
+                                            style: TextStyle(
+                                                color: Colors.white)),
                                       ],
                                     ),
                                   ],
                                 ),
                               ),
-                            )),
+                            ),
                           ],
                         ),
-                        SizedBox(height: 13,),
+
+                        SizedBox(height: 13),
+
+                        // Second Row
                         Row(
                           children: [
-                            Expanded(child: buildCard(
-                              "TOTAL TASKS",
-                              Icons.task,
-                              titleBgColor: Colors.blue[100]!,
-
-                              Colors.blue[200]!,
-                              destinationScreen: TasksScreen(),
-                              content: Padding(
-                                padding: const EdgeInsets.only(top: 0.0),
-                                child: Column(
+                            Expanded(
+                              child: buildCard(
+                                "TOTAL TASKS",
+                                Icons.task,
+                                titleBgColor: Colors.blue[100]!,
+                                Colors.blue[200]!,
+                                destinationScreen: TasksScreen(),
+                                content: Column(
                                   children: [
                                     Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                      mainAxisAlignment: MainAxisAlignment
+                                          .spaceEvenly,
                                       children: [
-                                        Row(
-                                          children: [
-                                            Icon(Icons.hourglass_bottom_outlined, color: Colors.yellow, size: 20),
-                                            SizedBox(height: 8),
-                                            Text(
-                                              '${taskStatusCounts['open'] ?? 0}',
-                                              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
-                                            ),
-                                          ],
-                                        ),
-                                        Row(
-                                          children: [
-                                            Icon(Icons.change_circle_rounded, color: Colors.blue, size: 20),
-                                            SizedBox(height: 8),
-                                            Text(
-                                              ' ${taskStatusCounts['in-Progress'] ?? 0}',
-                                              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
-                                            ),
-                                          ],
-                                        ),
+                                        Icon(Icons.hourglass_bottom_outlined,
+                                            color: Colors.yellow, size: 20),
+                                        Text('${taskStatusCounts['open'] ?? 0}',
+                                            style: TextStyle(
+                                                color: Colors.white)),
+                                        Icon(Icons.change_circle_rounded,
+                                            color: Colors.blue, size: 20),
+                                        Text(
+                                            '${taskStatusCounts['in-Progress'] ??
+                                                0}', style: TextStyle(
+                                            color: Colors.white)),
                                       ],
                                     ),
                                     SizedBox(height: 7),
                                     Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                      mainAxisAlignment: MainAxisAlignment
+                                          .spaceEvenly,
                                       children: [
-                                        Row(
-                                          children: [
-                                            Icon(Icons.check_circle, color: Colors.green, size: 20),
-                                            SizedBox(height: 8),
-                                            Text(
-                                              ' ${taskStatusCounts['completed'] ?? 0}',
-                                              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
-                                            ),
-                                          ],
-                                        ),
-                                        Row(
-                                          children: [
-                                            Icon(Icons.cancel, color: Colors.red, size: 20),
-                                            SizedBox(height: 8,width: 4,),
-                                            Text(
-                                              '${taskStatusCounts['Cancelled'] ?? 0}',
-                                              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
-                                            ),
-                                          ],
-                                        ),
+                                        Icon(Icons.check_circle,
+                                            color: Colors.green, size: 20),
+                                        Text('${taskStatusCounts['completed'] ??
+                                            0}', style: TextStyle(
+                                            color: Colors.white)),
+                                        Icon(Icons.cancel, color: Colors.red,
+                                            size: 20),
+                                        Text('${taskStatusCounts['Cancelled'] ??
+                                            0}', style: TextStyle(
+                                            color: Colors.white)),
                                       ],
                                     ),
                                   ],
                                 ),
                               ),
-                            )),
+                            ),
                             Expanded(
                               child: buildCard(
                                 "TODAY ATTENDANCE",
                                 Icons.how_to_reg,
                                 titleBgColor: Colors.pink[100]!,
-                                destinationScreen: AttendanceScreen(),
                                 Colors.pink[300]!,
-                                extraText: null,
-                                content: Padding(
-                                  padding: const EdgeInsets.only(top: 0.0),
-                                  child: Column(
+                                destinationScreen: AttendanceScreen(),
+                                content: Center(
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
-                                      Row(
-                                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                                        children: [
-                                          Row(
-                                            children: [
-                                              Icon(Icons.how_to_reg, color: Colors.yellow, size: 25),
-                                              SizedBox(height: 8),
-                                              Text(
-                                                '$todayPresentCount',
-                                                style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
-                                              ),
-                                            ],
-                                          ),
-                                        ],
-                                      ),
+                                      Icon(Icons.how_to_reg,
+                                          color: Colors.yellow, size: 25),
+                                      SizedBox(width: 8),
+                                      Text('$todayPresentCount',
+                                          style: TextStyle(color: Colors.white,
+                                              fontWeight: FontWeight.bold)),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+
+                        SizedBox(height: 13),
+
+                        // Third Row (Newly added)
+                        Row(
+                          children: [
+                            Expanded(
+                              child: buildCard(
+                                "INTERNSHIP STATUS",
+                                Icons.event_busy,
+                                titleBgColor: Colors.deepPurple[100]!,
+                                Colors.deepPurple[300]!,
+                                destinationScreen: InternshipScreen(),
+                                content: Column(
+                                  children: [
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment
+                                          .spaceEvenly,
+                                      children: [
+                                        Icon(Icons.people,
+                                            color: Colors.red[300],
+                                            size: 20),
+
+                                        Text('$totalInternshipStatusCount',
+                                            style: TextStyle(
+                                                color: Colors.white)),
+                                        Icon(Icons.check_circle,
+                                            color: Colors.green[200], size: 20),
+                                        Text('${internshipStatusCounts['join'] ?? 0}',
+                                            style: TextStyle(
+                                                color: Colors.white)),
+
+                                      ],
+                                    ),
+                                    SizedBox(height: 5),
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment
+                                          .spaceEvenly,
+                                      children: [
+                                        Icon(Icons.hourglass_bottom,
+                                            color: Colors.yellow, size: 20),
+                                        Text('${internshipStatusCounts['pending'] ??
+                                            0}', style: TextStyle(
+                                            color: Colors.white)),
+                                        Icon(Icons.cancel,
+                                            color: Colors.red[300],
+                                            size: 20),
+
+                                        Text('${internshipStatusCounts['not Interested'] ?? 0}',
+                                            style: TextStyle(
+                                                color: Colors.white)),
+
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            Expanded(
+                              child: buildCard(
+                                "",
+                                Icons.access_time,
+                                titleBgColor: Colors.teal[100]!,
+                                Colors.teal[300]!,
+                                content: Center(
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+
                                     ],
                                   ),
                                 ),
@@ -843,8 +919,7 @@ _fetchTask();
                           ],
                         ),
                       ],
-                    )
-
+                    ),
                   ),
                 ],
               ),

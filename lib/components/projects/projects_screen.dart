@@ -13,6 +13,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
   List<Map<String, dynamic>> teamsList = [];
   String? selectedTeamName;
   bool isLoading = false;
+  final GlobalKey<CustomDropdownState<int>> _dropdownKey = GlobalKey<CustomDropdownState<int>>();
   DateTime? startDate;
   DateTime? endDate;
   int? userId;
@@ -20,7 +21,6 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
   String? selectedStage;
   String? selectedStage2;
   bool isSubmitting = false;
-
 
   @override
   void initState() {
@@ -30,6 +30,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
   }
 
   final _formKey = GlobalKey<FormState>();
+
   final controller = MultiSelectController<String>();
   List<String> projectStages = ['Completed', 'On Hold', 'Pending', 'Cancelled', 'In Progress'];
   Map<String, bool> selectedStages = {
@@ -70,6 +71,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
     }
   }
   Future<void> fetchTeams() async {
+
     try {
       final response = await new ApiService().request(
           method: 'get',
@@ -265,11 +267,15 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
         teams = teamsList;
       });
     }
+
     showCustomAlertDialog(
       context,
       title: 'Add Project',
       content: StatefulBuilder(
           builder: (context, modalSetState) {
+            if (teams.isEmpty) {
+              loadTeams(modalSetState);
+            }
             return SingleChildScrollView(
               child: Padding(
                 padding: const EdgeInsets.all(15.0),
@@ -296,6 +302,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                       Row(
                         children: [
                           CustomDropdown<int>(
+                            key: _dropdownKey,
                             options: teamsList.map<int>((team) => team['teamId'] as int).toList(),
                             selectedOption: selectedTeamId,
                             displayValue: (teamId) =>
@@ -310,10 +317,14 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                           ),
                           IconButton(
                             onPressed: () {
+                              _dropdownKey.currentState?.closeDropdown();
                               _showAddTeamModal(() async {
                                 await fetchTeams();
-                                modalSetState(() {});
+                                WidgetsBinding.instance.addPostFrameCallback((_) {
+                                  modalSetState(() {});
+                                });
                               });
+
                             },
                             icon: Icon(Icons.add_circle, size: 30, color: Colors.blue),
                           )

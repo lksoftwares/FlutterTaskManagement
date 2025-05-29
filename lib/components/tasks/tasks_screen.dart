@@ -48,7 +48,6 @@ class _TasksScreenState extends State<TasksScreen> {
   bool isImageLoading = false;
   List<dynamic>? monthlyUserTaskCounts;
   Map<int, bool> isTaskStarted = {};
-  Map<int, bool> isTaskPaused = {};
 
 
   @override
@@ -65,16 +64,20 @@ class _TasksScreenState extends State<TasksScreen> {
   final _formKey = GlobalKey<FormState>();
   final controller = MultiSelectController<String>();
   List<String> taskStages = ['open', 'in-progress', 'completed', 'blocked'];
+
   Map<String, bool> selectedStages = {
     'open': true,
     'in-progress': true,
     'completed': false,
     'blocked': false,
   };
+
   Future<void> _initializeRecorder() async {
     _recorder = FlutterSoundRecorder();
     await _recorder!.openRecorder();
   }
+
+
   Future<void> _initializePlayer() async {
     _player = FlutterSoundPlayer();
     await _player!.openPlayer();
@@ -89,7 +92,6 @@ class _TasksScreenState extends State<TasksScreen> {
         audioFilePath = path;
       });
       showToast(msg: "Recording started!", backgroundColor: Colors.green);
-      print("Recording started. File path: $audioFilePath");
     } else {
       showToast(msg: "Permission denied. Please allow microphone access.");
     }
@@ -101,7 +103,6 @@ class _TasksScreenState extends State<TasksScreen> {
       isRecording = false;
     });
     showToast(msg: "Recording stopped!", backgroundColor: Colors.green);
-    print("Recording stopped. File saved at: $audioFilePath");
   }
 
   Future<void> _playAudio(String? audioFilePath) async {
@@ -200,23 +201,27 @@ class _TasksScreenState extends State<TasksScreen> {
     });
   }
 
-  Future<void> fetchTasks() async {
+  Future<void> fetchTasks({DateTime? fromDate, DateTime? toDate}) async {
     setState(() {
       isLoading = true;
     });
+
     SharedPreferences prefs = await SharedPreferences.getInstance();
     int? userId = prefs.getInt('user_Id');
     roleName = prefs.getString('role_Name');
-    String endpoint = 'tasks/';
-    if (roleName == 'Admin') {
-      endpoint = 'tasks/';
-    } else if (userId != null) {
-      endpoint = 'tasks/?userId=$userId';
+
+    String endpoint = roleName == 'Admin' ? 'tasks/' : 'tasks/?userId=$userId';
+
+    if (fromDate != null && toDate != null) {
+      String formattedStart = "${fromDate.year}-${fromDate.month.toString().padLeft(2, '0')}-${fromDate.day.toString().padLeft(2, '0')}";
+      String formattedEnd = "${toDate.year}-${toDate.month.toString().padLeft(2, '0')}-${toDate.day.toString().padLeft(2, '0')}";
+      endpoint += (endpoint.contains('?') ? '&' : '?') + 'startDate=$formattedStart&endDate=$formattedEnd';
     }
-    final response = await new ApiService().request(
-        method: 'get',
-        endpoint: endpoint,
-        tokenRequired: true
+
+    final response = await ApiService().request(
+      method: 'get',
+      endpoint: endpoint,
+      tokenRequired: true,
     );
     if (response['statusCode'] == 200 && response['apiResponse'] != null) {
       final taskData = response['apiResponse'];
@@ -289,6 +294,11 @@ class _TasksScreenState extends State<TasksScreen> {
       isLoading = false;
     });
   }
+  bool isTaskPaused(Map<String, dynamic> task) {
+    return task['taskPausedAt'] != null &&
+        (task['taskResumedAt'] == null || task['taskPausedAt'].compareTo(task['taskResumedAt']) > 0);
+  }
+
 
   Future<void> _addTask(File? imageFile) async {
     final dueDateToSend = dueDate?.toIso8601String() ?? DateTime.now().toIso8601String();
@@ -1442,19 +1452,13 @@ class _TasksScreenState extends State<TasksScreen> {
 
     return tasks.where((task) {
       bool matchesStage = selectedStages[task['taskStatus']] ?? false;
-      bool matchesDate = true;
-      bool matchesuserName = true;
+      bool matchesUser = true;
+
       if (selectedUserName != null && selectedUserName!.isNotEmpty) {
-        matchesuserName = task['taskAssignedToName'] == selectedUserName;
+        matchesUser = task['taskAssignedToName'] == selectedUserName;
       }
-      if (fromDate != null && toDate != null) {
-        DateTime workingDate = _parseDate(task['taskDueDate']);
-        matchesDate = (workingDate.isAtSameMomentAs(fromDate!) ||
-            workingDate.isAfter(fromDate!)) &&
-            (workingDate.isAtSameMomentAs(toDate!) ||
-                workingDate.isBefore(toDate!));
-      }
-      return matchesStage && matchesDate && matchesuserName;
+
+      return matchesStage && matchesUser;
     }).toList();
   }
 
@@ -1578,113 +1582,103 @@ class _TasksScreenState extends State<TasksScreen> {
     );
   }
 
-  void _showFilter() {
-    List<DropdownItem<String>> stageItems = taskStages
-        .map((stage) => DropdownItem(label: stage, value: stage))
-        .toList();
-    showCustomAlertDialog(
-     context,
-          title: 'Select Data',
-          content: Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(15.0),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    // MultiSelectDropdown(
-                    //   width: 275,
-                    //   items: stageItems,
-                    //   controller: controller,
-                    //   hintText: 'Select Task Stage',
-                    //   onSelectionChange: (selectedItems) {
-                    //     setState(() {
-                    //       selectedStages = {
-                    //         for (var stage in taskStages)
-                    //           stage: selectedItems.contains(stage),
-                    //       };
-                    //     });
-                    //     fetchTasks();
-                    //   },
-                    // ),
-                    Autocomplete<String>(
-                      optionsBuilder: (TextEditingValue textEditingValue) {
-                        return users
-                            .where((user) => user['userName']!
-                            .toLowerCase()
-                            .contains(textEditingValue.text.toLowerCase()))
-                            .map((user) => user['userName'] as String)
-                            .toList();
-                      },
-                      onSelected: (String userName) {
-                        setState(() {
-                          selectedUserName = userName;
-                        });
-                        fetchTasks();
-                      },
-                      fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
-                        return Container(
-                          width: 275,
-                          child: TextField(
-                            controller: controller,
-                            focusNode: focusNode,
-                            decoration: InputDecoration(
-                              labelText: 'Select User',
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              prefixIcon: Icon(Icons.person),
-                            ),
-                            onChanged: (value) {
-                              if (value.isEmpty) {
-                                setState(() {
-                                  selectedUserName = null;
-                                });
-                                fetchTasks();
-                              }
-                            },
-                          ),
-                        );
-                      },
-                    ),
+  // void _showFilter() {
+  //   List<DropdownItem<String>> stageItems = taskStages
+  //       .map((stage) => DropdownItem(label: stage, value: stage))
+  //       .toList();
+  //
+  //   String? tempSelectedUserName = selectedUserName;
+  //   DateTime? tempFromDate = fromDate;
+  //   DateTime? tempToDate = toDate;
+  //
+  //   showCustomAlertDialog(
+  //     context,
+  //     title: 'Select Data',
+  //     titleHeight: 65,
+  //     content: Column(
+  //       children: [
+  //         Padding(
+  //           padding: const EdgeInsets.all(15.0),
+  //           child: Row(
+  //             mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  //             children: [
+  //               Autocomplete<String>(
+  //                 optionsBuilder: (TextEditingValue textEditingValue) {
+  //                   return users
+  //                       .where((user) => user['userName']!
+  //                       .toLowerCase()
+  //                       .contains(textEditingValue.text.toLowerCase()))
+  //                       .map((user) => user['userName'] as String)
+  //                       .toList();
+  //                 },
+  //                 onSelected: (String userName) {
+  //                   tempSelectedUserName = userName;
+  //                 },
+  //                 fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+  //                   return Container(
+  //                     width: 275,
+  //                     child: TextField(
+  //                       controller: controller,
+  //                       focusNode: focusNode,
+  //                       decoration: InputDecoration(
+  //                         labelText: 'Select User',
+  //                         border: OutlineInputBorder(
+  //                           borderRadius: BorderRadius.circular(10),
+  //                         ),
+  //                         prefixIcon: Icon(Icons.person),
+  //                       ),
+  //                       onChanged: (value) {
+  //                         if (value.isEmpty) {
+  //                           tempSelectedUserName = null;
+  //                         }
+  //                       },
+  //                     ),
+  //                   );
+  //                 },
+  //               ),
+  //               IconButton(
+  //                 icon: Icon(Icons.date_range, size: 30, color: Colors.blue),
+  //                 onPressed: () async {
+  //                   final pickedDateRange = await showDateRangePicker(
+  //                     context: context,
+  //                     firstDate: DateTime(2025, DateTime.february),
+  //                     lastDate: DateTime(2025, DateTime.december),
+  //                     initialDateRange: fromDate != null && toDate != null
+  //                         ? DateTimeRange(start: fromDate!, end: toDate!)
+  //                         : null,
+  //                   );
+  //
+  //                   if (pickedDateRange != null) {
+  //                     setState(() {
+  //                       fromDate = pickedDateRange.start;
+  //                       toDate = pickedDateRange.end;
+  //                     });
+  //
+  //                     Future.delayed(Duration(milliseconds: 200), _showFilter);
+  //                   }
+  //                 },
+  //               ),
+  //             ],
+  //           ),
+  //         ),
+  //       ],
+  //     ),
+  //     actions: [
+  //       TextButton(
+  //         child: Text('Apply'),
+  //         onPressed: () async {
+  //           setState(() {
+  //             selectedUserName = tempSelectedUserName;
+  //           });
+  //           Navigator.of(context).pop();
+  //           await fetchTasks(fromDate: fromDate, toDate: toDate);
+  //
+  //         },
+  //       ),
+  //     ],
+  //   );
+  // }
 
-                    IconButton(
-                      icon: Icon(Icons.date_range, size: 30, color: Colors.blue),
-                      onPressed: () async {
-                        Navigator.of(context).pop();
-                        final pickedDateRange = await showDateRangePicker(
-                          context: context,
-                          firstDate: DateTime(2025, DateTime.february),
-                          lastDate: DateTime(2025, DateTime.december),
-                          initialDateRange: fromDate != null && toDate != null
-                              ? DateTimeRange(start: fromDate!, end: toDate!)
-                              : null,
-                        );
-
-                        if (pickedDateRange != null) {
-                          setState(() {
-                            fromDate = pickedDateRange.start;
-                            toDate = pickedDateRange.end;
-                          });
-                        }
-                      },
-                    ),
-                    SizedBox(height: 10),
-                  ],
-                ),
-              ),
-
-            ],
-          ),
-          actions: [
-            TextButton(
-              child: Text('Apply'),
-              onPressed: () => Navigator.of(context).pop(),
-            ),
-          ],
-       titleHeight: 65
-    );
-  }
 
   // void _showFilter() {
   //   MultiSelectController<String> controller = MultiSelectController<String>();
@@ -1819,8 +1813,8 @@ class _TasksScreenState extends State<TasksScreen> {
   }
 
   Future<void> _showTaskcount() async {
-    await _fetchTaskCounts();
 
+    await _fetchTaskCounts();
     showCustomAlertDialog(
       context,
       title: 'Task Summary',
@@ -1839,12 +1833,10 @@ class _TasksScreenState extends State<TasksScreen> {
               setState(() {
                 selectedDateRange = picked;
               });
-
               await _fetchTaskCounts(
                 start: picked.start,
                 end: picked.end,
               );
-
               setState(() {});
             }
           }
@@ -2108,7 +2100,7 @@ class _TasksScreenState extends State<TasksScreen> {
       showToast(msg: response['message'] ?? 'Failed to start task');
     }
   }
-  Future<void> _updateTaskStatus(int taskId, {bool pause = false, bool resume = false}) async {
+  Future<void> _pauseTask(int taskId) async {
     final response = await ApiService().request(
       method: 'post',
       endpoint: 'tasks/Update',
@@ -2117,20 +2109,322 @@ class _TasksScreenState extends State<TasksScreen> {
       body: {
         'taskId': taskId,
         'taskUpdatedBy': userId,
-        'pauseTask': pause,
-        'resumeTask': resume,
+        'pauseTask': true,
         'updateFlag': true,
       },
     );
-
     if (response['statusCode'] == 200) {
-      showToast(msg: response['message'] ?? 'task',backgroundColor: Colors.green);
-
-      fetchTasks();
+      showToast(msg: 'Task paused', backgroundColor: Colors.green);
+      await fetchTasks(fromDate: fromDate, toDate: toDate);
+      setState(() {});
     } else {
-      showToast(msg: response['message'] ?? 'Failed to update task');
+      showToast(msg: response['message'] ?? 'Failed to pause task');
     }
   }
+
+  Future<void> _resumeTask(int taskId) async {
+    final response = await ApiService().request(
+      method: 'post',
+      endpoint: 'tasks/Update',
+      tokenRequired: true,
+      isMultipart: true,
+      body: {
+        'taskId': taskId,
+        'taskUpdatedBy': userId,
+        'resumeTask': true,
+        'updateFlag': true,
+      },
+    );
+    if (response['statusCode'] == 200) {
+      showToast(msg: 'Task resumed', backgroundColor: Colors.green);
+      await fetchTasks(fromDate: fromDate, toDate: toDate);
+      setState(() {});
+    } else {
+      showToast(msg: response['message'] ?? 'Failed to resume task');
+    }
+  }
+
+  void _pickDateRange() async {
+    final pickedDateRange = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2025, DateTime.february),
+      lastDate: DateTime(2026, DateTime.december),
+      initialDateRange: fromDate != null && toDate != null
+          ? DateTimeRange(start: fromDate!, end: toDate!)
+          : null,
+    );
+
+    if (pickedDateRange != null) {
+      setState(() {
+        fromDate = pickedDateRange.start;
+        toDate = pickedDateRange.end;
+      });
+      await fetchTasks(fromDate: fromDate, toDate: toDate,);
+    }
+  }
+
+
+  Future<void> _showEditTaskCopy(int taskId) async {
+    Map<String, dynamic> taskToEdit = tasks.firstWhere((task) => task['taskId'] == taskId);
+
+    taskTitle = taskToEdit['taskTitle'] ?? '';
+    taskDescription = taskToEdit['taskDescription'] ?? '';
+    selectedprojectId = taskToEdit['projectId'];
+    selectedTeamMemberId = taskToEdit['taskAssignedTo'];
+    selectedPriority = taskToEdit['taskPriority'];
+    selectedStatus = taskToEdit['taskStatus'];
+    String dueDateString = taskToEdit['taskDueDate'] ?? '';
+    dueDate = DateFormat('dd-MM-yyyy').parse(dueDateString);
+    String? currentImageUrl = taskToEdit['imageFilePath'];
+    _selectedImage = null;
+
+    if (selectedprojectId != null) {
+      await fetchTeamMembers();
+      if (!team.any((member) => member['userId'] == selectedTeamMemberId)) {
+        selectedTeamMemberId = null;
+      }
+    }
+
+    showCustomAlertDialog(
+      context,
+      title: 'Add Copy Task',
+      content: StatefulBuilder(
+        builder: (context, setState) {
+          return SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.all(20.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  CustomDropdown<String>(
+                    options: projects.map((project) => project['projectId'].toString()).toList(),
+                    displayValue: (projectId) {
+                      final project = projects.firstWhere((project) =>
+                      project['projectId'].toString() == projectId);
+                      return project['projectName'];
+                    },
+                    selectedOption: selectedprojectId?.toString(),
+                    onChanged: (value) async {
+                      setState(() {
+                        selectedprojectId = value != null ? int.tryParse(value) : null;
+                        team.clear();
+                      });
+                      if (selectedprojectId != null) {
+                        await fetchTeamMembers();
+                        if (!team.any((member) => member['userId'] == selectedTeamMemberId)) {
+                          selectedTeamMemberId = null;
+                        }
+                      }
+                      setState(() {});
+                    },
+                    labelText: 'Select Project',
+                  ),
+                  SizedBox(height: 10),
+                  DropdownButtonFormField<int>(
+                    value: selectedTeamMemberId,
+                    decoration: InputDecoration(
+                      labelText: 'Select Team Member',
+                      border: OutlineInputBorder(),
+                    ),
+                    items: team.map((member) {
+                      return DropdownMenuItem<int>(
+                        value: member['userId'],
+                        child: Text('${member['userName'] ?? 'Unknown'}', style: TextStyle(fontSize: 16)),
+                      );
+                    }).toList(),
+                    onChanged: (value) {
+                      setState(() {
+                        selectedTeamMemberId = value;
+                      });
+                    },
+                  ),
+                  SizedBox(height: 10),
+                  TextField(
+                    controller: TextEditingController(text: taskTitle),
+                    onChanged: (value) => taskTitle = value,
+                    decoration: InputDecoration(
+                      labelText: 'Task Title',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  SizedBox(height: 10),
+                  TextField(
+                    controller: TextEditingController(text: taskDescription),
+                    onChanged: (value) => taskDescription = value,
+                    decoration: InputDecoration(
+                      labelText: 'Task Description',
+                      border: OutlineInputBorder(),
+                    ),
+                    maxLines: 3,
+                  ),
+                  SizedBox(height: 10),
+                  CustomDropdown<String>(
+                    options: ['low', 'medium', 'high'],
+                    displayValue: (priority) => priority,
+                    selectedOption: selectedPriority,
+                    onChanged: (value) {
+                      setState(() {
+                        selectedPriority = value;
+                      });
+                    },
+                    labelText: 'Select Priority',
+                  ),
+                  SizedBox(height: 10),
+                  CustomDropdown<String>(
+                    options: ['open', 'in-progress', 'completed', 'blocked'],
+                    displayValue: (status) => status,
+                    selectedOption: selectedStatus,
+                    onChanged: (value) {
+                      setState(() {
+                        selectedStatus = value;
+                      });
+                    },
+                    labelText: 'Select Status',
+                  ),
+                  SizedBox(height: 15),
+                  TextField(
+                    controller: TextEditingController(
+                      text: dueDate != null
+                          ? DateFormat('dd-MM-yyyy').format(dueDate!)
+                          : 'Select Due Date',
+                    ),
+                    readOnly: true,
+                    onTap: () async {
+                      DateTime? pickedDate = await showDatePicker(
+                        context: context,
+                        initialDate: dueDate ?? DateTime.now(),
+                        firstDate: DateTime(2000),
+                        lastDate: DateTime(2101),
+                      );
+                      if (pickedDate != null) {
+                        setState(() {
+                          dueDate = pickedDate;
+                        });
+                      }
+                    },
+                    decoration: InputDecoration(
+                      labelText: 'Select Due Date',
+                      border: OutlineInputBorder(),
+                      suffixIcon: Icon(Icons.calendar_month),
+                    ),
+                  ),
+                  SizedBox(height: 10),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // Upload icon
+                          PopupMenuButton<ImageSource>(
+                            icon: Icon(Icons.upload, size: 30, color: Colors.blue),
+                            onSelected: (source) async {
+                              final picker = ImagePicker();
+                              final pickedFile = await picker.pickImage(source: source);
+                              if (pickedFile != null) {
+                                setState(() {
+                                  _selectedImage = File(pickedFile.path);
+                                });
+                              }
+                            },
+                            itemBuilder: (BuildContext context) => <PopupMenuEntry<ImageSource>>[
+                              const PopupMenuItem<ImageSource>(
+                                value: ImageSource.gallery,
+                                child: Text('Choose from Gallery'),
+                              ),
+                              const PopupMenuItem<ImageSource>(
+                                value: ImageSource.camera,
+                                child: Text('Take a Picture'),
+                              ),
+                            ],
+                          ),
+                          if (isImageLoading)
+                            SizedBox(
+                              height: 24,
+                              width: 24,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          else if (_selectedImage != null)
+                            InkWell(
+                              onTap: () {
+                                showCustomAlertDialog(
+                                  context,
+                                  title: "Review New Image",
+                                  content: Padding(
+                                    padding: const EdgeInsets.only(top: 60.0),
+                                    child: Image.file(_selectedImage!),
+                                  ),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () {
+                                        Navigator.of(context).pop();
+                                      },
+                                      child: Text('Close'),
+                                    ),
+                                  ],
+                                  titleHeight: 65,
+                                );
+                              },
+                              child: Icon(Icons.image, color: Colors.green, size: 30),
+                            )
+                          else if (currentImageUrl != null)
+                              InkWell(
+                                onTap: () {
+                                  showCustomAlertDialog(
+                                    context,
+                                    title: "Current Image",
+                                    content: Padding(
+                                      padding: const EdgeInsets.only(top: 60.0),
+                                      child: Image.network(currentImageUrl),
+                                    ),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () {
+                                          Navigator.of(context).pop();
+                                        },
+                                        child: Text('Close'),
+                                      ),
+                                    ],
+                                    titleHeight: 65,
+                                  );
+                                },
+                                child: Icon(Icons.image, color: Colors.green, size: 30),
+                              ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+      actions: [
+        StatefulBuilder(
+          builder: (context, localSetState) {
+            return LoadingButton(
+              isLoading: isSubmitting,
+              label: 'Copy',
+              onPressed: () async {
+
+                localSetState(() => isSubmitting = true);
+                await _addTask(_selectedImage);
+                localSetState(() => isSubmitting = false);
+              },
+            );
+          },
+        ),
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text('Cancel'),
+        ),
+      ],
+      titleHeight: 65,
+      isFullScreen: true,
+    );
+  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -2177,9 +2471,8 @@ class _TasksScreenState extends State<TasksScreen> {
                       ),
 
                       IconButton(
-                        icon: Icon(
-                            Icons.filter_alt_outlined, color: Colors.blue, size: 30),
-                        onPressed: _showFilter,
+                        icon: Icon(Icons.date_range, color: Colors.blue, size: 30),
+                        onPressed: _pickDateRange,
                       ),
                       IconButton(
                         icon: Icon(
@@ -2258,7 +2551,7 @@ class _TasksScreenState extends State<TasksScreen> {
 
                             return buildUserCard(
                               userFields: {
-                                'ProjectName': task['projectName'],
+                                'Projectname': task['projectName'],
                                 '': task[''],
                                 'Title': task['taskTitle'],
                                 'Description': shortenedTaskDesc,
@@ -2273,6 +2566,8 @@ class _TasksScreenState extends State<TasksScreen> {
                               showView: task['taskDescription'].toString().trim().isNotEmpty,                              onView: () {
                                 _showFullDescription(task['taskDescription'], context);
                               },
+                              showCopy: true,
+                              onCopy: () => _showEditTaskCopy(task['taskId']),
                               onDelete: () => _confirmDeleteTask(task['taskId']),
                               leadingIcon3: Row(
                                 children: [
@@ -2349,23 +2644,17 @@ class _TasksScreenState extends State<TasksScreen> {
                                   if (canComment && (task['taskStartedAt'] != null && task['taskStartedAt'].toString().trim().isNotEmpty))
                                     IconButton(
                                       icon: Icon(
-                                        isTaskPaused[task['taskId']] == true ? Icons.play_arrow : Icons.pause,
-                                        color: isTaskPaused[task['taskId']] == true ? Colors.green : Colors.red,
+                                        isTaskPaused(task) ? Icons.play_arrow : Icons.pause,
+                                        color: isTaskPaused(task) ? Colors.green : Colors.red,
                                       ),
-                                      tooltip: isTaskPaused[task['taskId']] == true ? 'Resume Task' : 'Pause Task',
-                                      onPressed: () async {
-                                        bool isPaused = isTaskPaused[task['taskId']] ?? false;
-                                        await _updateTaskStatus(
-                                          task['taskId'],
-                                          pause: !isPaused,
-                                          resume: isPaused,
-                                        );
-                                        setState(() {
-                                          isTaskPaused[task['taskId']] = !isPaused;
-                                        });
+                                      onPressed: () {
+                                        if (isTaskPaused(task)) {
+                                          _resumeTask(task['taskId']);
+                                        } else {
+                                          _pauseTask(task['taskId']);
+                                        }
                                       },
                                     ),
-
 
                                   if (canComment)
                                     IconButton(

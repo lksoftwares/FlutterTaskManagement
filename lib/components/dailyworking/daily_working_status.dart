@@ -138,6 +138,7 @@ class _DailyWorkingStatusState extends State<DailyWorkingStatus> {
       endpoint: endpoint,
       tokenRequired: true
     );
+
     if (response['statusCode'] == 200 && response['apiResponse'] != null) {
       setState(() {
         var workingStatusList = response['apiResponse']['workingStatusList'];

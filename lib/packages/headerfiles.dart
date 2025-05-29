@@ -74,3 +74,4 @@ export 'package:lktaskmanagementapp/customwidgets/time_method.dart';
 export 'package:lktaskmanagementapp/customwidgets/loadingbutton.dart';
 export 'package:lktaskmanagementapp/components/internship/internship_screen.dart';
 export 'package:lktaskmanagementapp/components/internship/internship_form.dart';
+export 'package:lktaskmanagementapp/components/branch/branch_screen.dart';

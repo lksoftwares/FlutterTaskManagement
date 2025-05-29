@@ -28,9 +28,13 @@ Widget buildUserCard({
   Function? onEdit,
   Function? onDelete,
   Function? onView,
+  Function? onCopy,
+
   Color? backgroundColor,
   Function? onPlay,
   bool showEdit = false,
+  bool showCopy = false,
+
   bool showDelete = false,
   bool showView = false,
   bool showPlay = false,
@@ -54,6 +58,8 @@ Widget buildUserCard({
       Padding(
         padding: const EdgeInsets.symmetric(vertical: 5.0),
         child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+
           children: [
             Text(
               '$firstKey: $firstValue',
@@ -63,22 +69,29 @@ Widget buildUserCard({
                 color: Colors.black,
               ),
             ),
-            const Spacer(),
-            Padding(
-              padding: const EdgeInsets.only(left: 10.0),
-              child: Text(
-                '$secondKey $secondValue',
-                style: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black,
+            Row(
+              children: [
+                Text(
+                  '$secondKey $secondValue',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black,
+                  ),
                 ),
-              ),
+                if (showCopy)
+                  IconButton(
+                    icon: const Icon(Icons.copy, color: Colors.black87),
+                    onPressed: onCopy as void Function()?,
+                  ),
+
+              ],
             ),
           ],
         ),
       ),
     );
+
 
     for (int i = 2; i < keys.length; i++) {
       String key = keys[i];

@@ -18,6 +18,9 @@ class _TeamMembersScreenState extends State<TeamMembersScreen> {
   int? selectedRoleId;
   int? selectedTeamId;
   bool isLoading = false;
+  bool isSubmitting = false;
+  final GlobalKey<CustomDropdownState<int>> _dropdownKey = GlobalKey<CustomDropdownState<int>>();
+
 
   @override
   void initState() {
@@ -139,6 +142,118 @@ class _TeamMembersScreenState extends State<TeamMembersScreen> {
     }
   }
 
+  Future<void> _addTeam(String teamName, String tmDescription, VoidCallback onTeamAdded) async {
+    final response = await ApiService().request(
+      method: 'post',
+      endpoint: 'teams/create',
+      tokenRequired: true,
+      body: {
+        'teamName': teamName,
+        'tmDescription': tmDescription,
+      },
+    );
+
+    if (response.isNotEmpty && response['statusCode'] == 200) {
+      showToast(
+        msg: response['message'] ?? 'Team added successfully',
+        backgroundColor: Colors.green,
+      );
+      onTeamAdded();
+      Navigator.pop(context);
+    } else {
+      showToast(
+        msg: response['message'] ?? 'Failed to add Team',
+        backgroundColor: Colors.red,
+      );
+    }
+  }
+
+  void _showAddTeamModal(VoidCallback onTeamAdded) {
+    String teamName = '';
+    String tmDescription = '';
+
+    InputDecoration inputDecoration = InputDecoration(
+      labelText: 'Team Name',
+      border: OutlineInputBorder(),
+    );
+
+    InputDecoration descriptionDecoration = InputDecoration(
+      labelText: 'Description',
+      border: OutlineInputBorder(),
+    );
+
+    showCustomAlertDialog(
+      context,
+      title: 'Add Team',
+      content: StatefulBuilder(
+        builder: (context, localSetState) {
+          return Padding(
+            padding: const EdgeInsets.all(15.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(height: 15),
+                TextField(
+                  onChanged: (value) => teamName = value,
+                  decoration: inputDecoration,
+                ),
+                SizedBox(height: 15),
+                TextField(
+                  onChanged: (value) => tmDescription = value,
+                  decoration: descriptionDecoration,
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+      actions: [
+        StatefulBuilder(
+          builder: (context, localSetState) {
+            return ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green,
+              ),
+              onPressed: isSubmitting
+                  ? null
+                  : () async {
+                if (teamName.isEmpty) {
+                  showToast(msg: 'Please fill in both fields');
+                  return;
+                }
+
+                localSetState(() => isSubmitting = true);
+
+                await _addTeam(teamName, tmDescription, onTeamAdded);
+
+                localSetState(() => isSubmitting = false);
+              },
+              child: isSubmitting
+                  ? SizedBox(
+                height: 16,
+                width: 16,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              )
+                  : Text(
+                'Add',
+                style: TextStyle(color: Colors.white),
+              ),
+            );
+          },
+        ),
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text('Cancel'),
+        ),
+      ],
+      titleHeight: 65,
+    );
+  }
+
+
   Future<void> _showAddRoleModal() async {
     setState(() {
       selectedTeamId = null;
@@ -146,7 +261,14 @@ class _TeamMembersScreenState extends State<TeamMembersScreen> {
       selectedRoleId = null;
       rolesList.clear();
     });
-
+    int? localSelectedTeamId;
+    List teams = [];
+    void loadTeams(StateSetter modalSetState) async {
+      await fetchTeams();
+      modalSetState(() {
+        teams = teamsList;
+      });
+    }
     await fetchRoles();
     await fetchTeams();
     await fetchUsers();
@@ -155,24 +277,46 @@ class _TeamMembersScreenState extends State<TeamMembersScreen> {
       context,
       title: 'Add Team Members',
       content: StatefulBuilder(
-        builder: (context, setState) {
+        builder: (context, modalSetState) {
+          if (teams.isEmpty) {
+            loadTeams(modalSetState);
+          }
           return Padding(
             padding: const EdgeInsets.all(15.0),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 SizedBox(height: 20),
+                Row(
+                  children: [
+                    CustomDropdown<int>(
+                      key: _dropdownKey,
+                      options: teamsList.map<int>((team) => team['teamId'] as int).toList(),
+                      selectedOption: selectedTeamId,
+                      displayValue: (teamId) =>
+                      teamsList.firstWhere((team) => team['teamId'] == teamId)['teamName'],
+                      onChanged: (value) {
+                        modalSetState(() {
+                          selectedTeamId = value;
+                        });
+                      },
+                      labelText: 'Select Team',
+                      width: 280,
+                    ),
+                    IconButton(
+                      onPressed: () {
+                        _dropdownKey.currentState?.closeDropdown();
+                        _showAddTeamModal(() async {
+                          await fetchTeams();
+                          WidgetsBinding.instance.addPostFrameCallback((_) {
+                            modalSetState(() {});
+                          });
+                        });
 
-                CustomDropdown<int>(
-                  options: teamsList.map<int>((team) => team['teamId'] as int).toList(),
-                  selectedOption: selectedTeamId,
-                  displayValue: (teamId) => teamsList.firstWhere((team) => team['teamId'] == teamId)['teamName'],
-                  onChanged: (value) {
-                    setState(() {
-                      selectedTeamId = value;
-                    });
-                  },
-                  labelText: 'Select Team',
+                      },
+                      icon: Icon(Icons.add_circle, size: 30, color: Colors.blue),
+                    )
+                  ],
                 ),
                 SizedBox(height: 15),
                 CustomDropdown<int>(
